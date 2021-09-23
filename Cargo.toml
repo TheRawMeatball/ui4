@@ -7,5 +7,8 @@ edition = "2018"
 
 [dependencies]
 bevy = { path = "../bevy" }
-lockfree = "0.5.1"
-bimap = "0.6.1"
+# lockfree = { git = "https://gitlab.com/sals3r0/lockfree.git" } # maybe reenable once it compiles
+bevy-inspector-egui = { git = "https://github.com/jakobhellermann/bevy-inspector-egui/", branch = "bevy-main" }
+
+[patch."https://github.com/bevyengine/bevy"]
+bevy = { path = "../bevy" }
