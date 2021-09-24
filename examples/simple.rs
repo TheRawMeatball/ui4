@@ -1,4 +1,6 @@
+use std::borrow::Borrow;
 use bevy::prelude::*;
+use ui4_2::UiVal;
 use ui4_2::{init_ui, res, Ctx, ObserverExt, Ui4Plugin};
 
 struct UiAssets {
@@ -25,7 +27,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
         .add_plugin(Ui4Plugin)
-        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
+        //.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_startup_system(init_system);
 
     app.world.spawn().insert_bundle(UiCameraBundle::default());
@@ -44,29 +46,24 @@ fn root(ctx: &mut Ctx) {
             flex_direction: FlexDirection::ColumnReverse,
             ..Default::default()
         })
-        .insert_dynamic(res::<UiAssets>().map(|assets| assets.background.clone()))
-        .static_child(|ctx| {
-            ctx.insert_bundle(TextBundle::default())
-                .insert(Style {
-                    align_self: AlignSelf::FlexStart,
-                    ..Default::default()
-                })
-                .insert_dynamic(res::<UiAssets>().map(|assets| {
-                    Text::with_section("Hello!", assets.text_style.clone(), Default::default())
-                }));
-        })
-        .static_child(|ctx| {
-            ctx.insert_bundle(TextBundle::default())
-                .insert(Style {
-                    align_self: AlignSelf::FlexStart,
-                    ..Default::default()
-                })
-                .insert_dynamic(res::<UiAssets>().map(|assets| {
-                    Text::with_section(
-                        "How are you doing!",
-                        assets.text_style.clone(),
-                        Default::default(),
-                    )
-                }));
-        });
+        .insert(res::<UiAssets>().map(|assets| assets.background.clone()))
+        .static_child(text("Hello!".into()))
+        .static_child(text("How are you doing?".into()));
+}
+
+fn text<M>(text: impl UiVal<String, M>) -> impl Fn(&mut Ctx) {
+    move |ctx| {
+        ctx.insert_bundle(TextBundle::default())
+            .insert(Style {
+                align_self: AlignSelf::FlexStart,
+                ..Default::default()
+            })
+            .insert(
+                res::<UiAssets>()
+                    .and(text.clone().as_observable())
+                    .map(move |(assets, text)| {
+                        Text::with_section(text, assets.text_style.clone(), Default::default())
+                    }),
+            );
+    }
 }

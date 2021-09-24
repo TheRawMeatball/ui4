@@ -1,3 +1,6 @@
+#![feature(associated_type_bounds)]
+
+use std::borrow::Borrow;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::sync::atomic::AtomicBool;
@@ -76,30 +79,13 @@ pub struct Ctx<'a> {
 }
 
 impl Ctx<'_> {
-    pub fn insert(&mut self, item: impl Component) -> &mut Self {
-        self.current_entity().insert(item);
+    pub fn insert<T: Component, M>(&mut self, item: impl UiVal<T, M>) -> &mut Self {
+        item.insert_ui_val(self);
         self
     }
 
     pub fn insert_bundle(&mut self, bundle: impl Bundle) -> &mut Self {
         self.current_entity().insert_bundle(bundle);
-        self
-    }
-
-    pub fn insert_dynamic<O, R>(&mut self, item: O) -> &mut Self
-    where
-        for<'a> O: Observable<'a, Return = R>,
-        R: Component,
-    {
-        let entity = self.current_entity;
-        let observer = Arc::new(item);
-        let observer_clone = observer.clone();
-        let (uf, marker) = UpdateFunc::new::<R, _>(move |world| {
-            let val = observer_clone.get(world);
-            world.entity_mut(entity).insert(val);
-        });
-        self.current_entity().insert(marker);
-        observer.register_self(self.world, uf);
         self
     }
 
@@ -120,7 +106,7 @@ impl Ctx<'_> {
 
     pub fn optional_child<O>(&mut self, f: impl Fn(&mut Ctx) + Send + Sync + 'static, o: O)
     where
-        for<'a> O: Observable<'a, Return = bool>,
+        for<'s, 'w> O: Observable<'s, 'w, Return = bool>,
     {
         let observer = Arc::new(o);
         let observer_clone = observer.clone();
@@ -207,22 +193,23 @@ struct ManagedChildrenTracker {
     children: Vec<ChildNodeGroupKind>,
 }
 
-pub trait Observable<'a>: Send + Sync + 'static {
+pub trait Observable<'s, 'w>: Clone + Send + Sync + 'static {
     type Return;
 
-    fn get(&self, world: &'a World) -> Self::Return;
+    fn get(&'s self, world: &'w World) -> Self::Return;
     fn register_self(&self, world: &mut World, uf: UpdateFunc);
 }
 
+#[derive(Clone)]
 pub struct Map<O, F>(O, F);
-impl<'a, O, F, R> Observable<'a> for Map<O, F>
+impl<'s, 'w, O, F, R> Observable<'s, 'w> for Map<O, F>
 where
-    O: Observable<'a>,
-    F: Fn(O::Return) -> R + Send + Sync + 'static,
+    O: Observable<'s, 'w>,
+    F: Fn(O::Return) -> R + Clone + Send + Sync + 'static,
 {
     type Return = R;
 
-    fn get(&self, world: &'a World) -> Self::Return {
+    fn get(&'s self, world: &'w World) -> Self::Return {
         (self.1)(self.0.get(world))
     }
 
@@ -231,15 +218,16 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct And<O1, O2>(O1, O2);
-impl<'a, O1, O2> Observable<'a> for And<O1, O2>
+impl<'s, 'w, O1, O2> Observable<'s, 'w> for And<O1, O2>
 where
-    O1: Observable<'a>,
-    O2: Observable<'a>,
+    O1: Observable<'s, 'w>,
+    O2: Observable<'s, 'w>,
 {
     type Return = (O1::Return, O2::Return);
 
-    fn get(&self, world: &'a World) -> Self::Return {
+    fn get(&'s self, world: &'w World) -> Self::Return {
         (self.0.get(world), self.1.get(world))
     }
 
@@ -251,10 +239,16 @@ where
 
 pub struct ResObserver<R>(PhantomData<R>);
 
-impl<'a, R: Send + Sync + 'static> Observable<'a> for ResObserver<R> {
-    type Return = &'a R;
+impl<R> Clone for ResObserver<R> {
+    fn clone(&self) -> Self {
+        Self(PhantomData)
+    }
+}
 
-    fn get(&self, world: &'a World) -> Self::Return {
+impl<'s, 'w, R: Send + Sync + 'static> Observable<'s, 'w> for ResObserver<R> {
+    type Return = &'w R;
+
+    fn get(&'s self, world: &'w World) -> Self::Return {
         world.get_resource::<R>().unwrap()
     }
 
@@ -270,29 +264,29 @@ impl<'a, R: Send + Sync + 'static> Observable<'a> for ResObserver<R> {
     }
 }
 
-pub trait ObserverExt<'a>: for<'x> Observable<'x> + Sized {
+pub trait ObserverExt: for<'s, 'w> Observable<'s, 'w> + Sized {
     fn map<F, R>(self, f: F) -> Map<Self, F>
     where
-        F: for<'x> Fn(<Self as Observable<'x>>::Return) -> R + Send + Sync + 'static;
+        F: for<'s, 'w> Fn(<Self as Observable<'s, 'w>>::Return) -> R + Send + Sync + 'static;
     fn and<O>(self, o: O) -> And<Self, O>
     where
-        O: Observable<'a>;
+        O: for<'s, 'w> Observable<'s, 'w>;
 }
 
-impl<'a, T> ObserverExt<'a> for T
+impl<T> ObserverExt for T
 where
-    T: for<'x> Observable<'x> + Sized,
+    T: for<'s, 'w> Observable<'s, 'w> + Sized,
 {
     fn map<F, R>(self, f: F) -> Map<Self, F>
     where
-        F: for<'x> Fn(<T as Observable<'x>>::Return) -> R + Send + Sync + 'static,
+        F: for<'s, 'w> Fn(<T as Observable<'s, 'w>>::Return) -> R + Send + Sync + 'static,
     {
         Map(self, f)
     }
 
     fn and<O>(self, o: O) -> And<Self, O>
     where
-        O: Observable<'a>,
+        O: for<'s, 'w> Observable<'s, 'w>,
     {
         And(self, o)
     }
@@ -357,5 +351,61 @@ impl PartialOrd for UpdateFunc {
 impl Ord for UpdateFunc {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         Arc::as_ptr(&self.0).cmp(&Arc::as_ptr(&other.0))
+    }
+}
+
+pub trait UiVal<T, M>: Clone + Send + Sync + 'static {
+    type Observable: for<'s, 'w> Observable<'s, 'w, Return = T>;
+    fn insert_ui_val(self, ctx: &mut Ctx);
+    fn as_observable(self) -> Self::Observable;
+}
+
+pub struct Static;
+pub struct Dynamic;
+
+#[derive(Clone)]
+pub struct StaticObserver<T>(T);
+
+impl<'s, 'w, T: Component + Clone> Observable<'s, 'w> for StaticObserver<T> {
+    type Return = T;
+
+    fn get(&'s self, _: &'w bevy::prelude::World) -> <Self as Observable<'s, 'w>>::Return {
+        self.0.clone()
+    }
+    fn register_self(&self, _: &mut bevy::prelude::World, _: UpdateFunc) {}
+}
+
+impl<T: Component + Clone> UiVal<T, Static> for T {
+    type Observable = StaticObserver<T>;
+
+    fn insert_ui_val(self, ctx: &mut Ctx<'_>) {
+        ctx.current_entity().insert(self);
+    }
+
+    fn as_observable(self) -> Self::Observable {
+        StaticObserver(self)
+    }
+}
+
+impl<T: Component, O> UiVal<T, Dynamic> for O
+where
+    for<'s, 'w> O: Observable<'s, 'w, Return = T>,
+{
+    type Observable = O;
+
+    fn insert_ui_val(self, ctx: &mut Ctx<'_>) {
+        let entity = ctx.current_entity;
+        let observer = Arc::new(self);
+        let observer_clone = observer.clone();
+        let (uf, marker) = UpdateFunc::new::<T, _>(move |world| {
+            let val = observer_clone.get(world);
+            world.entity_mut(entity).insert(val);
+        });
+        ctx.current_entity().insert(marker);
+        observer.register_self(ctx.world, uf);
+    }
+
+    fn as_observable(self) -> Self::Observable {
+        self
     }
 }
