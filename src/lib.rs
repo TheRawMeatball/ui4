@@ -180,7 +180,7 @@ impl Ctx<'_> {
     #[rustfmt::skip]
     pub fn if_child<O>(&mut self, o: O, t: impl Fn(&mut Ctx) + Send + Sync + 'static)
     where
-        for<'w, 's> O: Observable<Return<'w, 's> = bool>,
+        for<'w, 's> O: Observer<Return<'w, 's> = bool>,
     {
         let observer = Arc::new(o);
         let observer_clone = observer.clone();
@@ -242,7 +242,7 @@ impl Ctx<'_> {
         t: impl Fn(&mut Ctx) + Send + Sync + 'static,
         f: impl Fn(&mut Ctx) + Send + Sync + 'static,
     ) where
-        for<'w, 's> O: Observable<Return<'w, 's> = bool>,
+        for<'w, 's> O: Observer<Return<'w, 's> = bool>,
     {
         let observer = Arc::new(o);
         let observer_clone = observer.clone();
@@ -339,7 +339,7 @@ struct ManagedChildrenTracker {
     children: Vec<ChildNodeGroupKind>,
 }
 
-pub trait Observable: Clone + Send + Sync + 'static {
+pub trait Observer: Clone + Send + Sync + 'static {
     type Return<'w, 's>;
 
     fn get<'w, 's>(&'s self, world: &'w World) -> Self::Return<'w, 's>;
@@ -348,9 +348,9 @@ pub trait Observable: Clone + Send + Sync + 'static {
 
 #[derive(Clone)]
 pub struct Map<O, F>(O, F);
-impl<O, F> Observable for Map<O, F>
+impl<O, F> Observer for Map<O, F>
 where
-    O: Observable,
+    O: Observer,
     F: for<'w, 's> Fn<(O::Return<'w, 's>,)> + Clone + Send + Sync + 'static,
 {
     type Return<'w, 's> = <F as FnOnce<(O::Return<'w, 's>,)>>::Output;
@@ -366,7 +366,7 @@ where
 
 #[derive(Clone)]
 pub struct And<O1, O2>(O1, O2);
-impl<O1: Observable, O2: Observable> Observable for And<O1, O2> {
+impl<O1: Observer, O2: Observer> Observer for And<O1, O2> {
     type Return<'w, 's> = (O1::Return<'w, 's>, O2::Return<'w, 's>);
 
     fn get<'w, 's>(&'s self, world: &'w World) -> Self::Return<'w, 's> {
@@ -387,7 +387,7 @@ impl<R> Clone for ResObserver<R> {
     }
 }
 
-impl<R: Send + Sync + 'static> Observable for ResObserver<R> {
+impl<R: Send + Sync + 'static> Observer for ResObserver<R> {
     type Return<'w, 's> = &'w R;
 
     fn get<'w, 's>(&'s self, world: &'w World) -> Self::Return<'w, 's> {
@@ -406,16 +406,16 @@ impl<R: Send + Sync + 'static> Observable for ResObserver<R> {
     }
 }
 
-pub trait ObserverExt: Observable + Sized {
+pub trait ObserverExt: Observer + Sized {
     fn map<F>(self, f: F) -> Map<Self, F>
     where
-        F: for<'w, 's> Fn<(<Self as Observable>::Return<'w, 's>,)> + Send + Sync + 'static;
+        F: for<'w, 's> Fn<(<Self as Observer>::Return<'w, 's>,)> + Send + Sync + 'static;
     fn and<O>(self, o: O) -> And<Self, O>
     where
-        O: Observable;
+        O: Observer;
 }
 
-impl<T: Observable> ObserverExt for T {
+impl<T: Observer> ObserverExt for T {
     fn map<F>(self, f: F) -> Map<Self, F> {
         Map(self, f)
     }
@@ -511,7 +511,7 @@ pub struct Dynamic;
 #[derive(Clone)]
 pub struct StaticObserver<T>(T);
 
-impl<T: Clone + Send + Sync + 'static> Observable for StaticObserver<T> {
+impl<T: Clone + Send + Sync + 'static> Observer for StaticObserver<T> {
     type Return<'w, 's> = &'s T;
 
     fn get<'w, 's>(&'s self, _: &'w bevy::prelude::World) -> Self::Return<'w, 's> {
@@ -529,7 +529,7 @@ impl<T: Component> Insertable<T, Static> for T {
 #[rustfmt::skip]
 impl<T: Component, O> Insertable<T, Dynamic> for O
 where
-    for<'w, 's> O: Observable<Return<'w, 's> = T>,
+    for<'w, 's> O: Observer<Return<'w, 's> = T>,
 {
     #[track_caller]
     fn insert_ui_val(self, ctx: &mut Ctx<'_>) {
@@ -547,14 +547,14 @@ where
 }
 
 #[rustfmt::skip]
-pub trait IntoObservable<T, M>: Clone + Send + Sync + 'static
+pub trait IntoObserver<T, M>: Clone + Send + Sync + 'static
 {
-    type Observer: for<'w, 's> Observable<Return<'w, 's> = Self::ObserverReturn<'w, 's>>;
+    type Observer: for<'w, 's> Observer<Return<'w, 's> = Self::ObserverReturn<'w, 's>>;
     type ObserverReturn<'w, 's>: Borrow<T>;
     fn into_observable(self) -> Self::Observer;
 }
 
-impl<T: Clone + Send + Sync + 'static> IntoObservable<T, Static> for T {
+impl<T: Clone + Send + Sync + 'static> IntoObserver<T, Static> for T {
     type Observer = StaticObserver<T>;
     type ObserverReturn<'w, 's> = &'s T;
 
@@ -564,7 +564,7 @@ impl<T: Clone + Send + Sync + 'static> IntoObservable<T, Static> for T {
 }
 
 #[rustfmt::skip]
-impl<T, O: for<'w, 's> Observable<Return<'w, 's> = T>> IntoObservable<T, Dynamic> for O {
+impl<T, O: for<'w, 's> Observer<Return<'w, 's> = T>> IntoObserver<T, Dynamic> for O {
     type Observer = Self;
     type ObserverReturn<'w, 's> = O::Return<'w, 's>;
 
@@ -574,7 +574,7 @@ impl<T, O: for<'w, 's> Observable<Return<'w, 's> = T>> IntoObservable<T, Dynamic
 
 }
 
-impl<T: Component> Observable for ComponentObserver<T> {
+impl<T: Component> Observer for ComponentObserver<T> {
     type Return<'w, 's> = &'w T;
 
     fn get<'w, 's>(&'s self, world: &'w World) -> Self::Return<'w, 's> {

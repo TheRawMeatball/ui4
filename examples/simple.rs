@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::borrow::Borrow;
 use ui4::{init_ui, res, Ctx, ObserverExt, Ui4Plugin};
-use ui4::{ButtonFunc, IntoObservable};
+use ui4::{ButtonFunc, IntoObserver};
 
 struct UiAssets {
     background: Handle<ColorMaterial>,
@@ -92,7 +92,7 @@ fn root(ctx: &mut Ctx) {
     ));
 }
 
-fn text<O: IntoObservable<String, M>, M>(text: O) -> impl Fn(&mut Ctx) {
+fn text<O: IntoObserver<String, M>, M>(text: O) -> impl Fn(&mut Ctx) {
     move |ctx: &mut Ctx| {
         ctx.with_bundle(TextBundle::default())
             .with(Style {
@@ -107,7 +107,7 @@ fn text<O: IntoObservable<String, M>, M>(text: O) -> impl Fn(&mut Ctx) {
     }
 }
 
-fn button<O: IntoObservable<String, M>, M: 'static>(
+fn button<O: IntoObserver<String, M>, M: 'static>(
     t: O,
     button_func: ButtonFunc,
 ) -> impl Fn(&mut Ctx) {
