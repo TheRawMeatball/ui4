@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use std::borrow::Borrow;
-use ui4::{init_ui, res, Ctx, ObserverExt, Ui4Plugin};
+use ui4::{init_ui, res, Ctx, Insertable, ObserverExt, Ui4Plugin};
 use ui4::{ButtonFunc, IntoObserver};
 
 struct UiAssets {
