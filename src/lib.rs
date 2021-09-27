@@ -189,10 +189,10 @@ impl Ctx<'_> {
 
         let uf = o.register_self(self.world, |mut observer, world| {
             let (uf, marker) = UpdateFunc::new::<ChildNodeUpdateFuncMarker, _>(move |world| {
-                let new_value = match observer.get(world) {
-                    Some(b) => b,
-                    _ => return
-                };
+                let (new_value, changed) = observer.get(world);
+                if !changed {
+                    return;
+                }
                 let list = get_marker_list(world.entity_mut(parent));
                 let index = list[..group_index]
                     .iter()
@@ -257,10 +257,10 @@ impl Ctx<'_> {
 
         let uf = o.register_self(self.world, |mut observer, world| {
             let (uf, marker) = UpdateFunc::new::<ChildNodeUpdateFuncMarker, _>(move |world| {
-                let new_value = match observer.get(world) {
-                    Some(b) => b,
-                    _ => return
-                };
+                let (new_value, changed) = observer.get(world);
+                if !changed {
+                    return;
+                }
                 let list = get_marker_list(world.entity_mut(parent));
                 let index = list[..group_index]
                     .iter()
@@ -362,7 +362,7 @@ pub trait UninitObserver: Clone + Send + Sync + 'static {
 pub trait Observer: Send + Sync + 'static {
     type Return<'w, 's>;
 
-    fn get<'w, 's>(&'s mut self, world: &'w World) -> Option<Self::Return<'w, 's>>;
+    fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool);
 }
 
 #[derive(Clone)]
@@ -374,8 +374,9 @@ where
 {
     type Return<'w, 's> = <F as FnOnce<(O::Return<'w, 's>,)>>::Output;
 
-    fn get<'w, 's>(&'s mut self, world: &'w World) -> Option<Self::Return<'w, 's>> {
-        Some((self.1)(self.0.get(world)?))
+    fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
+        let (val, change) = self.0.get(world);
+        ((self.1)(val), change)
     }
 }
 impl<O, MF> UninitObserver for Map<O, MF>
@@ -401,8 +402,10 @@ pub struct And<O1, O2>(O1, O2);
 impl<O1: Observer, O2: Observer> Observer for And<O1, O2> {
     type Return<'w, 's> = (O1::Return<'w, 's>, O2::Return<'w, 's>);
 
-    fn get<'w, 's>(&'s mut self, world: &'w World) -> Option<Self::Return<'w, 's>> {
-        Some((self.0.get(world)?, self.1.get(world)?))
+    fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
+        let (v0, c0) = self.0.get(world);
+        let (v1, c1) = self.1.get(world);
+        ((v0, v1), c0 || c1)
     }
 }
 
@@ -421,6 +424,53 @@ impl<O1: UninitObserver, O2: UninitObserver> UninitObserver for And<O1, O2> {
     }
 }
 
+#[derive(Clone)]
+struct DedupTemplate<O>(O);
+
+struct Dedup<O: Observer>(Option<O::Return<'static, 'static>>, O);
+
+#[rustfmt::skip]
+impl<UO, O, T> UninitObserver for DedupTemplate<UO>
+where
+    UO: UninitObserver<Observer = O>,
+    O: for<'w, 's> Observer<Return<'w, 's> = T>,
+    T: PartialEq + Send + Sync + 'static,
+{
+    type Observer = Dedup<O>;
+
+    fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
+        self,
+        world: &mut World,
+        uf: F,
+    ) -> UpdateFunc {
+        self.0
+            .register_self(world, |obs, world| (uf)(Dedup(None, obs), world))
+    }
+}
+
+#[rustfmt::skip]
+impl<O, T> Observer for Dedup<O>
+where
+    O: for<'w, 's> Observer<Return<'w, 's> = T>,
+    T: PartialEq + Send + Sync + 'static,
+{
+    type Return<'w, 's> = &'s T;
+
+    fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
+        let (maybe_new, changed) = self.1.get(world);
+        if self.0.is_none() {
+            self.0 = Some(maybe_new);
+            return (self.0.as_ref().unwrap(), true);
+        }
+        if !changed || self.0.as_ref() == Some(&maybe_new) {
+            (self.0.as_ref().unwrap(), false)
+        } else {
+            self.0 = Some(maybe_new);
+            (self.0.as_ref().unwrap(), true)
+        }
+    }
+}
+
 pub struct ResObserverTemplate<R>(PhantomData<R>);
 
 impl<R> Clone for ResObserverTemplate<R> {
@@ -433,8 +483,9 @@ pub struct ResObserver<R>(PhantomData<R>);
 impl<R: Send + Sync + 'static> Observer for ResObserver<R> {
     type Return<'w, 's> = &'w R;
 
-    fn get<'w, 's>(&'s mut self, world: &'w World) -> Option<Self::Return<'w, 's>> {
-        world.get_resource::<R>()
+    fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
+        // TODO: keep track of ticks in the observer & use it
+        (world.get_resource::<R>().unwrap(), true)
     }
 }
 impl<R: Send + Sync + 'static> UninitObserver for ResObserverTemplate<R> {
@@ -568,8 +619,8 @@ pub struct StaticObserver<T>(T);
 impl<T: Clone + Send + Sync + 'static> Observer for StaticObserver<T> {
     type Return<'w, 's> = &'s T;
 
-    fn get<'w, 's>(&'s mut self, _: &'w bevy::prelude::World) -> Option<Self::Return<'w, 's>> {
-        Some(&self.0)
+    fn get<'w, 's>(&'s mut self, _: &'w bevy::prelude::World) -> (Self::Return<'w, 's>, bool) {
+        (&self.0, false)
     }
 }
 
@@ -602,10 +653,10 @@ where
         let entity = ctx.current_entity;
         let uf = self.register_self(ctx.world, |mut observer, world| {
             let (uf, marker) = UpdateFunc::new::<T, _>(move |world| {
-                let val = match observer.get(world) {
-                    Some(v) => v,
-                    _ => return
-                };
+                let (val, changed) = observer.get(world);
+                if !changed {
+                    return;
+                }
                 world.entity_mut(entity).insert(val);
             });
             world.entity_mut(entity).insert(marker);
@@ -649,8 +700,9 @@ impl<T, O: for<'w, 's> Observer<Return<'w, 's> = T>, UO: UninitObserver<Observer
 impl<T: Component> Observer for ComponentObserver<T> {
     type Return<'w, 's> = &'w T;
 
-    fn get<'w, 's>(&'s mut self, world: &'w World) -> Option<Self::Return<'w, 's>> {
-        world.get::<T>(self.0)
+    fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
+        // TODO: use change detection
+        (world.get::<T>(self.0).unwrap(), true)
     }
 }
 
@@ -686,8 +738,8 @@ impl<T: Send + Sync + 'static> Observer for TrackedVecObserver<T>
 {
     type Return<'w, 's> = crossbeam_channel::TryIter<'s, Diff<T>>;
 
-    fn get<'w, 's>(&'s mut self, _: &'w World) -> Option<Self::Return<'w, 's>> {
-        Some(self.0.try_iter())
+    fn get<'w, 's>(&'s mut self, _: &'w World) -> (Self::Return<'w, 's>, bool) {
+        (self.0.try_iter(), true)
     }
 
 }

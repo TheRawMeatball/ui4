@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use std::borrow::Borrow;
-use ui4::{init_ui, res, Ctx, Insertable, ObserverExt, Ui4Plugin};
+use ui4::{init_ui, res, Ctx, ObserverExt, Ui4Plugin};
 use ui4::{ButtonFunc, IntoObserver};
 
 struct UiAssets {
@@ -29,7 +29,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
         .add_plugin(Ui4Plugin)
-        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
+        // .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_startup_system(init_system)
         .add_startup_system(
             (|world: &mut World| init_ui(world, root))
