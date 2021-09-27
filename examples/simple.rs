@@ -61,21 +61,21 @@ fn root(ctx: &mut Ctx) {
         .with(res().map(|assets: &UiAssets| assets.background.clone()))
         .with(State(0))
         .children(|ctx: &mut McCtx| {
-            ctx.ctx(text("Hello!".to_string()))
-                .ctx(text("How are you doing?".to_string()))
-                .ctx(button(
+            ctx.c(text("Hello!".to_string()))
+                .c(text("How are you doing?".to_string()))
+                .c(button(
                     "Increment".to_string(),
                     ButtonFunc::new(move |world| {
                         world.get_mut::<State>(this).unwrap().0 += 1;
                     }),
                 ))
-                .ctx(button(
+                .c(button(
                     "Decrement".to_string(),
                     ButtonFunc::new(move |world| {
                         world.get_mut::<State>(this).unwrap().0 -= 1;
                     }),
                 ))
-                .ctx(text(
+                .c(text(
                     state.map(|s: &State| format!("The number is {}", s.0)),
                 ));
         })
@@ -87,7 +87,7 @@ fn root(ctx: &mut Ctx) {
                     let b = *b;
                     move |ctx: &mut McCtx| {
                         if b {
-                            ctx.ctx(text("Now you see me".to_string()));
+                            ctx.c(text("Now you see me".to_string()));
                         }
                     }
                 }),

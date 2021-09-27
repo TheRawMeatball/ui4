@@ -145,7 +145,7 @@ pub struct McCtx<'a> {
 }
 impl McCtx<'_> {
     // TODO: bikeshed name
-    pub fn ctx(&mut self, f: impl FnOnce(&mut Ctx)) -> &mut Self {
+    pub fn c(&mut self, f: impl FnOnce(&mut Ctx)) -> &mut Self {
         let new_child = (self.get_new_child)(self.world);
         f(&mut Ctx {
             current_entity: new_child,
@@ -179,7 +179,7 @@ impl Ctx<'_> {
 
     pub fn child(&mut self, f: impl FnOnce(&mut Ctx)) -> &mut Self {
         self.children(|ctx: &mut McCtx| {
-            ctx.ctx(f);
+            ctx.c(f);
         });
         self
     }
