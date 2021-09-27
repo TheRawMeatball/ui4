@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use bevy::ecs::world::EntityMut;
 use bevy::ecs::{component::Component, prelude::*};
-use bevy::prelude::{warn, BuildWorldChildren, DespawnRecursiveExt, Plugin};
+use bevy::prelude::{BuildWorldChildren, DespawnRecursiveExt, Plugin};
 use bevy::ui::Interaction;
 use bevy::utils::{HashMap, HashSet};
 use crossbeam_channel::{Receiver, Sender};
@@ -56,7 +56,7 @@ pub struct ReleaseFunc(pub ButtonFunc);
 #[derive(Component)]
 pub struct UnhoverFunc(pub ButtonFunc);
 /// Needed for *Func components to work
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct FuncScratch(Interaction);
 
 struct ButtonSystemState {
@@ -150,10 +150,7 @@ fn primary_ui_system(world: &mut World) {
                         Interaction::None => match old {
                             Interaction::Clicked => dc.map(|x| &x.0).cloned(),
                             Interaction::Hovered => dh.map(|x| &x.0).cloned(),
-                            Interaction::None => {
-                                warn!("Ui element reported transitioning from none to none");
-                                None
-                            }
+                            Interaction::None => None,
                         },
                     }
                 },
@@ -271,7 +268,7 @@ struct ManagedChildrenTracker {
     children: Vec<ChildNodeGroupKind>,
 }
 
-pub trait UninitObserver: Clone + Send + Sync + 'static {
+pub trait UninitObserver: Send + Sync + 'static {
     type Observer: Observer;
 
     fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
@@ -292,7 +289,7 @@ pub struct Map<O, F>(O, F);
 impl<O, F> Observer for Map<O, F>
 where
     O: Observer,
-    F: for<'w, 's> Fn<(O::Return<'w, 's>,)> + Clone + Send + Sync + 'static,
+    F: for<'w, 's> Fn<(O::Return<'w, 's>,)> + Send + Sync + 'static,
 {
     type Return<'w, 's> = <F as FnOnce<(O::Return<'w, 's>,)>>::Output;
 
@@ -305,7 +302,7 @@ impl<O, MF> UninitObserver for Map<O, MF>
 where
     O: UninitObserver,
     MF: for<'w, 's> Fn<(<<O as UninitObserver>::Observer as Observer>::Return<'w, 's>,)>,
-    MF: Clone + Send + Sync + 'static,
+    MF: Send + Sync + 'static,
 {
     type Observer = Map<O::Observer, MF>;
 
@@ -543,7 +540,7 @@ pub struct Dynamic;
 #[derive(Clone)]
 pub struct StaticObserver<T>(T);
 
-impl<T: Clone + Send + Sync + 'static> Observer for StaticObserver<T> {
+impl<T: Send + Sync + 'static> Observer for StaticObserver<T> {
     type Return<'w, 's> = &'s T;
 
     fn get<'w, 's>(&'s mut self, _: &'w bevy::prelude::World) -> (Self::Return<'w, 's>, bool) {
@@ -551,7 +548,7 @@ impl<T: Clone + Send + Sync + 'static> Observer for StaticObserver<T> {
     }
 }
 
-impl<T: Clone + Send + Sync + 'static> UninitObserver for StaticObserver<T> {
+impl<T: Send + Sync + 'static> UninitObserver for StaticObserver<T> {
     type Observer = Self;
 
     fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
@@ -684,7 +681,7 @@ where
 }
 
 #[rustfmt::skip]
-pub trait IntoObserver<T, M>: Clone + Send + Sync + 'static
+pub trait IntoObserver<T, M>: Send + Sync + 'static
 {
     type UninitObserver: UninitObserver<Observer = Self::Observer>;
     type Observer: for<'w, 's> Observer<Return<'w, 's> = Self::ObserverReturn<'w, 's>>;
@@ -692,7 +689,7 @@ pub trait IntoObserver<T, M>: Clone + Send + Sync + 'static
     fn into_observable(self) -> Self::UninitObserver;
 }
 
-impl<T: Clone + Send + Sync + 'static> IntoObserver<T, Static> for T {
+impl<T: Send + Sync + 'static> IntoObserver<T, Static> for T {
     type UninitObserver = StaticObserver<T>;
     type Observer = StaticObserver<T>;
     type ObserverReturn<'w, 's> = &'s T;
@@ -759,8 +756,8 @@ pub struct TrackedVecObserver<T, O> {
 #[rustfmt::skip]
 impl<T, O> Observer for TrackedVecObserver<T, O>
 where
-T: Clone + Send + Sync + 'static,
-O: for<'w, 's> Observer<Return<'w, 's> = &'w TrackedVec<T>>,
+    T: Clone + Send + Sync + 'static,
+    O: for<'w, 's> Observer<Return<'w, 's> = &'w TrackedVec<T>>,
 {
     type Return<'w, 's> = crossbeam_channel::TryIter<'s, Diff<T>>;
     

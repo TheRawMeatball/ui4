@@ -1,11 +1,15 @@
 use bevy::prelude::*;
 use std::borrow::Borrow;
-use ui4::{init_ui, res, ClickFunc, Ctx, McCtx, ObserverExt, Ui4Plugin};
+use ui4::{
+    init_ui, res, ClickFunc, Ctx, FuncScratch, HoverFunc, McCtx, ObserverExt, Ui4Plugin,
+    UnhoverFunc,
+};
 use ui4::{ButtonFunc, IntoObserver};
 
 struct UiAssets {
     background: Handle<ColorMaterial>,
     button: Handle<ColorMaterial>,
+    button_hover: Handle<ColorMaterial>,
     text_style: TextStyle,
 }
 
@@ -16,7 +20,8 @@ fn init_system(
 ) {
     commands.insert_resource(UiAssets {
         background: assets.add(Color::BLACK.into()),
-        button: assets.add(Color::GRAY.into()),
+        button: assets.add(Color::DARK_GRAY.into()),
+        button_hover: assets.add(Color::GRAY.into()),
         text_style: TextStyle {
             color: Color::WHITE,
             font: asset_server.load("FiraMono-Medium.ttf"),
@@ -88,14 +93,14 @@ fn root(ctx: &mut Ctx) {
         );
 }
 
-fn text<O: IntoObserver<String, M>, M>(text: O) -> impl Fn(&mut Ctx) {
+fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(&mut Ctx) {
     move |ctx: &mut Ctx| {
         ctx.with_bundle(TextBundle::default())
             .with(Style {
                 align_self: AlignSelf::FlexStart,
                 ..Default::default()
             })
-            .with(res().and(text.clone().into_observable()).map(
+            .with(res().and(text.into_observable()).map(
                 move |(assets, text): (&UiAssets, O::ObserverReturn<'_, '_>)| {
                     Text::with_section(text.borrow(), assets.text_style.clone(), Default::default())
                 },
@@ -107,7 +112,12 @@ fn button<O: IntoObserver<String, M>, M: 'static>(
     t: O,
     on_click: impl Fn(&mut World) + Send + Sync + 'static,
 ) -> impl FnOnce(&mut Ctx) {
+    #[derive(Component)]
+    struct ButtonHoverState(bool);
+
     move |ctx: &mut Ctx| {
+        let this = ctx.this();
+        let component = ctx.component();
         ctx.with_bundle(ButtonBundle::default())
             .with(Style {
                 size: Size::new(Val::Px(150.0), Val::Px(65.0)),
@@ -115,8 +125,32 @@ fn button<O: IntoObserver<String, M>, M: 'static>(
                 align_items: AlignItems::Center,
                 ..Default::default()
             })
-            .with(res().map(|assets: &UiAssets| assets.button.clone()))
+            .with(ButtonHoverState(false))
+            .with(res().and(component).map(
+                |(assets, hover_state): (&UiAssets, &ButtonHoverState)| {
+                    if hover_state.0 {
+                        assets.button_hover.clone()
+                    } else {
+                        assets.button.clone()
+                    }
+                },
+            ))
+            .with(FuncScratch::default())
             .with(ClickFunc(ButtonFunc::new(on_click)))
-            .child(text(t.clone()));
+            .with(HoverFunc(ButtonFunc::new(move |world| {
+                world
+                    .entity_mut(this)
+                    .get_mut::<ButtonHoverState>()
+                    .unwrap()
+                    .0 = true;
+            })))
+            .with(UnhoverFunc(ButtonFunc::new(move |world| {
+                world
+                    .entity_mut(this)
+                    .get_mut::<ButtonHoverState>()
+                    .unwrap()
+                    .0 = false;
+            })))
+            .child(text(t));
     }
 }
