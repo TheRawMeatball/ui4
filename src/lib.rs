@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use bevy::ecs::world::EntityMut;
 use bevy::ecs::{component::Component, prelude::*};
-use bevy::prelude::{BuildWorldChildren, DespawnRecursiveExt, Plugin};
+use bevy::prelude::{warn, BuildWorldChildren, DespawnRecursiveExt, Plugin};
 use bevy::ui::Interaction;
 use bevy::utils::{HashMap, HashSet};
 use crossbeam_channel::{Receiver, Sender};
@@ -36,7 +36,7 @@ impl Plugin for Ui4Plugin {
     }
 }
 
-#[derive(Component, Clone)]
+#[derive(Clone)]
 pub struct ButtonFunc(Arc<dyn Fn(&mut World) + Send + Sync>);
 impl ButtonFunc {
     pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
@@ -47,8 +47,38 @@ impl ButtonFunc {
     }
 }
 
+#[derive(Component)]
+pub struct ClickFunc(pub ButtonFunc);
+#[derive(Component)]
+pub struct HoverFunc(pub ButtonFunc);
+#[derive(Component)]
+pub struct ReleaseFunc(pub ButtonFunc);
+#[derive(Component)]
+pub struct UnhoverFunc(pub ButtonFunc);
+/// Needed for *Func components to work
+#[derive(Component)]
+pub struct FuncScratch(Interaction);
+
 struct ButtonSystemState {
-    query: QueryState<(&'static ButtonFunc, &'static Interaction), Changed<Interaction>>,
+    query: QueryState<
+        (
+            Option<&'static ClickFunc>,
+            Option<&'static HoverFunc>,
+            Option<&'static ReleaseFunc>,
+            Option<&'static UnhoverFunc>,
+            &'static mut FuncScratch,
+            &'static Interaction,
+        ),
+        (
+            Changed<Interaction>,
+            Or<(
+                With<ClickFunc>,
+                With<HoverFunc>,
+                With<ReleaseFunc>,
+                With<UnhoverFunc>,
+            )>,
+        ),
+    >,
     button_list: Vec<ButtonFunc>,
 }
 impl FromWorld for ButtonSystemState {
@@ -110,11 +140,22 @@ fn primary_ui_system(world: &mut World) {
         let buttons = &mut *buttons;
         buttons
             .button_list
-            .extend(buttons.query.iter(world).filter_map(
-                |(func, interaction)| match interaction {
-                    Interaction::Clicked => Some(func.clone()),
-                    Interaction::Hovered => None,
-                    Interaction::None => None,
+            .extend(buttons.query.iter_mut(world).filter_map(
+                |(c, h, dc, dh, mut scratch, interaction)| {
+                    let old = scratch.0;
+                    scratch.0 = *interaction;
+                    match interaction {
+                        Interaction::Clicked => c.map(|x| &x.0).cloned(),
+                        Interaction::Hovered => h.map(|x| &x.0).cloned(),
+                        Interaction::None => match old {
+                            Interaction::Clicked => dc.map(|x| &x.0).cloned(),
+                            Interaction::Hovered => dh.map(|x| &x.0).cloned(),
+                            Interaction::None => {
+                                warn!("Ui element reported transitioning from none to none");
+                                None
+                            }
+                        },
+                    }
                 },
             ));
 
