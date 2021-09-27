@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use bevy::ecs::world::EntityMut;
 use bevy::ecs::{component::Component, prelude::*};
-use bevy::prelude::{BuildWorldChildren, Children, DespawnRecursiveExt, Plugin};
+use bevy::prelude::{BuildWorldChildren, DespawnRecursiveExt, Plugin};
 use bevy::ui::Interaction;
 use bevy::utils::{HashMap, HashSet};
 use crossbeam_channel::{Receiver, Sender};
