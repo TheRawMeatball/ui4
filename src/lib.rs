@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use bevy::ecs::world::EntityMut;
 use bevy::ecs::{component::Component, prelude::*};
-use bevy::prelude::{BuildWorldChildren, DespawnRecursiveExt, Plugin};
+use bevy::prelude::{BuildWorldChildren, Children, DespawnRecursiveExt, Plugin};
 use bevy::ui::Interaction;
 use bevy::utils::{HashMap, HashSet};
 use crossbeam_channel::{Receiver, Sender};
@@ -139,6 +139,21 @@ pub struct Ctx<'a> {
     world: &'a mut World,
     current_entity: Entity,
 }
+pub struct McCtx<'a> {
+    world: &'a mut World,
+    get_new_child: &'a mut dyn FnMut(&mut World) -> Entity,
+}
+impl McCtx<'_> {
+    // TODO: bikeshed name
+    pub fn ctx(&mut self, f: impl FnOnce(&mut Ctx)) -> &mut Self {
+        let new_child = (self.get_new_child)(self.world);
+        f(&mut Ctx {
+            current_entity: new_child,
+            world: self.world,
+        });
+        self
+    }
+}
 
 pub struct ComponentObserver<T: Send + Sync + 'static>(Entity, PhantomData<T>);
 
@@ -162,149 +177,16 @@ impl Ctx<'_> {
         self
     }
 
-    pub fn static_child(&mut self, f: impl Fn(&mut Ctx) + Send + Sync + 'static) -> &mut Self {
-        let new_entity = self.world.spawn().id();
-        f(&mut Ctx {
-            current_entity: new_entity,
-            world: self.world,
+    pub fn child(&mut self, f: impl FnOnce(&mut Ctx)) -> &mut Self {
+        self.children(|ctx: &mut McCtx| {
+            ctx.ctx(f);
         });
-        self.current_entity().push_children(&[new_entity]);
-        let list = self.get_child_tracker_list();
-        match list.last_mut() {
-            Some(ChildNodeGroupKind::StaticChildren(count)) => *count += 1,
-            _ => list.push(ChildNodeGroupKind::StaticChildren(1)),
-        }
         self
     }
 
-    #[rustfmt::skip]
-    pub fn if_child<UO, O>(&mut self, o: UO, t: impl Fn(&mut Ctx) + Send + Sync + 'static)
-    where
-        for<'w, 's> O: Observer<Return<'w, 's> = bool>,
-        UO: UninitObserver<Observer = O>,
-    {
-        let parent = self.current_entity;
-        let list = self.get_child_tracker_list();
-        let group_index = list.len();
-
-        let uf = o.register_self(self.world, |mut observer, world| {
-            let (uf, marker) = UpdateFunc::new::<ChildNodeUpdateFuncMarker, _>(move |world| {
-                let (new_value, changed) = observer.get(world);
-                if !changed {
-                    return;
-                }
-                let list = get_marker_list(world.entity_mut(parent));
-                let index = list[..group_index]
-                    .iter()
-                    .map(|node| match node {
-                        ChildNodeGroupKind::StaticChildren(len) => *len,
-                        ChildNodeGroupKind::Optional(node, _) => node.is_some() as usize,
-                        ChildNodeGroupKind::IfElse(_, _, _) => 1,
-                    })
-                    .sum();
-                let mut node = match &mut list[group_index] {
-                    ChildNodeGroupKind::Optional(node, _) => node,
-                    _ => unreachable!(),
-                };
-                match (&mut node, new_value) {
-                    // spawn the node
-                    (None, true) => {
-                        let new_entity = world.spawn().id();
-                        t(&mut Ctx {
-                            current_entity: new_entity,
-                            world,
-                        });
-                        world
-                            .entity_mut(parent)
-                            .insert_children(index, &[new_entity]);
-                        let list = get_marker_list(world.entity_mut(parent));
-                        let node = match &mut list[group_index] {
-                            ChildNodeGroupKind::Optional(node, _) => node,
-                            _ => unreachable!(),
-                        };
-                        *node = Some(new_entity);
-                    }
-                    // despawn the node
-                    (Some(entity), false) => {
-                        let entity = *entity;
-                        *node = None;
-                        world.entity_mut(entity).despawn_recursive();
-                    }
-                    _ => {}
-                }
-            });
-
-            get_marker_list(world.entity_mut(parent)).push(ChildNodeGroupKind::Optional(None, marker));
-            uf
-        });
-        uf.run(&mut self.world);
-    }
-
-    #[rustfmt::skip]
-    pub fn if_else_child<UO, O>(
-        &mut self,
-        o: UO,
-        t: impl Fn(&mut Ctx) + Send + Sync + 'static,
-        f: impl Fn(&mut Ctx) + Send + Sync + 'static,
-    ) where
-        for<'w, 's> O: Observer<Return<'w, 's> = bool>,
-        UO: UninitObserver<Observer = O>,
-    {
-        let parent = self.current_entity;
-        let child = self.world.spawn().id();
-        let list = self.get_child_tracker_list();
-        let group_index = list.len();
-
-        let uf = o.register_self(self.world, |mut observer, world| {
-            let (uf, marker) = UpdateFunc::new::<ChildNodeUpdateFuncMarker, _>(move |world| {
-                let (new_value, changed) = observer.get(world);
-                if !changed {
-                    return;
-                }
-                let list = get_marker_list(world.entity_mut(parent));
-                let index = list[..group_index]
-                    .iter()
-                    .map(|node| match node {
-                        ChildNodeGroupKind::StaticChildren(len) => *len,
-                        ChildNodeGroupKind::Optional(node, _) => node.is_some() as usize,
-                        ChildNodeGroupKind::IfElse(_, _, _) => 1,
-                    })
-                    .sum();
-                let last = match &mut list[group_index] {
-                    ChildNodeGroupKind::IfElse(last, _, _) => last,
-                    _ => unreachable!(),
-                };
-                let last_b = last.unwrap_or(!new_value);
-                if last_b != new_value {
-                    *last = Some(new_value);
-                    let current_entity = world.spawn().id();
-                    let ctx = &mut Ctx {
-                        current_entity,
-                        world,
-                    };
-                    if new_value {
-                        t(ctx);
-                    } else {
-                        f(ctx);
-                    }
-                    world
-                        .entity_mut(parent)
-                        .insert_children(index, &[current_entity]);
-                    let list = get_marker_list(world.entity_mut(parent));
-                    let e = match &mut list[group_index] {
-                        ChildNodeGroupKind::IfElse(_, e, _) => (e),
-                        _ => unreachable!(),
-                    };
-                    let entity = *e;
-                    *e = current_entity;
-                    world.entity_mut(entity).despawn_recursive();
-                }
-            });
-
-            get_marker_list(world.entity_mut(parent)).push(ChildNodeGroupKind::IfElse(None, child, marker));
-            uf
-        });
-        uf.run(&mut self.world);
+    pub fn children<M>(&mut self, children: impl Childable<M>) -> &mut Self {
+        children.insert(self);
+        self
     }
 
     pub fn component<T: Send + Sync + 'static>(&self) -> ComponentObserver<T> {
@@ -339,8 +221,7 @@ struct ChildNodeUpdateFuncMarker;
 
 enum ChildNodeGroupKind {
     StaticChildren(usize),
-    Optional(Option<Entity>, UfMarker<ChildNodeUpdateFuncMarker>),
-    IfElse(Option<bool>, Entity, UfMarker<ChildNodeUpdateFuncMarker>),
+    Dynamic(Vec<Entity>, UfMarker<ChildNodeUpdateFuncMarker>),
     // List(UfMarker<ChildNodeUpdateFuncMarker>),
 }
 
@@ -425,9 +306,9 @@ impl<O1: UninitObserver, O2: UninitObserver> UninitObserver for And<O1, O2> {
 }
 
 #[derive(Clone)]
-struct DedupTemplate<O>(O);
+pub struct DedupTemplate<O>(O);
 
-struct Dedup<O: Observer>(Option<O::Return<'static, 'static>>, O);
+pub struct Dedup<O: Observer>(Option<O::Return<'static, 'static>>, O);
 
 #[rustfmt::skip]
 impl<UO, O, T> UninitObserver for DedupTemplate<UO>
@@ -518,6 +399,7 @@ pub trait ObserverExt: UninitObserver + Sized {
     fn and<O>(self, o: O) -> And<Self, O>
     where
         O: UninitObserver;
+    fn dedup(self) -> DedupTemplate<Self>;
 }
 
 impl<T: UninitObserver> ObserverExt for T {
@@ -527,6 +409,10 @@ impl<T: UninitObserver> ObserverExt for T {
 
     fn and<O>(self, o: O) -> And<Self, O> {
         And(self, o)
+    }
+
+    fn dedup(self) -> DedupTemplate<Self> {
+        DedupTemplate(self)
     }
 }
 
@@ -666,6 +552,96 @@ where
     }
 }
 
+pub trait Childable<M> {
+    fn insert(self, ctx: &mut Ctx);
+}
+
+impl<Func> Childable<Static> for Func
+where
+    Func: FnOnce(&mut McCtx),
+{
+    fn insert(self, ctx: &mut Ctx) {
+        let parent = ctx.current_entity;
+        let mut new_child = |world: &mut World| {
+            let nc = world.spawn().id();
+            let mut parent = world.entity_mut(parent);
+            parent.push_children(&[nc]);
+            let list = get_marker_list(parent);
+            match list.last_mut() {
+                Some(ChildNodeGroupKind::StaticChildren(count)) => *count += 1,
+                _ => list.push(ChildNodeGroupKind::StaticChildren(1)),
+            }
+            nc
+        };
+        (self)(&mut McCtx {
+            world: &mut ctx.world,
+            get_new_child: &mut new_child,
+        });
+    }
+}
+
+#[rustfmt::skip]
+impl<UO, O, F> Childable<Dynamic> for UO
+where
+    for<'w, 's> O: Observer<Return<'w, 's> = F>,
+    UO: UninitObserver<Observer = O>,
+    F: FnOnce(&mut McCtx),
+{
+    fn insert(self, ctx: &mut Ctx) {
+        let parent = ctx.current_entity;
+        let list = ctx.get_child_tracker_list();
+        let group_index = list.len();
+
+        let uf = self.register_self(ctx.world, |mut observer, world| {
+            let (uf, marker) = UpdateFunc::new::<ChildNodeUpdateFuncMarker, _>(move |world| {
+                let (func, changed) = observer.get(world);
+                if !changed {
+                    return;
+                }
+                let list = get_marker_list(world.entity_mut(parent));
+                let index: usize = list[..group_index]
+                    .iter()
+                    .map(|node| match node {
+                        ChildNodeGroupKind::StaticChildren(len) => *len,
+                        ChildNodeGroupKind::Dynamic(entities, _) => entities.len(),
+                    })
+                    .sum();
+                let entities = match &mut list[group_index] {
+                    ChildNodeGroupKind::Dynamic(entities, _) => entities,
+                    _ => unreachable!(),
+                };
+                // TODO: find a way to somehow do double buffering or sth with these vecs
+                let mut old_entities = std::mem::replace(entities, Vec::new());
+                for &entity in old_entities.iter() {
+                    world.entity_mut(entity).despawn_recursive();
+                }
+                old_entities.clear();
+                let mut new_child_func = |world: &mut World| {
+                    let nc = world.spawn().id();
+                    let list = get_marker_list(world.entity_mut(parent));
+                    let entities = match &mut list[group_index] {
+                        ChildNodeGroupKind::Dynamic(entities, _) => entities,
+                        _ => unreachable!(),
+                    };
+                    let len = entities.len();
+                    entities.push(nc);
+                    world.entity_mut(parent).insert_children(index + len, &[nc]);
+                    nc
+                };
+                func(&mut McCtx {
+                    world,
+                    get_new_child: &mut new_child_func,
+                });
+            });
+
+            get_marker_list(world.entity_mut(parent))
+                .push(ChildNodeGroupKind::Dynamic(vec![], marker));
+            uf
+        });
+        uf.run(&mut ctx.world);
+    }
+}
+
 #[rustfmt::skip]
 pub trait IntoObserver<T, M>: Clone + Send + Sync + 'static
 {
@@ -731,23 +707,63 @@ impl<T: Component> UninitObserver for ComponentObserver<T> {
     }
 }
 
-pub struct TrackedVecObserver<T>(Receiver<Diff<T>>);
+#[derive(Clone)]
+pub struct TrackedVecObserverTemplate<O>(O);
+
+pub struct TrackedVecObserver<T, O> {
+    rx: Option<Receiver<Diff<T>>>,
+    observer: O,
+}
 
 #[rustfmt::skip]
-impl<T: Send + Sync + 'static> Observer for TrackedVecObserver<T>
+impl<T, O> Observer for TrackedVecObserver<T, O>
+where
+T: Clone + Send + Sync + 'static,
+O: for<'w, 's> Observer<Return<'w, 's> = &'w TrackedVec<T>>,
 {
     type Return<'w, 's> = crossbeam_channel::TryIter<'s, Diff<T>>;
-
-    fn get<'w, 's>(&'s mut self, _: &'w World) -> (Self::Return<'w, 's>, bool) {
-        (self.0.try_iter(), true)
+    
+    fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
+        if self.rx.is_none() {
+            let (tv, _) = self.observer.get(world);
+            let (tx, rx) = crossbeam_channel::unbounded();
+            tx.send(Diff::Init(tv.inner.clone())).unwrap();
+            tv.update_out.lock().unwrap().push(tx);
+            self.rx = Some(rx);
+        }
+        (self.rx.as_ref().unwrap().try_iter(), true)
     }
+}
 
+#[rustfmt::skip]
+impl<T, O, UO> UninitObserver for TrackedVecObserverTemplate<UO>
+where
+    T: Clone + Send + Sync + 'static,
+    O: for<'w, 's> Observer<Return<'w, 's> = &'w TrackedVec<T>>,
+    UO: UninitObserver<Observer = O>,
+{
+    type Observer = TrackedVecObserver<T, O>;
+
+    fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
+        self,
+        world: &mut World,
+        uf: F,
+    ) -> UpdateFunc {
+        self.0.register_self(world, |obs, world| {
+            (uf)(
+                TrackedVecObserver {
+                    rx: None,
+                    observer: obs,
+                },
+                world,
+            )
+        })
+    }
 }
 
 pub struct TrackedVec<T> {
     inner: Vec<T>,
-    update_out: Vec<Sender<Diff<T>>>,
-    update_out_in: Receiver<Sender<Diff<T>>>,
+    update_out: Mutex<Vec<Sender<Diff<T>>>>,
 }
 
 pub enum Diff<T> {

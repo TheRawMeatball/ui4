@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use std::borrow::Borrow;
-use ui4::{init_ui, res, Ctx, ObserverExt, Ui4Plugin};
+use ui4::{init_ui, res, Ctx, McCtx, ObserverExt, Ui4Plugin};
 use ui4::{ButtonFunc, IntoObserver};
 
 struct UiAssets {
@@ -46,6 +46,9 @@ fn root(ctx: &mut Ctx) {
     #[derive(Component)]
     struct State(i32);
 
+    let state = ctx.component();
+    let this = ctx.this();
+
     ctx.with_bundle(NodeBundle::default())
         .with(Style {
             size: Size {
@@ -57,39 +60,38 @@ fn root(ctx: &mut Ctx) {
         })
         .with(res().map(|assets: &UiAssets| assets.background.clone()))
         .with(State(0))
-        .static_child(text("Hello!".to_string()))
-        .static_child(text("How are you doing?".to_string()));
-
-    let state = ctx.component();
-    let this = ctx.this();
-    ctx.static_child(button(
-        "Increment".to_string(),
-        ButtonFunc::new(move |world| {
-            world.get_mut::<State>(this).unwrap().0 += 1;
-        }),
-    ))
-    .static_child(button(
-        "Decrement".to_string(),
-        ButtonFunc::new(move |world| {
-            world.get_mut::<State>(this).unwrap().0 -= 1;
-        }),
-    ))
-    .static_child(text(
-        state.map(|s: &State| format!("The number is {}", s.0)),
-    ));
-
-    ctx.static_child(text(
-        res()
-            .map(|time: &Time| time.seconds_since_startup() as usize % 2 == 0)
-            .map(|b| {
-                if b {
-                    "Now you see me :)"
-                } else {
-                    "Now you don't"
-                }
-            })
-            .map(ToString::to_string),
-    ));
+        .children(|ctx: &mut McCtx| {
+            ctx.ctx(text("Hello!".to_string()))
+                .ctx(text("How are you doing?".to_string()))
+                .ctx(button(
+                    "Increment".to_string(),
+                    ButtonFunc::new(move |world| {
+                        world.get_mut::<State>(this).unwrap().0 += 1;
+                    }),
+                ))
+                .ctx(button(
+                    "Decrement".to_string(),
+                    ButtonFunc::new(move |world| {
+                        world.get_mut::<State>(this).unwrap().0 -= 1;
+                    }),
+                ))
+                .ctx(text(
+                    state.map(|s: &State| format!("The number is {}", s.0)),
+                ));
+        })
+        .children(
+            res()
+                .map(|time: &Time| time.seconds_since_startup() as usize % 2 == 0)
+                .dedup()
+                .map(|b: &bool| {
+                    let b = *b;
+                    move |ctx: &mut McCtx| {
+                        if b {
+                            ctx.ctx(text("Now you see me".to_string()));
+                        }
+                    }
+                }),
+        );
 }
 
 fn text<O: IntoObserver<String, M>, M>(text: O) -> impl Fn(&mut Ctx) {
@@ -121,6 +123,6 @@ fn button<O: IntoObserver<String, M>, M: 'static>(
             })
             .with(res().map(|assets: &UiAssets| assets.button.clone()))
             .with(button_func.clone())
-            .static_child(text(t.clone()));
+            .child(text(t.clone()));
     }
 }

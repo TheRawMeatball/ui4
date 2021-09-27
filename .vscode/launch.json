@@ -13,7 +13,7 @@
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=ui4-2"
+                    "--package=ui4"
                 ],
                 "filter": {
                     "name": "ui4-2",
@@ -31,7 +31,7 @@
                 "args": [
                     "build",
                     "--example=simple",
-                    "--package=ui4-2"
+                    "--package=ui4"
                 ],
                 "filter": {
                     "name": "simple",
@@ -54,7 +54,7 @@
                     "test",
                     "--no-run",
                     "--example=simple",
-                    "--package=ui4-2"
+                    "--package=ui4"
                 ],
                 "filter": {
                     "name": "simple",
