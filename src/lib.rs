@@ -14,7 +14,6 @@ use bevy::ecs::{component::Component, prelude::*};
 use bevy::prelude::{BuildWorldChildren, DespawnRecursiveExt, Plugin};
 use bevy::ui::Interaction;
 use bevy::utils::{HashMap, HashSet};
-use crossbeam_channel::{Receiver, Sender};
 
 #[derive(Default)]
 struct UiScratchSpace {
@@ -499,7 +498,9 @@ impl UpdateFunc {
         (Self(arc.clone()), UfMarker(arc, PhantomData))
     }
     fn run(&self, world: &mut World) {
-        (self.0.func.lock().unwrap())(world);
+        if !self.flagged() {
+            (self.0.func.lock().unwrap())(world);
+        }
     }
 
     fn flagged(&self) -> bool {

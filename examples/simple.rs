@@ -1,15 +1,13 @@
 use bevy::prelude::*;
 use std::borrow::Borrow;
-use ui4::{
-    init_ui, res, ClickFunc, Ctx, FuncScratch, HoverFunc, McCtx, ObserverExt, Ui4Plugin,
-    UnhoverFunc,
-};
+use ui4::{init_ui, res, ClickFunc, Ctx, FuncScratch, McCtx, ObserverExt, Ui4Plugin};
 use ui4::{ButtonFunc, IntoObserver};
 
 struct UiAssets {
     background: Handle<ColorMaterial>,
     button: Handle<ColorMaterial>,
     button_hover: Handle<ColorMaterial>,
+    button_click: Handle<ColorMaterial>,
     text_style: TextStyle,
 }
 
@@ -22,6 +20,7 @@ fn init_system(
         background: assets.add(Color::BLACK.into()),
         button: assets.add(Color::DARK_GRAY.into()),
         button_hover: assets.add(Color::GRAY.into()),
+        button_click: assets.add(Color::SILVER.into()),
         text_style: TextStyle {
             color: Color::WHITE,
             font: asset_server.load("FiraMono-Medium.ttf"),
@@ -34,7 +33,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
         .add_plugin(Ui4Plugin)
-        // .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
+        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_startup_system(init_system)
         .add_startup_system(
             (|world: &mut World| init_ui(world, root))
@@ -112,11 +111,7 @@ fn button<O: IntoObserver<String, M>, M: 'static>(
     t: O,
     on_click: impl Fn(&mut World) + Send + Sync + 'static,
 ) -> impl FnOnce(&mut Ctx) {
-    #[derive(Component)]
-    struct ButtonHoverState(bool);
-
     move |ctx: &mut Ctx| {
-        let this = ctx.this();
         let component = ctx.component();
         ctx.with_bundle(ButtonBundle::default())
             .with(Style {
@@ -125,32 +120,19 @@ fn button<O: IntoObserver<String, M>, M: 'static>(
                 align_items: AlignItems::Center,
                 ..Default::default()
             })
-            .with(ButtonHoverState(false))
-            .with(res().and(component).map(
-                |(assets, hover_state): (&UiAssets, &ButtonHoverState)| {
-                    if hover_state.0 {
-                        assets.button_hover.clone()
-                    } else {
-                        assets.button.clone()
-                    }
-                },
-            ))
+            .with(
+                res()
+                    .and(component)
+                    .map(
+                        |(assets, interaction): (&UiAssets, &Interaction)| match interaction {
+                            Interaction::Clicked => assets.button_click.clone(),
+                            Interaction::Hovered => assets.button_hover.clone(),
+                            Interaction::None => assets.button.clone(),
+                        },
+                    ),
+            )
             .with(FuncScratch::default())
             .with(ClickFunc(ButtonFunc::new(on_click)))
-            .with(HoverFunc(ButtonFunc::new(move |world| {
-                world
-                    .entity_mut(this)
-                    .get_mut::<ButtonHoverState>()
-                    .unwrap()
-                    .0 = true;
-            })))
-            .with(UnhoverFunc(ButtonFunc::new(move |world| {
-                world
-                    .entity_mut(this)
-                    .get_mut::<ButtonHoverState>()
-                    .unwrap()
-                    .0 = false;
-            })))
             .child(text(t));
     }
 }
