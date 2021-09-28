@@ -744,73 +744,48 @@ impl<T: Component> UninitObserver for ComponentObserver<T> {
         ufc
     }
 }
+/*
+trait ListObserverExt {
+    type Item<'w, 's>;
+    type UninitObserver: UninitObserver<Observer = Self::Observer>;
 
-#[derive(Clone)]
-pub struct TrackedVecObserverTemplate<O>(O);
+    #[rustfmt::skip]
+    type Observer: for<'w, 's> Observer<Return<'w, 's> = Self::Item<'w, 's>>;
 
-pub struct TrackedVecObserver<T, O> {
-    rx: Option<Receiver<Diff<T>>>,
-    observer: O,
-}
+    type Return;
 
-#[rustfmt::skip]
-impl<T, O> Observer for TrackedVecObserver<T, O>
-where
-    T: Clone + Send + Sync + 'static,
-    O: for<'w, 's> Observer<Return<'w, 's> = &'w TrackedVec<T>>,
-{
-    type Return<'w, 's> = crossbeam_channel::TryIter<'s, Diff<T>>;
-    
-    fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
-        if self.rx.is_none() {
-            let (tv, _) = self.observer.get(world);
-            let (tx, rx) = crossbeam_channel::unbounded();
-            tx.send(Diff::Init(tv.inner.clone())).unwrap();
-            tv.update_out.lock().unwrap().push(tx);
-            self.rx = Some(rx);
-        }
-        (self.rx.as_ref().unwrap().try_iter(), true)
-    }
-}
-
-#[rustfmt::skip]
-impl<T, O, UO> UninitObserver for TrackedVecObserverTemplate<UO>
-where
-    T: Clone + Send + Sync + 'static,
-    O: for<'w, 's> Observer<Return<'w, 's> = &'w TrackedVec<T>>,
-    UO: UninitObserver<Observer = O>,
-{
-    type Observer = TrackedVecObserver<T, O>;
-
-    fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
-        self,
-        world: &mut World,
-        uf: F,
-    ) -> UpdateFunc {
-        self.0.register_self(world, |obs, world| {
-            (uf)(
-                TrackedVecObserver {
-                    rx: None,
-                    observer: obs,
-                },
-                world,
-            )
-        })
-    }
+    fn for_each<F, Ff>(self, f: F)
+    where
+        F: Fn(Self::UninitObserver) -> Ff + Send + Sync + 'static,
+        Ff: FnOnce(&mut McCtx) -> Self::Return;
 }
 
 pub struct TrackedVec<T> {
     inner: Vec<T>,
-    update_out: Mutex<Vec<Sender<Diff<T>>>>,
 }
 
-pub enum Diff<T> {
-    Init(Vec<T>),
-    Push(T),
-    Pop,
-    Replace(usize, usize),
-    Change(usize, T),
-    RemoveAt(usize),
-    InsertAt(usize),
-    Clear,
+struct TVecMarker;
+
+#[rustfmt::skip]
+impl<O, UO, T: 'static> ListObserverExt for UO
+where
+    UO: UninitObserver<Observer = O>,
+    O: for<'w, 's> Observer<Return<'w, 's> = &'w TrackedVec<T>>,
+{
+    type Item<'w, 's> = &'w T;
+    type UninitObserver;
+    type Observer;
+
+    type Return = TvecForeachObserver<UO>;
+
+    fn for_each<F, Ff>(self, f: F)
+    where
+        F: Fn(Self::UninitObserver) -> Ff + Send + Sync + 'static,
+        Ff: FnOnce(&mut McCtx) -> Self::Return
+    {
+        todo!()
+    }
 }
+
+struct TvecForeachObserver<UO>(UO);
+*/
