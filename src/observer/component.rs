@@ -58,11 +58,12 @@ impl<T: Component> UninitObserver for ComponentObserver<T> {
 fn component_change_track_system<T: Component>(
     mut ui: ResMut<UiScratchSpace>,
     mut update_funcs: ResMut<ComponentUpdateFuncs<T>>,
-    detector: Query<Entity, Changed<T>>,
+    detector: Query<ChangeTrackers<T>>,
 ) {
-    for entity in detector.iter() {
-        if let Some(list) = update_funcs.0.get_mut(&entity) {
-            process_update_func_list(list, &mut ui);
+    update_funcs.0.retain(|entity, list| {
+        if detector.get(*entity).unwrap().is_changed() {
+            process_update_func_list(list, &mut ui)
         }
-    }
+        !list.is_empty()
+    });
 }

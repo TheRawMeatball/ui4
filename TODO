@@ -2,6 +2,7 @@ tracked range
 finish trackedmap
 use change detection in res & component observer s
 query::single observer, query::get type observer
+query exists obsever
 portals
 use trackedvec in an example
 textbox widget and checkbox widget in examples
