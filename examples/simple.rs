@@ -46,11 +46,11 @@ fn root(ctx: &mut Ctx) {
     #[derive(Component)]
     struct State(i32);
 
-    #[derive(Component)]
+    #[derive(Component, Default)]
     struct List(TrackedVec<String>);
 
     let state = ctx.component();
-    let list = ctx.component();
+    let list = ctx.component::<List>();
     let this = ctx.this();
 
     fn m<'w>(list: &'w List) -> &'w TrackedVec<String> {
@@ -68,6 +68,7 @@ fn root(ctx: &mut Ctx) {
         })
         .with(res().map(|assets: &UiAssets| assets.background.clone()))
         .with(State(0))
+        .with(List::default())
         .children(|ctx: &mut McCtx| {
             ctx.c(text("Hello!".to_string()))
                 .c(text("How are you doing?".to_string()))
@@ -81,9 +82,26 @@ fn root(ctx: &mut Ctx) {
                     state.map(|s: &State| format!("The number is {}", s.0)),
                 ));
         })
-        .children(list.map(m).each(|label| {
-            //
-            |ctx: &mut McCtx| {}
+        .child(|ctx: &mut Ctx| {
+            ctx.with_bundle(NodeBundle::default())
+                .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
+                .child(button("Add Hello".to_string(), move |w| {
+                    w.get_mut::<List>(this).unwrap().0.push("Hello".to_string());
+                }))
+                .child(button("Add Hoi".to_string(), move |w| {
+                    w.get_mut::<List>(this).unwrap().0.push("Hoi".to_string());
+                }))
+                .child(button("Remove last".to_string(), move |w| {
+                    w.get_mut::<List>(this).unwrap().0.pop();
+                }))
+                .child(button("Remove first".to_string(), move |w| {
+                    w.get_mut::<List>(this).unwrap().0.remove(0);
+                }));
+        })
+        .children(list.map(m).each(|label: TrackedItemObserver<String>| {
+            move |ctx: &mut McCtx| {
+                ctx.c(counter(label.map(|s: &String| s.clone())));
+            }
         }))
         .children(
             res()
@@ -100,7 +118,7 @@ fn root(ctx: &mut Ctx) {
         );
 }
 
-fn count<M>(label: impl IntoObserver<String, M>) -> impl FnOnce(&mut Ctx) {
+fn counter<M>(label: impl IntoObserver<String, M>) -> impl FnOnce(&mut Ctx) {
     #[derive(Component)]
     struct State(i32);
 

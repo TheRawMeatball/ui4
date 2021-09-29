@@ -61,9 +61,13 @@ fn component_change_track_system<T: Component>(
     detector: Query<ChangeTrackers<T>>,
 ) {
     update_funcs.0.retain(|entity, list| {
-        if detector.get(*entity).unwrap().is_changed() {
-            process_update_func_list(list, &mut ui)
+        if let Some(ticks) = detector.get(*entity).ok() {
+            if ticks.is_changed() {
+                process_update_func_list(list, &mut ui)
+            }
+            !list.is_empty()
+        } else {
+            false
         }
-        !list.is_empty()
     });
 }

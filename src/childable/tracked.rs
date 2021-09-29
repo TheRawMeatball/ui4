@@ -56,19 +56,63 @@ type TrackedAnyList<T> = Vec<(T, Vec<UpdateFunc>)>;
 
 pub struct TrackedItemObserver<T: Send + Sync + 'static> {
     _marker: PhantomData<T>,
+    entity: Entity,
     group_index: usize,
     index: usize,
+}
+
+impl<T: Send + Sync + 'static> UninitObserver for TrackedItemObserver<T> {
+    type Observer = Self;
+
+    fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
+        self,
+        world: &mut World,
+        uf: F,
+    ) -> UpdateFunc {
+        let uf = uf(self, world);
+        let list = get_marker_list(world.entity_mut(self.entity));
+        let items = match &mut list[self.group_index] {
+            ChildNodeGroupKind::List(_, i, _) => {
+                (&mut **i).downcast_mut::<TrackedAnyList<T>>().unwrap()
+            }
+            _ => unreachable!(),
+        };
+        let (_, ufs) = &mut items[self.index];
+        ufs.push(uf.clone());
+        uf
+    }
+}
+
+impl<T: Send + Sync + 'static> Observer for TrackedItemObserver<T> {
+    type Return<'w, 's> = &'w T;
+
+    fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
+        let list = &world
+            .get::<crate::childable::ManagedChildrenTracker>(self.entity)
+            .unwrap()
+            .children;
+        let items = match &list[self.group_index] {
+            ChildNodeGroupKind::List(_, i, _) => {
+                (&**i).downcast_ref::<TrackedAnyList<T>>().unwrap()
+            }
+            _ => unreachable!(),
+        };
+        let (val, _) = &items[self.index];
+        (val, true)
+    }
 }
 
 impl<T: Send + Sync + 'static> Clone for TrackedItemObserver<T> {
     fn clone(&self) -> Self {
         Self {
             _marker: PhantomData,
+            entity: self.entity,
             group_index: self.group_index,
             index: self.index,
         }
     }
 }
+impl<T: Send + Sync + 'static> Copy for TrackedItemObserver<T> {}
 
 pub trait Tracked: 'static {
     type Item;
@@ -116,6 +160,7 @@ where
                     items.insert(i, (e, vec![]));
                     let observer = TrackedItemObserver::<T> {
                         _marker: PhantomData,
+                        entity: parent,
                         group_index,
                         index: i,
                     };
@@ -169,6 +214,7 @@ where
                                 items.push((e, vec![]));
                                 let observer = TrackedItemObserver::<T> {
                                     _marker: PhantomData,
+                                    entity: parent,
                                     group_index,
                                     index: entities.len() - 1,
                                 };

@@ -47,6 +47,9 @@ impl<T: Clone> TrackedVec<T> {
 
     pub fn pop(&mut self) -> Option<T> {
         let msg = Diff::Pop;
+        if self.is_empty() {
+            return None;
+        }
         self.send_msg(msg)
     }
 
@@ -57,6 +60,9 @@ impl<T: Clone> TrackedVec<T> {
 
     pub fn remove(&mut self, i: usize) -> T {
         let msg = Diff::Remove(i);
+        if self.is_empty() {
+            panic!();
+        }
         self.send_msg(msg).unwrap()
     }
 
