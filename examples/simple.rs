@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use std::borrow::Borrow;
-use ui4::prelude::*;
+use ui4::{childable::tracked::TrackedItemObserver, prelude::*};
 
 struct UiAssets {
     background: Handle<ColorMaterial>,
@@ -8,6 +8,7 @@ struct UiAssets {
     button_hover: Handle<ColorMaterial>,
     button_click: Handle<ColorMaterial>,
     text_style: TextStyle,
+    transparent: Handle<ColorMaterial>,
 }
 
 fn init_system(
@@ -17,6 +18,7 @@ fn init_system(
 ) {
     commands.insert_resource(UiAssets {
         background: assets.add(Color::BLACK.into()),
+        transparent: assets.add(Color::NONE.into()),
         button: assets.add(Color::DARK_GRAY.into()),
         button_hover: assets.add(Color::GRAY.into()),
         button_click: assets.add(Color::SILVER.into()),
@@ -44,8 +46,16 @@ fn root(ctx: &mut Ctx) {
     #[derive(Component)]
     struct State(i32);
 
+    #[derive(Component)]
+    struct List(TrackedVec<String>);
+
     let state = ctx.component();
+    let list = ctx.component();
     let this = ctx.this();
+
+    fn m<'w>(list: &'w List) -> &'w TrackedVec<String> {
+        &list.0
+    }
 
     ctx.with_bundle(NodeBundle::default())
         .with(Style {
@@ -71,6 +81,10 @@ fn root(ctx: &mut Ctx) {
                     state.map(|s: &State| format!("The number is {}", s.0)),
                 ));
         })
+        .children(list.map(m).each(|label| {
+            //
+            |ctx: &mut McCtx| {}
+        }))
         .children(
             res()
                 .map(|time: &Time| time.seconds_since_startup() as usize % 2 == 0)
@@ -84,6 +98,47 @@ fn root(ctx: &mut Ctx) {
                     }
                 }),
         );
+}
+
+fn count<M>(label: impl IntoObserver<String, M>) -> impl FnOnce(&mut Ctx) {
+    #[derive(Component)]
+    struct State(i32);
+
+    move |ctx: &mut Ctx| {
+        let component = ctx.component();
+        let entity = ctx.this();
+        ctx.with_bundle(NodeBundle::default())
+            .with(Style {
+                align_self: AlignSelf::FlexStart,
+                ..Default::default()
+            })
+            .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
+            .with(State(0))
+            .children(move |ctx: &mut McCtx| {
+                ctx.c(text(label))
+                    .c(button("+".to_string(), move |w| {
+                        w.get_mut::<State>(entity).unwrap().0 += 1;
+                    }))
+                    .c(|ctx| {
+                        text(component.map(|x: &State| x.0.to_string()))(ctx);
+                        ctx.with(Style {
+                            align_self: AlignSelf::FlexStart,
+                            min_size: Size {
+                                width: Val::Px(50.0),
+                                height: Val::Undefined,
+                            },
+                            max_size: Size {
+                                width: Val::Undefined,
+                                height: Val::Px(30.),
+                            },
+                            ..Default::default()
+                        });
+                    })
+                    .c(button("-".to_string(), move |w| {
+                        w.get_mut::<State>(entity).unwrap().0 -= 1;
+                    }));
+            });
+    }
 }
 
 fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(&mut Ctx) {

@@ -79,7 +79,7 @@ impl<T> Deref for TrackedVec<T> {
     }
 }
 
-impl<T: Clone> Tracked for TrackedVec<T> {
+impl<T: Clone + 'static> Tracked for TrackedVec<T> {
     type Item = T;
 
     fn register(&self, tx: Sender<Diff<Self::Item>>) {

@@ -25,7 +25,7 @@ impl<K: Clone, V: Clone> TrackedMap<K, V> {
     }
 }
 
-impl<K: Clone, V: Clone> Tracked for TrackedMap<K, V> {
+impl<K: Clone + 'static, V: Clone + 'static> Tracked for TrackedMap<K, V> {
     type Item = (K, V);
 
     fn register(&self, tx: Sender<Diff<Self::Item>>) {

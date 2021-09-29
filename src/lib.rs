@@ -13,7 +13,10 @@ pub mod plugin;
 pub mod prelude {
     use super::*;
     pub use button::{ButtonFunc, ClickFunc, FuncScratch, HoverFunc, ReleaseFunc, UnhoverFunc};
-    pub use childable::{tracked::TrackedVec, Childable};
+    pub use childable::{
+        tracked::{TrackedMarker, TrackedObserverExt, TrackedVec},
+        Childable,
+    };
     pub use ctx::{Ctx, McCtx};
     pub use observer::{res, IntoObserver, ObserverExt};
     pub use plugin::Ui4Plugin;

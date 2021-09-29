@@ -20,12 +20,25 @@ use crate::{
 
 use super::{get_marker_list, Childable};
 
-trait TrackedObserverExt: Sized {
-    fn for_each<F, Ff>(self, f: F) -> TrackedForeach<Self, F>;
+pub trait TrackedObserverExt: Sized {
+    fn each<F>(self, f: F) -> TrackedForeach<Self, F>;
+}
+
+#[rustfmt::skip]
+impl<O, UO, T, Tt> TrackedObserverExt for UO
+where
+    UO: UninitObserver<Observer = O>,
+    O: for<'w, 's> Observer<Return<'w, 's> = &'w Tt>,
+    T: Send + Sync + 'static,
+    Tt: Tracked<Item = T>,
+{
+    fn each<F>(self, f: F) -> TrackedForeach<Self, F> {
+        TrackedForeach(self, f)
+    }
 }
 
 #[derive(Clone)]
-enum Diff<T> {
+pub enum Diff<T> {
     Init(Vec<T>),
     Push(T),
     Pop,
@@ -37,7 +50,7 @@ enum Diff<T> {
     Clear,
 }
 
-struct TrackedForeach<UO, F>(UO, F);
+pub struct TrackedForeach<UO, F>(UO, F);
 
 type TrackedAnyList<T> = Vec<(T, Vec<UpdateFunc>)>;
 
@@ -57,12 +70,12 @@ impl<T: Send + Sync + 'static> Clone for TrackedItemObserver<T> {
     }
 }
 
-trait Tracked {
+pub trait Tracked: 'static {
     type Item;
     fn register(&self, sender: Sender<Diff<Self::Item>>);
 }
 
-struct TrackedMarker;
+pub struct TrackedMarker;
 
 #[rustfmt::skip]
 impl<O, UO, T, F, Ff, Tt> Childable<(TrackedMarker, Tt)> for TrackedForeach<UO, F>
