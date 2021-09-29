@@ -1,2 +1,4 @@
-TrackedVec & co (TrackedRange & TrackedMap)
-use change detection in observer s
+TrackedVec co (TrackedRange & TrackedMap)
+use change detection in res & component observer s
+portals
+single observer, query::get type observer
