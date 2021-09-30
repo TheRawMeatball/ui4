@@ -6,12 +6,18 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { path = "../bevy" }
 # lockfree = { git = "https://gitlab.com/sals3r0/lockfree.git" } # maybe reenable once it compiles
 crossbeam-channel = "0.5.1"
 
+[dependencies.bevy]
+path = "../bevy"
+# default-features = false
+# features = ["render"]
+
 [dev-dependencies]
-bevy-inspector-egui = { git = "https://github.com/jakobhellermann/bevy-inspector-egui/", branch = "bevy-main" }
+# bevy-inspector-egui = { path = "../bevy-inspector-egui" }
+derive_more = "0.99.16"
 
 [patch."https://github.com/bevyengine/bevy"]
 bevy = { path = "../bevy" }
+

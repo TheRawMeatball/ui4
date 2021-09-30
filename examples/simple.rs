@@ -1,6 +1,7 @@
 use bevy::prelude::*;
-use std::borrow::Borrow;
+use std::{borrow::Borrow, ops::Deref};
 use ui4::{childable::tracked::TrackedItemObserver, prelude::*};
+use derive_more::{DerefMut, Deref};
 
 struct UiAssets {
     background: Handle<ColorMaterial>,
@@ -34,7 +35,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
         .add_plugin(Ui4Plugin(root))
-        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
+        // .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_startup_system(init_system);
 
     app.world.spawn().insert_bundle(UiCameraBundle::default());
@@ -46,16 +47,12 @@ fn root(ctx: &mut Ctx) {
     #[derive(Component)]
     struct State(i32);
 
-    #[derive(Component, Default)]
+    #[derive(Component, Default, DerefMut, Deref)]
     struct List(TrackedVec<String>);
 
     let state = ctx.component();
     let list = ctx.component::<List>();
     let this = ctx.this();
-
-    fn m<'w>(list: &'w List) -> &'w TrackedVec<String> {
-        &list.0
-    }
 
     ctx.with_bundle(NodeBundle::default())
         .with(Style {
@@ -86,19 +83,19 @@ fn root(ctx: &mut Ctx) {
             ctx.with_bundle(NodeBundle::default())
                 .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
                 .child(button("Add Hello".to_string(), move |w| {
-                    w.get_mut::<List>(this).unwrap().0.push("Hello".to_string());
+                    w.get_mut::<List>(this).unwrap().push("Hello".to_string());
                 }))
                 .child(button("Add Hoi".to_string(), move |w| {
-                    w.get_mut::<List>(this).unwrap().0.push("Hoi".to_string());
+                    w.get_mut::<List>(this).unwrap().push("Hoi".to_string());
                 }))
                 .child(button("Remove last".to_string(), move |w| {
-                    w.get_mut::<List>(this).unwrap().0.pop();
+                    w.get_mut::<List>(this).unwrap().pop();
                 }))
                 .child(button("Remove first".to_string(), move |w| {
-                    w.get_mut::<List>(this).unwrap().0.remove(0);
+                    w.get_mut::<List>(this).unwrap().remove(0);
                 }));
         })
-        .children(list.map(m).each(|label: TrackedItemObserver<String>| {
+        .children(list.map(Deref::deref).each(|label: TrackedItemObserver<String>| {
             move |ctx: &mut McCtx| {
                 ctx.c(counter(label.map(|s: &String| s.clone())));
             }
