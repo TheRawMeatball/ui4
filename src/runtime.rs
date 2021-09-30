@@ -8,7 +8,7 @@ use std::{
 
 use bevy::{ecs::prelude::*, utils::HashSet};
 
-use crate::button::ButtonSystemState;
+use crate::{button::ButtonSystemState, textbox::TextBoxSystemState};
 
 #[derive(Default)]
 pub(crate) struct UiScratchSpace {
@@ -31,6 +31,9 @@ pub(crate) struct UiManagedSystems(pub(crate) SystemStage);
 pub(crate) fn primary_ui_system(world: &mut World) {
     world.resource_scope(|world, mut buttons: Mut<ButtonSystemState>| {
         buttons.run(world);
+    });
+    world.resource_scope(|world, mut textbox: Mut<TextBoxSystemState>| {
+        textbox.run(world);
     });
     world.resource_scope(|world, mut systems: Mut<UiManagedSystems>| {
         systems.0.run(world);

@@ -6,10 +6,13 @@ use crate::runtime::{UiScratchSpace, UpdateFunc};
 use crate::{Dynamic, Static};
 
 mod component;
+mod has_component;
 mod res;
 mod single;
 
-pub use {component::ComponentObserver, res::res, single::single};
+pub use {
+    component::ComponentObserver, has_component::ComponentExistsObserver, res::res, single::single,
+};
 
 pub trait UninitObserver: Send + Sync + 'static {
     type Observer: Observer;

@@ -1,7 +1,6 @@
 tracked range
 use change detection in res & component observer s for change hint
 query::get type observer
-query exists obsever
 portals
-textbox widget and checkbox widget in examples
+
 todomvc!!!

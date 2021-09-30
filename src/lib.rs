@@ -9,6 +9,7 @@ pub mod childable;
 pub mod ctx;
 pub mod observer;
 pub mod plugin;
+pub mod textbox;
 
 pub mod prelude {
     use super::*;
@@ -20,6 +21,7 @@ pub mod prelude {
     pub use ctx::{Ctx, McCtx};
     pub use observer::{res, single, IntoObserver, ObserverExt};
     pub use plugin::Ui4Plugin;
+    pub use textbox::{Focused, TextBox, TextBoxFunc};
 }
 
 pub struct Static;

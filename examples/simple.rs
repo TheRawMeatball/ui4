@@ -50,8 +50,12 @@ fn root(ctx: &mut Ctx) {
     #[derive(Component, Default, DerefMut, Deref)]
     struct List(TrackedVec<String>);
 
+    #[derive(Component, Default, DerefMut, Deref)]
+    struct EditedText(String);
+
     let state = ctx.component();
     let list = ctx.component::<List>();
+    let edited_text = ctx.component();
     let this = ctx.this();
 
     ctx.with_bundle(NodeBundle::default())
@@ -66,6 +70,7 @@ fn root(ctx: &mut Ctx) {
         .with(res().map(|assets: &UiAssets| assets.background.clone()))
         .with(State(0))
         .with(List::default())
+        .with(EditedText("Append:"))
         .children(|ctx: &mut McCtx| {
             ctx.c(text("Hello!".to_string()))
                 .c(text("How are you doing?".to_string()))
@@ -77,6 +82,12 @@ fn root(ctx: &mut Ctx) {
                 }))
                 .c(text(
                     state.map(|s: &State| format!("The number is {}", s.0)),
+                ))
+                .c(textbox(
+                    edited_text.map(|t: &EditedText| t.to_string()),
+                    move |text, world| {
+                        world.get_mut::<EditedText>(this).unwrap().push_str(&text);
+                    },
                 ));
         })
         .child(|ctx: &mut Ctx| {
@@ -204,3 +215,82 @@ fn button<O: IntoObserver<String, M>, M: 'static>(
     }
 }
 
+fn textbox<M, O: IntoObserver<String, M>>(
+    text: O,
+    on_text: impl Fn(String, &mut World) + Send + Sync + 'static,
+) -> impl FnOnce(&mut Ctx) {
+    #[derive(Component)]
+    struct Cursor(usize);
+
+    move |ctx: &mut Ctx| {
+        let has_focused = ctx.has_component::<Focused>();
+        let cursor = ctx.component();
+
+        ctx.with_bundle(ButtonBundle::default())
+            .with(Style {
+                size: Size::new(Val::Px(150.0), Val::Px(65.0)),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..Default::default()
+            })
+            .with(TextBox)
+            .with(TextBoxFunc::new(on_text))
+            .with(Cursor(0))
+            .with(res().map(|assets: &UiAssets| assets.button.clone()))
+            .child(|ctx: &mut Ctx| {
+                ctx.with_bundle(TextBundle::default())
+                    .with(Style {
+                        align_self: AlignSelf::FlexStart,
+                        ..Default::default()
+                    })
+                    .with(
+                        res()
+                            .and(text.into_observable())
+                            .and(
+                                has_focused
+                                    .and(cursor)
+                                    .map(|(focused, cursor): (bool, &Cursor)| {
+                                        focused.then(|| cursor.0)
+                                    })
+                                    .dedup(),
+                            )
+                            .map(
+                                move |((assets, text), cursor): (
+                                    (&UiAssets, O::ObserverReturn<'_, '_>),
+                                    &Option<usize>,
+                                )| {
+                                    let text: &str = &text.borrow();
+                                    if let Some(cursor) = *cursor {
+                                        Text {
+                                            sections: vec![
+                                                TextSection {
+                                                    value: text[..cursor].to_owned(),
+                                                    style: assets.text_style.clone(),
+                                                },
+                                                TextSection {
+                                                    value: text[cursor..cursor + 1].to_string(),
+                                                    style: TextStyle {
+                                                        color: Color::BLACK,
+                                                        ..assets.text_style.clone()
+                                                    },
+                                                },
+                                                TextSection {
+                                                    value: text[cursor + 1..].to_owned(),
+                                                    style: assets.text_style.clone(),
+                                                },
+                                            ],
+                                            alignment: Default::default(),
+                                        }
+                                    } else {
+                                        Text::with_section(
+                                            text.borrow(),
+                                            assets.text_style.clone(),
+                                            Default::default(),
+                                        )
+                                    }
+                                },
+                            ),
+                    );
+            });
+    }
+}

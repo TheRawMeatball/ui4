@@ -2,7 +2,11 @@ use std::marker::PhantomData;
 
 use bevy::ecs::{prelude::*, world::EntityMut};
 
-use crate::{childable::Childable, insertable::Insertable, observer::ComponentObserver};
+use crate::{
+    childable::Childable,
+    insertable::Insertable,
+    observer::{ComponentExistsObserver, ComponentObserver},
+};
 
 pub struct Ctx<'a> {
     pub(crate) world: &'a mut World,
@@ -51,6 +55,10 @@ impl Ctx<'_> {
 
     pub fn component<T: Send + Sync + 'static>(&self) -> ComponentObserver<T> {
         ComponentObserver(self.current_entity, PhantomData)
+    }
+
+    pub fn has_component<T: Send + Sync + 'static>(&self) -> ComponentExistsObserver<T> {
+        ComponentExistsObserver(self.current_entity, PhantomData)
     }
 
     pub fn this(&self) -> Entity {
