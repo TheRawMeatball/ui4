@@ -15,7 +15,7 @@ path = "../bevy"
 # features = ["render"]
 
 [dev-dependencies]
-# bevy-inspector-egui = { path = "../bevy-inspector-egui" }
+bevy-inspector-egui = { git = "https://github.com/jakobhellermann/bevy-inspector-egui/", branch = "bevy-main" }
 derive_more = "0.99.16"
 
 [patch."https://github.com/bevyengine/bevy"]

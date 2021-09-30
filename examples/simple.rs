@@ -35,7 +35,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
         .add_plugin(Ui4Plugin(root))
-        // .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
+        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_startup_system(init_system);
 
     app.world.spawn().insert_bundle(UiCameraBundle::default());
@@ -70,7 +70,7 @@ fn root(ctx: &mut Ctx) {
         .with(res().map(|assets: &UiAssets| assets.background.clone()))
         .with(State(0))
         .with(List::default())
-        .with(EditedText("Append:"))
+        .with(EditedText("".to_string()))
         .children(|ctx: &mut McCtx| {
             ctx.c(text("Hello!".to_string()))
                 .c(text("How are you doing?".to_string()))
@@ -85,9 +85,7 @@ fn root(ctx: &mut Ctx) {
                 ))
                 .c(textbox(
                     edited_text.map(|t: &EditedText| t.to_string()),
-                    move |text, world| {
-                        world.get_mut::<EditedText>(this).unwrap().push_str(&text);
-                    },
+                    move |world| world.get_mut::<EditedText>(this).unwrap().into_inner(),
                 ));
         })
         .child(|ctx: &mut Ctx| {
@@ -193,9 +191,10 @@ fn button<O: IntoObserver<String, M>, M: 'static>(
         let component = ctx.component();
         ctx.with_bundle(ButtonBundle::default())
             .with(Style {
-                size: Size::new(Val::Px(150.0), Val::Px(65.0)),
+                size: Size::new(Val::Undefined, Val::Px(30.0)),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
+
                 ..Default::default()
             })
             .with(
@@ -217,25 +216,21 @@ fn button<O: IntoObserver<String, M>, M: 'static>(
 
 fn textbox<M, O: IntoObserver<String, M>>(
     text: O,
-    on_text: impl Fn(String, &mut World) + Send + Sync + 'static,
+    get_text: impl Fn(&mut World) -> &mut String + Send + Sync + 'static,
 ) -> impl FnOnce(&mut Ctx) {
-    #[derive(Component)]
-    struct Cursor(usize);
-
     move |ctx: &mut Ctx| {
         let has_focused = ctx.has_component::<Focused>();
         let cursor = ctx.component();
 
         ctx.with_bundle(ButtonBundle::default())
             .with(Style {
-                size: Size::new(Val::Px(150.0), Val::Px(65.0)),
-                justify_content: JustifyContent::Center,
+                size: Size::new(Val::Px(250.0), Val::Px(30.0)),
+                justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Center,
                 ..Default::default()
             })
-            .with(TextBox)
-            .with(TextBoxFunc::new(on_text))
-            .with(Cursor(0))
+            .with(TextBox(0))
+            .with(TextBoxFunc::new(get_text))
             .with(res().map(|assets: &UiAssets| assets.button.clone()))
             .child(|ctx: &mut Ctx| {
                 ctx.with_bundle(TextBundle::default())
@@ -246,36 +241,41 @@ fn textbox<M, O: IntoObserver<String, M>>(
                     .with(
                         res()
                             .and(text.into_observable())
-                            .and(
-                                has_focused
-                                    .and(cursor)
-                                    .map(|(focused, cursor): (bool, &Cursor)| {
-                                        focused.then(|| cursor.0)
-                                    })
-                                    .dedup(),
-                            )
+                            .and(has_focused.and(cursor).map(
+                                |(focused, cursor): (bool, &TextBox)| focused.then(|| cursor.0),
+                            ))
                             .map(
                                 move |((assets, text), cursor): (
                                     (&UiAssets, O::ObserverReturn<'_, '_>),
-                                    &Option<usize>,
+                                    Option<usize>,
                                 )| {
                                     let text: &str = &text.borrow();
-                                    if let Some(cursor) = *cursor {
+                                    if let Some(cursor) = cursor {
                                         Text {
                                             sections: vec![
                                                 TextSection {
-                                                    value: text[..cursor].to_owned(),
+                                                    value: text
+                                                        .get(..cursor)
+                                                        .unwrap_or("")
+                                                        .to_owned(),
                                                     style: assets.text_style.clone(),
                                                 },
                                                 TextSection {
-                                                    value: text[cursor..cursor + 1].to_string(),
+                                                    value: text
+                                                        .get(cursor..cursor + 1)
+                                                        .map(|c| if c == " " { "_" } else { c })
+                                                        .unwrap_or("_")
+                                                        .to_string(),
                                                     style: TextStyle {
                                                         color: Color::BLACK,
                                                         ..assets.text_style.clone()
                                                     },
                                                 },
                                                 TextSection {
-                                                    value: text[cursor + 1..].to_owned(),
+                                                    value: text
+                                                        .get(cursor + 1..)
+                                                        .unwrap_or("")
+                                                        .to_owned(),
                                                     style: assets.text_style.clone(),
                                                 },
                                             ],
