@@ -18,7 +18,7 @@ pub mod prelude {
         Childable,
     };
     pub use ctx::{Ctx, McCtx};
-    pub use observer::{res, IntoObserver, ObserverExt};
+    pub use observer::{res, single, IntoObserver, ObserverExt};
     pub use plugin::Ui4Plugin;
 }
 

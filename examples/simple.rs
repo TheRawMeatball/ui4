@@ -1,7 +1,7 @@
 use bevy::prelude::*;
+use derive_more::{Deref, DerefMut};
 use std::{borrow::Borrow, ops::Deref};
 use ui4::{childable::tracked::TrackedItemObserver, prelude::*};
-use derive_more::{DerefMut, Deref};
 
 struct UiAssets {
     background: Handle<ColorMaterial>,
@@ -95,11 +95,14 @@ fn root(ctx: &mut Ctx) {
                     w.get_mut::<List>(this).unwrap().remove(0);
                 }));
         })
-        .children(list.map(Deref::deref).each(|label: TrackedItemObserver<String>| {
-            move |ctx: &mut McCtx| {
-                ctx.c(counter(label.map(|s: &String| s.clone())));
-            }
-        }))
+        .children(
+            list.map(Deref::deref)
+                .each(|label: TrackedItemObserver<String>| {
+                    move |ctx: &mut McCtx| {
+                        ctx.c(counter(label.map(|s: &String| s.clone())));
+                    }
+                }),
+        )
         .children(
             res()
                 .map(|time: &Time| time.seconds_since_startup() as usize % 2 == 0)
@@ -200,3 +203,4 @@ fn button<O: IntoObserver<String, M>, M: 'static>(
             .child(text(t));
     }
 }
+

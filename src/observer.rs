@@ -7,8 +7,9 @@ use crate::{Dynamic, Static};
 
 mod component;
 mod res;
+mod single;
 
-pub use {component::ComponentObserver, res::res};
+pub use {component::ComponentObserver, res::res, single::single};
 
 pub trait UninitObserver: Send + Sync + 'static {
     type Observer: Observer;
