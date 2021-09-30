@@ -8,6 +8,7 @@ use bevy::{
     prelude::{BuildWorldChildren, DespawnRecursiveExt},
 };
 use crossbeam_channel::Sender;
+use generational_arena::{Arena, Index};
 pub use map::TrackedMap;
 pub use vec::TrackedVec;
 
@@ -52,13 +53,13 @@ pub enum Diff<T> {
 
 pub struct TrackedForeach<UO, F>(UO, F);
 
-type TrackedAnyList<T> = Vec<(T, Vec<UpdateFunc>)>;
+type TrackedAnyList<T> = Arena<(T, usize, Vec<UpdateFunc>)>;
 
 pub struct TrackedItemObserver<T: Send + Sync + 'static> {
     _marker: PhantomData<T>,
     entity: Entity,
     group_index: usize,
-    index: usize,
+    index: Index,
 }
 
 impl<T: Send + Sync + 'static> UninitObserver for TrackedItemObserver<T> {
@@ -77,14 +78,14 @@ impl<T: Send + Sync + 'static> UninitObserver for TrackedItemObserver<T> {
             }
             _ => unreachable!(),
         };
-        let (_, ufs) = &mut items[self.index];
+        let (_, _, ufs) = &mut items[self.index];
         ufs.push(uf.clone());
         uf
     }
 }
 
 impl<T: Send + Sync + 'static> Observer for TrackedItemObserver<T> {
-    type Return<'w, 's> = &'w T;
+    type Return<'w, 's> = (&'w T, usize);
 
     fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
         let list = &world
@@ -97,8 +98,9 @@ impl<T: Send + Sync + 'static> Observer for TrackedItemObserver<T> {
             }
             _ => unreachable!(),
         };
-        let (val, _) = &items[self.index];
-        (val, true)
+        let (val, index, _) = &items[self.index];
+        println!("heya {}", index);
+        ((val, *index), true)
     }
 }
 
@@ -156,13 +158,22 @@ where
                         _ => unreachable!(),
                     };
                     let i = i.unwrap_or(entities.len());
-                    entities.insert(i, vec![]);
-                    items.insert(i, (e, vec![]));
+                    let index = items.insert((e, i, vec![]));
+                    let mut ufs = vec![];
+                    for &(_, index) in &entities[i..] {
+                        items[index].1 += 1;
+                        ufs.extend(items[index].2.iter().cloned());
+                    }
+                    entities.insert(i, (vec![], index));
+                    world
+                        .get_resource_mut::<UiScratchSpace>()
+                        .unwrap()
+                        .register_update_funcs(ufs);
                     let observer = TrackedItemObserver::<T> {
                         _marker: PhantomData,
                         entity: parent,
                         group_index,
-                        index: i,
+                        index,
                     };
                     let mut get_new_child = |world: &mut World| {
                         let id = world.spawn().id();
@@ -173,7 +184,7 @@ where
                             ChildNodeGroupKind::List(v, _, _) => v,
                             _ => unreachable!(),
                         };
-                        entities[i].push(id);
+                        entities[i].0.push(id);
                         insert_index += 1;
                         id
                     };
@@ -191,11 +202,20 @@ where
                         _ => unreachable!(),
                     };
                     let i = i.unwrap_or(entities.len() - 1);
-                    let list = entities.remove(i);
-                    items.remove(i);
+                    let (list, index) = entities.remove(i);
+                    let mut ufs = vec![];
+                    for &(_, index) in &entities[i..] {
+                        items[index].1 -= 1;
+                        ufs.extend(items[index].2.iter().cloned());
+                    }
+                    items.remove(index);
                     for entity in list {
                         world.entity_mut(entity).despawn_recursive();
                     }
+                    world
+                        .get_resource_mut::<UiScratchSpace>()
+                        .unwrap()
+                        .register_update_funcs(ufs);
                 };
                 for msg in rx.try_iter() {
                     match msg {
@@ -210,13 +230,13 @@ where
                                     }
                                     _ => unreachable!(),
                                 };
-                                entities.push(vec![]);
-                                items.push((e, vec![]));
+                                let index = items.insert((e, entities.len(), vec![]));
+                                entities.push((vec![], index));
                                 let observer = TrackedItemObserver::<T> {
                                     _marker: PhantomData,
                                     entity: parent,
                                     group_index,
-                                    index: entities.len() - 1,
+                                    index,
                                 };
                                 let mut get_new_child = |world: &mut World| {
                                     let id = world.spawn().id();
@@ -227,7 +247,7 @@ where
                                         ChildNodeGroupKind::List(v, _, _) => v,
                                         _ => unreachable!(),
                                     };
-                                    entities.last_mut().unwrap().push(id);
+                                    entities.last_mut().unwrap().0.push(id);
                                     insert_index += 1;
                                     id
                                 };
@@ -241,13 +261,14 @@ where
                         Diff::Pop => remove(world, None),
                         Diff::Replace(e, i) => {
                             let list = get_marker_list(world.entity_mut(parent));
-                            let items = match &mut list[group_index] {
-                                ChildNodeGroupKind::List(_, i, _) => {
-                                    (&mut **i).downcast_mut::<TrackedAnyList<T>>().unwrap()
+                            let (v, items) = match &mut list[group_index] {
+                                ChildNodeGroupKind::List(e, i, _) => {
+                                    (e, (&mut **i).downcast_mut::<TrackedAnyList<T>>().unwrap())
                                 }
                                 _ => unreachable!(),
                             };
-                            let (item, ufs) = &mut items[i];
+                            let (_, index) = v[i];
+                            let (item, _, ufs) = &mut items[index];
                             *item = e;
                             let ufs: Vec<_> = ufs.iter().cloned().collect();
                             world
@@ -268,7 +289,7 @@ where
                             };
                             items.clear();
                             let mut entities = std::mem::replace(entities, Vec::new());
-                            for entity in entities.drain(..).flatten() {
+                            for entity in entities.drain(..).map(|v| v.0).flatten() {
                                 world.entity_mut(entity).despawn_recursive();
                             }
 

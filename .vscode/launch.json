@@ -48,6 +48,28 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Debug example 'todomvc'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=todomvc",
+                    "--package=ui4"
+                ],
+                "filter": {
+                    "name": "todomvc",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "CARGO_MANIFEST_DIR": "${workspaceFolder}",
+                "RUST_BACKTRACE": "1"
+            }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug unit tests in example 'simple'",
             "cargo": {
                 "args": [

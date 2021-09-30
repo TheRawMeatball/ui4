@@ -54,6 +54,9 @@ impl TextBoxSystemState {
             let mut cursor = cursor.0;
             let delta = time.delta();
             let string = tbf.clone().get(world);
+            if cursor > string.len() {
+                cursor = 0;
+            }
             if jpl || jpr {
                 self.timer.reset();
             }

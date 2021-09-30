@@ -206,7 +206,7 @@ pub trait IntoObserver<T, M>: Send + Sync + 'static
     type UninitObserver: UninitObserver<Observer = Self::Observer>;
     type Observer: for<'w, 's> Observer<Return<'w, 's> = Self::ObserverReturn<'w, 's>>;
     type ObserverReturn<'w, 's>: Borrow<T>;
-    fn into_observable(self) -> Self::UninitObserver;
+    fn into_observer(self) -> Self::UninitObserver;
 }
 
 impl<T: Send + Sync + 'static> IntoObserver<T, Static> for T {
@@ -214,7 +214,7 @@ impl<T: Send + Sync + 'static> IntoObserver<T, Static> for T {
     type Observer = StaticObserver<T>;
     type ObserverReturn<'w, 's> = &'s T;
 
-    fn into_observable(self) -> Self::Observer {
+    fn into_observer(self) -> Self::Observer {
         StaticObserver(self)
     }
 }
@@ -225,7 +225,7 @@ impl<T, O: for<'w, 's> Observer<Return<'w, 's> = T>, UO: UninitObserver<Observer
     type Observer = O;
     type ObserverReturn<'w, 's> = O::Return<'w, 's>;
 
-    fn into_observable(self) -> Self::UninitObserver {
+    fn into_observer(self) -> Self::UninitObserver {
         self
     }
 

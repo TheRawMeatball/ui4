@@ -108,7 +108,7 @@ fn root(ctx: &mut Ctx) {
             list.map(Deref::deref)
                 .each(|label: TrackedItemObserver<String>| {
                     move |ctx: &mut McCtx| {
-                        ctx.c(counter(label.map(|s: &String| s.clone())));
+                        ctx.c(counter(label.map(|s: (&String, usize)| s.0.clone())));
                     }
                 }),
         )
@@ -175,7 +175,7 @@ fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(&mut Ctx) {
                 align_self: AlignSelf::FlexStart,
                 ..Default::default()
             })
-            .with(res().and(text.into_observable()).map(
+            .with(res().and(text.into_observer()).map(
                 move |(assets, text): (&UiAssets, O::ObserverReturn<'_, '_>)| {
                     Text::with_section(text.borrow(), assets.text_style.clone(), Default::default())
                 },
@@ -240,7 +240,7 @@ fn textbox<M, O: IntoObserver<String, M>>(
                     })
                     .with(
                         res()
-                            .and(text.into_observable())
+                            .and(text.into_observer())
                             .and(has_focused.and(cursor).map(
                                 |(focused, cursor): (bool, &TextBox)| focused.then(|| cursor.0),
                             ))

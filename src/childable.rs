@@ -4,6 +4,7 @@ use bevy::{
     ecs::{prelude::*, world::EntityMut},
     prelude::{BuildWorldChildren, DespawnRecursiveExt, Entity},
 };
+use generational_arena::Index;
 
 use crate::{
     ctx::{Ctx, McCtx},
@@ -31,7 +32,7 @@ fn get_index_from_cng_list(list: &[ChildNodeGroupKind], group_index: usize) -> u
         .map(|node| match node {
             ChildNodeGroupKind::StaticChildren(len) => *len,
             ChildNodeGroupKind::Dynamic(entities, _) => entities.len(),
-            ChildNodeGroupKind::List(entities, _, _) => entities.iter().map(|v| v.len()).sum(),
+            ChildNodeGroupKind::List(entities, _, _) => entities.iter().map(|v| v.0.len()).sum(),
         })
         .sum()
 }
@@ -42,7 +43,7 @@ enum ChildNodeGroupKind {
     StaticChildren(usize),
     Dynamic(Vec<Entity>, UfMarker<ChildNodeUpdateFuncMarker>),
     List(
-        Vec<Vec<Entity>>,
+        Vec<(Vec<Entity>, Index)>,
         Box<dyn Any + Send + Sync>,
         UfMarker<ChildNodeUpdateFuncMarker>,
     ),
