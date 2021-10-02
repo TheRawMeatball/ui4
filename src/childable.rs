@@ -44,9 +44,7 @@ where
     fn insert(self, ctx: &mut Ctx) {
         let parent = ctx.current_entity;
         let c_parent = ctx.world.spawn().id();
-        let p = ctx.world.entity_mut(parent);
-        let group_index = p.get::<Children>().map(|c| &**c).unwrap_or(&[]).len();
-        p.push_children(&[c_parent]);
+        ctx.world.entity_mut(parent).push_children(&[c_parent]);
 
         let uf = self.register_self(ctx.world, |mut observer, world| {
             let (uf, marker) = UpdateFunc::new::<CnufMarker, _>(move |world| {

@@ -15,7 +15,7 @@ pub use vec::TrackedVec;
 use crate::{
     childable::CnufMarker,
     observer::{Observer, UninitObserver},
-    prelude::{Ctx, McCtx},
+    prelude::Ctx,
     runtime::{UiScratchSpace, UpdateFunc},
 };
 
@@ -67,7 +67,7 @@ impl<T: Send + Sync + 'static> UninitObserver for TrackedItemObserver<T> {
         uf: F,
     ) -> UpdateFunc {
         let uf = uf(self, world);
-        // TODO: register uf
+        world.get_mut::<Element<T>>(self.entity).unwrap().ufs.push(uf.clone());
         uf
     }
 }
@@ -76,7 +76,8 @@ impl<T: Send + Sync + 'static> Observer for TrackedItemObserver<T> {
     type Return<'w, 's> = (&'w T, usize);
 
     fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
-        todo!()
+        let element = world.get::<Element<T>>(self.entity).unwrap();
+        ((&element.element, element.index), true)
     }
 }
 
@@ -104,6 +105,12 @@ struct Element<T: Send + Sync + 'static> {
     ufs: Vec<UpdateFunc>,
 }
 
+type Paramset<T> = SystemState<(
+    Query<'static, 'static, &'static Children>,
+    Query<'static, 'static, &'static mut Element<T>>,
+    ResMut<'static, UiScratchSpace>,
+)>;
+
 #[rustfmt::skip]
 impl<O, UO, T, F, C, Tt, M> Childable<(TrackedMarker, Tt, C, M)> for TrackedForeach<UO, F>
 where
@@ -118,95 +125,96 @@ where
         let parent = ctx.current_entity;
         let f = self.1;
 
-        let parent = ctx.current_entity;
         let c_parent = ctx.world.spawn().id();
-        let p = ctx.world.entity_mut(parent);
-        let group_index = p.get::<Children>().map(|c| &**c).unwrap_or(&[]).len();
-        p.push_children(&[c_parent]);
+        ctx.world.entity_mut(parent).push_children(&[c_parent]);
 
         self.0.register_self(ctx.world, |mut obs, world| {
             let (tv, _) = obs.get(world);
             let (tx, rx) = crossbeam_channel::unbounded();
 
             tv.register(tx);
-            let paramset = SystemState::<(Query<&Children>, Query<&mut Element<T>>, ResMut<UiScratchSpace>)>::new(world);
+            let mut paramset = Paramset::<T>::new(world);
             let (uf, marker) = UpdateFunc::new::<CnufMarker, _>(move |world| {
-                let insert = |world: &mut World, e, i: Option<usize>| {
-                    let index = i.unwrap_or_else(|| {
-                        world
-                            .get::<Children>(c_parent)
-                            .map(|x| x.len())
-                            .unwrap_or(0)
-                    });
-                    let element_entity = world
-                        .spawn()
-                        .insert(Element {
-                            index,
-                            element: e,
-                            ufs: vec![],
-                        })
-                        .insert(ControlNode::default())
-                        .id();
+                let insert =
+                    |world: &mut World, paramset: &mut Paramset<T>, e, i: Option<usize>| {
+                        let index = i.unwrap_or_else(|| {
+                            world
+                                .get::<Children>(c_parent)
+                                .map(|x| x.len())
+                                .unwrap_or(0)
+                        });
+                        let element_entity = world
+                            .spawn()
+                            .insert(Element {
+                                index,
+                                element: e,
+                                ufs: vec![],
+                            })
+                            .insert(ControlNode::default())
+                            .id();
 
-                    world
-                        .entity_mut(c_parent)
-                        .insert_children(index, &[element_entity]);
-                    let (children, element, ufs) = paramset.get_mut(world);
-                    let entities = children.get(c_parent).unwrap();
-                    for &entity in &entities[index..] {
-                        ufs.register_update_funcs(world.get::<Element<T>>(entity).unwrap().ufs);
-                        element.get_mut(entity).unwrap().index += 1;
-                    }
-                    let observer = TrackedItemObserver::<T> {
-                        _marker: PhantomData,
-                        entity: element_entity,
+                        world
+                            .entity_mut(c_parent)
+                            .insert_children(index, &[element_entity]);
+                        let (children, mut element, mut ufs) = paramset.get_mut(world);
+                        let entities = children.get(c_parent).unwrap();
+                        for &entity in &entities[..index] {
+                            let mut element = element.get_mut(entity).unwrap();
+                            ufs.register_update_funcs(element.ufs.iter().cloned());
+                            element.index -= 1;
+                        }
+                        let observer = TrackedItemObserver::<T> {
+                            _marker: PhantomData,
+                            entity: element_entity,
+                        };
+                        f(observer).insert(&mut Ctx {
+                            current_entity: {
+                                let id = world.spawn().id();
+                                world.entity_mut(element_entity).push_children(&[id]);
+                                id
+                            },
+                            world,
+                        })
                     };
-                    f(observer).insert(&mut Ctx {
-                        current_entity: {
-                            let id = world.spawn().id();
-                            world.entity_mut(element_entity).push_children(&[id]);
-                            id
-                        },
-                        world,
-                    })
-                };
-                let remove = |world: &mut World, i: Option<usize>| {
+                let remove = |world: &mut World, paramset: &mut Paramset<T>, i: Option<usize>| {
                     let children = world.get::<Children>(c_parent).unwrap();
                     let index = i.unwrap_or_else(|| children.len() - 1);
                     let to_despawn = children[index];
                     world.entity_mut(to_despawn).despawn_recursive();
-                    let (children, element, ufs) = paramset.get_mut(world);
+                    let (children, mut element, mut ufs) = paramset.get_mut(world);
                     let entities = children.get(c_parent).unwrap();
                     for &entity in &entities[..index] {
-                        ufs.register_update_funcs(world.get::<Element<T>>(entity).unwrap().ufs);
-                        element.get_mut(entity).unwrap().index -= 1;
+                        let mut element = element.get_mut(entity).unwrap();
+                        ufs.register_update_funcs(element.ufs.iter().cloned());
+                        element.index -= 1;
                     }
                 };
                 for msg in rx.try_iter() {
                     match msg {
                         Diff::Init(list) => {
                             for element in list {
-                                insert(world, element, None);
+                                insert(world, &mut paramset, element, None);
                             }
                         }
-                        Diff::Push(e) => insert(world, e, None),
-                        Diff::Pop => remove(world, None),
+                        Diff::Push(e) => insert(world, &mut paramset, e, None),
+                        Diff::Pop => remove(world, &mut paramset, None),
                         Diff::Replace(e, i) => {
-                            let (children, element, ufs) = paramset.get_mut(world);
+                            let (children, mut element, mut ufs) = paramset.get_mut(world);
                             let entities = children.get(c_parent).unwrap();
-                            let element = element.get_mut(entities[i]).unwrap();
+                            let mut element = element.get_mut(entities[i]).unwrap();
                             element.element = e;
-                            ufs.register_update_funcs(element.ufs);
+                            ufs.register_update_funcs(element.ufs.iter().cloned());
                         }
                         // Diff::Switch(_, _) => todo!(),
-                        Diff::Remove(i) => remove(world, Some(i)),
-                        Diff::Insert(e, i) => insert(world, e, Some(i)),
+                        Diff::Remove(i) => remove(world, &mut paramset, Some(i)),
+                        Diff::Insert(e, i) => insert(world, &mut paramset, e, Some(i)),
                         Diff::Clear => {
                             world.entity_mut(c_parent).despawn_children_recursive();
                         }
                     }
                 }
             });
+            world.entity_mut(c_parent).insert(marker);
             uf.run(world);
             uf
         });
