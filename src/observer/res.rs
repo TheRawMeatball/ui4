@@ -47,6 +47,7 @@ impl<R: Send + Sync + 'static> UninitObserver for ResObserverTemplate<R> {
     }
 }
 
+/// Gets an observer for a particular resource
 pub fn res<R: Send + Sync + 'static>() -> ResObserverTemplate<R> {
     ResObserverTemplate(PhantomData)
 }

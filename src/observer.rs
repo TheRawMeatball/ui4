@@ -215,13 +215,13 @@ pub trait IntoObserver<T, M>: Send + Sync + 'static
     fn into_observer(self) -> Self::UninitObserver;
 }
 
-impl<T: Send + Sync + 'static> IntoObserver<T, Static> for T {
+impl<T: Send + Sync + 'static, I: Into<T> + Send + Sync + 'static> IntoObserver<T, Static> for I {
     type UninitObserver = StaticObserver<T>;
     type Observer = StaticObserver<T>;
     type ObserverReturn<'w, 's> = &'s T;
 
     fn into_observer(self) -> Self::Observer {
-        StaticObserver(self)
+        StaticObserver(self.into())
     }
 }
 

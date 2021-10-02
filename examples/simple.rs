@@ -72,12 +72,12 @@ fn root(ctx: &mut Ctx) {
         .with(List::default())
         .with(EditedText("".to_string()))
         .children(|ctx: &mut McCtx| {
-            ctx.c(text("Hello!".to_string()))
-                .c(text("How are you doing?".to_string()))
-                .c(button("Increment".to_string(), move |world| {
+            ctx.c(text("Hello!"))
+                .c(text("How are you doing?"))
+                .c(button("Increment", move |world| {
                     world.get_mut::<State>(this).unwrap().0 += 1;
                 }))
-                .c(button("Decrement".to_string(), move |world| {
+                .c(button("Decrement", move |world| {
                     world.get_mut::<State>(this).unwrap().0 -= 1;
                 }))
                 .c(text(

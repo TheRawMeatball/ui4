@@ -85,7 +85,7 @@ fn root(ctx: &mut Ctx) {
                 ..Default::default()
             })
             .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
-            .child(text(80., "Todos".to_string()));
+            .child(text(80., "Todos"));
     });
 
     ctx.child(|ctx: &mut Ctx| {
@@ -123,7 +123,7 @@ fn root(ctx: &mut Ctx) {
                         });
                     })
                     .child(|ctx: &mut Ctx| {
-                        button("Add".to_string(), |world: &mut World| {
+                        button("Add", |world: &mut World| {
                             let text = std::mem::take(
                                 &mut world.get_resource_mut::<EditedText>().unwrap().0,
                             );
@@ -192,7 +192,7 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(&mut Ctx) {
                                     })
                                     .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
                                     .child(|ctx: &mut Ctx| {
-                                        button("Unmark".to_string(), |_| {})(ctx);
+                                        button("Unmark", |_| {})(ctx);
                                         ctx.with(Style {
                                             size: Size::new(Val::Percent(50.), Val::Px(30.0)),
                                             justify_content: JustifyContent::Center,
@@ -214,7 +214,7 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(&mut Ctx) {
                                         );
                                     })
                                     .child(|ctx: &mut Ctx| {
-                                        button("Remove".to_string(), |_| {})(ctx);
+                                        button("Remove", |_| {})(ctx);
                                         ctx.with(Style {
                                             size: Size::new(Val::Percent(50.), Val::Px(30.0)),
                                             justify_content: JustifyContent::Center,
@@ -237,7 +237,7 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(&mut Ctx) {
                             });
                         } else {
                             ctx.c(|ctx: &mut Ctx| {
-                                button("Mark Complete".to_string(), |_| {})(ctx);
+                                button("Mark Complete", |_| {})(ctx);
                                 ctx.with(Style {
                                     size: Size::new(Val::Px(250.), Val::Px(30.0)),
                                     justify_content: JustifyContent::Center,
