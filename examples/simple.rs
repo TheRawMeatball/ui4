@@ -43,7 +43,7 @@ fn main() {
     app.run()
 }
 
-fn root(ctx: &mut Ctx) {
+fn root(ctx: Ctx) -> Ctx {
     #[derive(Component)]
     struct State(i32);
 
@@ -88,7 +88,7 @@ fn root(ctx: &mut Ctx) {
                     move |world| world.get_mut::<EditedText>(this).unwrap().into_inner(),
                 ));
         })
-        .child(|ctx: &mut Ctx| {
+        .child(|ctx: Ctx| {
             ctx.with_bundle(NodeBundle::default())
                 .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
                 .child(button("Add Hello".to_string(), move |w| {
@@ -102,7 +102,7 @@ fn root(ctx: &mut Ctx) {
                 }))
                 .child(button("Remove first".to_string(), move |w| {
                     w.get_mut::<List>(this).unwrap().remove(0);
-                }));
+                }))
         })
         .children(
             list.map(Deref::deref)
@@ -124,14 +124,14 @@ fn root(ctx: &mut Ctx) {
                         }
                     }
                 }),
-        );
+        )
 }
 
-fn counter<M>(label: impl IntoObserver<String, M>) -> impl FnOnce(&mut Ctx) {
+fn counter<M>(label: impl IntoObserver<String, M>) -> impl FnOnce(Ctx) -> Ctx {
     #[derive(Component)]
     struct State(i32);
 
-    move |ctx: &mut Ctx| {
+    move |ctx: Ctx| {
         let component = ctx.component();
         let entity = ctx.current_entity();
         ctx.with_bundle(NodeBundle::default())
@@ -147,8 +147,7 @@ fn counter<M>(label: impl IntoObserver<String, M>) -> impl FnOnce(&mut Ctx) {
                         w.get_mut::<State>(entity).unwrap().0 += 1;
                     }))
                     .c(|ctx| {
-                        text(component.map(|x: &State| x.0.to_string()))(ctx);
-                        ctx.with(Style {
+                        text(component.map(|x: &State| x.0.to_string()))(ctx).with(Style {
                             align_self: AlignSelf::FlexStart,
                             min_size: Size {
                                 width: Val::Px(50.0),
@@ -159,17 +158,17 @@ fn counter<M>(label: impl IntoObserver<String, M>) -> impl FnOnce(&mut Ctx) {
                                 height: Val::Px(30.),
                             },
                             ..Default::default()
-                        });
+                        })
                     })
                     .c(button("-".to_string(), move |w| {
                         w.get_mut::<State>(entity).unwrap().0 -= 1;
                     }));
-            });
+            })
     }
 }
 
-fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(&mut Ctx) {
-    move |ctx: &mut Ctx| {
+fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
+    move |ctx: Ctx| {
         ctx.with_bundle(TextBundle::default())
             .with(Style {
                 align_self: AlignSelf::FlexStart,
@@ -179,15 +178,15 @@ fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(&mut Ctx) {
                 move |(assets, text): (&UiAssets, O::ObserverReturn<'_, '_>)| {
                     Text::with_section(text.borrow(), assets.text_style.clone(), Default::default())
                 },
-            ));
+            ))
     }
 }
 
 fn button<O: IntoObserver<String, M>, M: 'static>(
     t: O,
     on_click: impl Fn(&mut World) + Send + Sync + 'static,
-) -> impl FnOnce(&mut Ctx) {
-    move |ctx: &mut Ctx| {
+) -> impl FnOnce(Ctx) -> Ctx {
+    move |ctx: Ctx| {
         let component = ctx.component();
         ctx.with_bundle(ButtonBundle::default())
             .with(Style {
@@ -210,15 +209,15 @@ fn button<O: IntoObserver<String, M>, M: 'static>(
             )
             .with(FuncScratch::default())
             .with(ClickFunc(ButtonFunc::new(on_click)))
-            .child(text(t));
+            .child(text(t))
     }
 }
 
 fn textbox<M, O: IntoObserver<String, M>>(
     text: O,
     get_text: impl Fn(&mut World) -> &mut String + Send + Sync + 'static,
-) -> impl FnOnce(&mut Ctx) {
-    move |ctx: &mut Ctx| {
+) -> impl FnOnce(Ctx) -> Ctx {
+    move |ctx: Ctx| {
         let has_focused = ctx.has_component::<Focused>();
         let cursor = ctx.component();
 
@@ -232,7 +231,7 @@ fn textbox<M, O: IntoObserver<String, M>>(
             .with(TextBox(0))
             .with(TextBoxFunc::new(get_text))
             .with(res().map(|assets: &UiAssets| assets.button.clone()))
-            .child(|ctx: &mut Ctx| {
+            .child(|ctx: Ctx| {
                 ctx.with_bundle(TextBundle::default())
                     .with(Style {
                         align_self: AlignSelf::FlexStart,
@@ -290,7 +289,7 @@ fn textbox<M, O: IntoObserver<String, M>>(
                                     }
                                 },
                             ),
-                    );
-            });
+                    )
+            })
     }
 }

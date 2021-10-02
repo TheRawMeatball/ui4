@@ -7,7 +7,7 @@ use crate::runtime::{primary_ui_system, UiManagedSystems, UiScratchSpace};
 use crate::textbox::TextBoxSystemState;
 
 pub struct Ui4Plugin<F>(pub F);
-impl<F: Fn(&mut Ctx) + Clone + Send + Sync + 'static> Plugin for Ui4Plugin<F> {
+impl<F: Fn(Ctx) -> Ctx + Clone + Send + Sync + 'static> Plugin for Ui4Plugin<F> {
     fn build(&self, app: &mut bevy::prelude::App) {
         let root = self.0.clone();
         app.init_resource::<UiScratchSpace>()
@@ -24,9 +24,9 @@ impl<F: Fn(&mut Ctx) + Clone + Send + Sync + 'static> Plugin for Ui4Plugin<F> {
     }
 }
 
-fn init_ui(world: &mut World, root: impl Fn(&mut Ctx)) {
-    root(&mut Ctx {
+fn init_ui(world: &mut World, root: impl Fn(Ctx) -> Ctx) {
+    root(Ctx {
         current_entity: world.spawn().id(),
         world,
-    })
+    });
 }

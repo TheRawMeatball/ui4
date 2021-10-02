@@ -61,7 +61,7 @@ fn main() {
     app.run()
 }
 
-fn root(ctx: &mut Ctx) {
+fn root(ctx: Ctx) -> Ctx {
     ctx.with_bundle(NodeBundle::default())
         .with(Style {
             size: Size {
@@ -71,88 +71,85 @@ fn root(ctx: &mut Ctx) {
             flex_direction: FlexDirection::ColumnReverse,
             ..Default::default()
         })
-        .with(res().map(|assets: &UiAssets| assets.background.clone()));
-
-    ctx.child(|ctx: &mut Ctx| {
-        ctx.with_bundle(NodeBundle::default())
-            .with(Style {
-                size: Size {
-                    width: Val::Auto,
-                    height: Val::Undefined,
-                },
-                flex_direction: FlexDirection::ColumnReverse,
-                align_self: AlignSelf::Center,
-                ..Default::default()
-            })
-            .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
-            .child(text(80., "Todos"));
-    });
-
-    ctx.child(|ctx: &mut Ctx| {
-        ctx.with_bundle(NodeBundle::default())
-            .with(Style {
-                size: Size {
-                    width: Val::Percent(60.),
-                    height: Val::Auto,
-                },
-                flex_direction: FlexDirection::ColumnReverse,
-                align_self: AlignSelf::Center,
-                ..Default::default()
-            })
-            .with(res().map(|assets: &UiAssets| assets.list_background.clone()))
-            .child(|ctx: &mut Ctx| {
-                ctx.with_bundle(NodeBundle::default())
-                    .with(Style {
-                        size: Size {
-                            width: Val::Percent(100.),
-                            height: Val::Auto,
-                        },
-                        flex_direction: FlexDirection::Row,
-                        ..Default::default()
-                    })
-                    .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
-                    .child(|ctx: &mut Ctx| {
-                        textbox(res().map(|t: &EditedText| t.0.clone()), |w| {
-                            &mut w.get_resource_mut::<EditedText>().unwrap().into_inner().0
-                        })(ctx);
-                        ctx.with(Style {
-                            size: Size::new(Val::Percent(90.), Val::Px(30.0)),
-                            justify_content: JustifyContent::FlexStart,
-                            align_items: AlignItems::Center,
+        .with(res().map(|assets: &UiAssets| assets.background.clone()))
+        .child(|ctx: Ctx| {
+            ctx.with_bundle(NodeBundle::default())
+                .with(Style {
+                    size: Size {
+                        width: Val::Auto,
+                        height: Val::Undefined,
+                    },
+                    flex_direction: FlexDirection::ColumnReverse,
+                    align_self: AlignSelf::Center,
+                    ..Default::default()
+                })
+                .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
+                .child(text(80., "Todos"))
+        })
+        .child(|ctx: Ctx| {
+            ctx.with_bundle(NodeBundle::default())
+                .with(Style {
+                    size: Size {
+                        width: Val::Percent(60.),
+                        height: Val::Auto,
+                    },
+                    flex_direction: FlexDirection::ColumnReverse,
+                    align_self: AlignSelf::Center,
+                    ..Default::default()
+                })
+                .with(res().map(|assets: &UiAssets| assets.list_background.clone()))
+                .child(|ctx: Ctx| {
+                    ctx.with_bundle(NodeBundle::default())
+                        .with(Style {
+                            size: Size {
+                                width: Val::Percent(100.),
+                                height: Val::Auto,
+                            },
+                            flex_direction: FlexDirection::Row,
                             ..Default::default()
-                        });
-                    })
-                    .child(|ctx: &mut Ctx| {
-                        button("Add", |world: &mut World| {
-                            let text = std::mem::take(
-                                &mut world.get_resource_mut::<EditedText>().unwrap().0,
-                            );
-                            world.get_resource_mut::<TodoList>().unwrap().push(Todo {
-                                text: text.into(),
-                                done: false,
-                            });
-                        })(ctx);
-                        ctx.with(Style {
-                            size: Size::new(Val::Percent(10.), Val::Px(30.0)),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..Default::default()
-                        });
-                    });
-            });
-
-        ctx.children(res::<TodoList>().map(Deref::deref).each(
-            |item: TrackedItemObserver<Todo>| {
-                move |ctx: &mut McCtx| {
-                    ctx.c(todo(item));
-                }
-            },
-        ));
-    });
+                        })
+                        .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
+                        .child(|ctx: Ctx| {
+                            textbox(res().map(|t: &EditedText| t.0.clone()), |w| {
+                                &mut w.get_resource_mut::<EditedText>().unwrap().into_inner().0
+                            })(ctx)
+                            .with(Style {
+                                size: Size::new(Val::Percent(90.), Val::Px(30.0)),
+                                justify_content: JustifyContent::FlexStart,
+                                align_items: AlignItems::Center,
+                                ..Default::default()
+                            })
+                        })
+                        .child(|ctx: Ctx| {
+                            button("Add", |world: &mut World| {
+                                let text = std::mem::take(
+                                    &mut world.get_resource_mut::<EditedText>().unwrap().0,
+                                );
+                                world.get_resource_mut::<TodoList>().unwrap().push(Todo {
+                                    text: text.into(),
+                                    done: false,
+                                });
+                            })(ctx)
+                            .with(Style {
+                                size: Size::new(Val::Percent(10.), Val::Px(30.0)),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..Default::default()
+                            })
+                        })
+                })
+                .children(res::<TodoList>().map(Deref::deref).each(
+                    |item: TrackedItemObserver<Todo>| {
+                        move |ctx: &mut McCtx| {
+                            ctx.c(todo(item));
+                        }
+                    },
+                ))
+        })
 }
 
-fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(&mut Ctx) {
-    move |ctx: &mut Ctx| {
+fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(Ctx) -> Ctx {
+    move |ctx: Ctx| {
         ctx.with_bundle(NodeBundle::default())
             .with(Style {
                 size: Size {
@@ -182,7 +179,7 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(&mut Ctx) {
                 move |&done: &bool| {
                     move |ctx: &mut McCtx| {
                         if done {
-                            ctx.c(|ctx: &mut Ctx| {
+                            ctx.c(|ctx: Ctx| {
                                 ctx.with_bundle(NodeBundle::default())
                                     .with(Style {
                                         size: Size::new(Val::Px(250.), Val::Px(30.0)),
@@ -191,16 +188,15 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(&mut Ctx) {
                                         ..Default::default()
                                     })
                                     .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
-                                    .child(|ctx: &mut Ctx| {
-                                        button("Unmark", |_| {})(ctx);
-                                        ctx.with(Style {
-                                            size: Size::new(Val::Percent(50.), Val::Px(30.0)),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            ..Default::default()
-                                        })
-                                        .with(
-                                            item.map(|(_, i): (&Todo, usize)| i).dedup().map(
+                                    .child(|ctx: Ctx| {
+                                        button("Unmark", |_| {})(ctx)
+                                            .with(Style {
+                                                size: Size::new(Val::Percent(50.), Val::Px(30.0)),
+                                                justify_content: JustifyContent::Center,
+                                                align_items: AlignItems::Center,
+                                                ..Default::default()
+                                            })
+                                            .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
                                                 |&i: &usize| {
                                                     ClickFunc(ButtonFunc::new(move |world| {
                                                         let mut list = world
@@ -210,19 +206,17 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(&mut Ctx) {
                                                         list.replace(Todo { text, done: false }, i);
                                                     }))
                                                 },
-                                            ),
-                                        );
+                                            ))
                                     })
-                                    .child(|ctx: &mut Ctx| {
-                                        button("Remove", |_| {})(ctx);
-                                        ctx.with(Style {
-                                            size: Size::new(Val::Percent(50.), Val::Px(30.0)),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            ..Default::default()
-                                        })
-                                        .with(
-                                            item.map(|(_, i): (&Todo, usize)| i).dedup().map(
+                                    .child(|ctx: Ctx| {
+                                        button("Remove", |_| {})(ctx)
+                                            .with(Style {
+                                                size: Size::new(Val::Percent(50.), Val::Px(30.0)),
+                                                justify_content: JustifyContent::Center,
+                                                align_items: AlignItems::Center,
+                                                ..Default::default()
+                                            })
+                                            .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
                                                 |&i: &usize| {
                                                     ClickFunc(ButtonFunc::new(move |world| {
                                                         let mut list = world
@@ -231,22 +225,20 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(&mut Ctx) {
                                                         list.remove(i);
                                                     }))
                                                 },
-                                            ),
-                                        );
-                                    });
+                                            ))
+                                    })
                             });
                         } else {
-                            ctx.c(|ctx: &mut Ctx| {
-                                button("Mark Complete", |_| {})(ctx);
-                                ctx.with(Style {
-                                    size: Size::new(Val::Px(250.), Val::Px(30.0)),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
+                            ctx.c(|ctx: Ctx| {
+                                button("Mark Complete", |_| {})(ctx)
+                                    .with(Style {
+                                        size: Size::new(Val::Px(250.), Val::Px(30.0)),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
 
-                                    ..Default::default()
-                                })
-                                .with(
-                                    item.map(|(_, i): (&Todo, usize)| i).dedup().map(
+                                        ..Default::default()
+                                    })
+                                    .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
                                         |&i: &usize| {
                                             ClickFunc(ButtonFunc::new(move |world| {
                                                 let mut list =
@@ -255,18 +247,17 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(&mut Ctx) {
                                                 list.replace(Todo { text, done: true }, i);
                                             }))
                                         },
-                                    ),
-                                );
+                                    ))
                             });
                         }
                     }
                 },
-            ));
+            ))
     }
 }
 
-fn text<O: IntoObserver<String, M>, M>(font_size: f32, text: O) -> impl FnOnce(&mut Ctx) {
-    move |ctx: &mut Ctx| {
+fn text<O: IntoObserver<String, M>, M>(font_size: f32, text: O) -> impl FnOnce(Ctx) -> Ctx {
+    move |ctx: Ctx| {
         ctx.with_bundle(TextBundle::default())
             .with(Style {
                 align_self: AlignSelf::FlexStart,
@@ -283,17 +274,17 @@ fn text<O: IntoObserver<String, M>, M>(font_size: f32, text: O) -> impl FnOnce(&
                         Default::default(),
                     )
                 },
-            ));
+            ))
     }
 }
 
-fn button<O, M, F>(t: O, on_click: F) -> impl FnOnce(&mut Ctx)
+fn button<O, M, F>(t: O, on_click: F) -> impl FnOnce(Ctx) -> Ctx
 where
     O: IntoObserver<String, M>,
     M: 'static,
     F: Fn(&mut World) + Send + Sync + 'static,
 {
-    move |ctx: &mut Ctx| {
+    move |ctx: Ctx| {
         let component = ctx.component();
         ctx.with_bundle(ButtonBundle::default())
             .with(Style {
@@ -316,15 +307,15 @@ where
             )
             .with(FuncScratch::default())
             .with(ClickFunc(ButtonFunc::new(on_click)))
-            .child(text(32., t));
+            .child(text(32., t))
     }
 }
 
 fn textbox<M, O: IntoObserver<String, M>>(
     text: O,
     get_text: impl Fn(&mut World) -> &mut String + Send + Sync + 'static,
-) -> impl FnOnce(&mut Ctx) {
-    move |ctx: &mut Ctx| {
+) -> impl FnOnce(Ctx) -> Ctx {
+    move |ctx: Ctx| {
         let has_focused = ctx.has_component::<Focused>();
         let cursor = ctx.component();
 
@@ -338,7 +329,7 @@ fn textbox<M, O: IntoObserver<String, M>>(
             .with(TextBox(0))
             .with(TextBoxFunc::new(get_text))
             .with(res().map(|assets: &UiAssets| assets.button.clone()))
-            .child(|ctx: &mut Ctx| {
+            .child(|ctx: Ctx| {
                 ctx.with_bundle(TextBundle::default())
                     .with(Style {
                         align_self: AlignSelf::FlexStart,
@@ -396,7 +387,7 @@ fn textbox<M, O: IntoObserver<String, M>>(
                                     }
                                 },
                             ),
-                    );
-            });
+                    )
+            })
     }
 }
