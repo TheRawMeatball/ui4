@@ -20,6 +20,8 @@ branch = "runs-ui4"
 bevy-inspector-egui = { git = "https://github.com/jakobhellermann/bevy-inspector-egui/", branch = "bevy-main" }
 derive_more = "0.99.16"
 
-[patch."https://github.com/TheRawMeatball/bevy"]
+[patch."https://github.com/bevyengine/bevy"]
 bevy = { path = "../bevy" }
 
+[patch."https://github.com/TheRawMeatball/bevy"]
+bevy = { path = "../bevy" }
