@@ -27,6 +27,13 @@ impl McCtx<'_> {
         });
         self
     }
+
+    pub fn dyn_group<M>(&mut self, children: impl Childable<M>) -> &mut Self {
+        self.c(|ctx: &mut Ctx| {
+            ctx.with(bevy::ui::ControlNode::default())
+                .children(children);
+        })
+    }
 }
 
 impl Ctx<'_> {

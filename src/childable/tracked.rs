@@ -4,22 +4,22 @@ mod vec;
 use std::marker::PhantomData;
 
 use bevy::{
-    ecs::prelude::*,
-    prelude::{BuildWorldChildren, DespawnRecursiveExt},
+    ecs::{prelude::*, system::SystemState},
+    prelude::{BuildWorldChildren, Children, DespawnRecursiveExt},
+    ui::ControlNode,
 };
 use crossbeam_channel::Sender;
-use generational_arena::{Arena, Index};
 pub use map::TrackedMap;
 pub use vec::TrackedVec;
 
 use crate::{
-    childable::{get_index_from_cng_list, ChildNodeGroupKind, ChildNodeUpdateFuncMarker},
+    childable::CnufMarker,
     observer::{Observer, UninitObserver},
     prelude::{Ctx, McCtx},
     runtime::{UiScratchSpace, UpdateFunc},
 };
 
-use super::{get_marker_list, Childable};
+use super::Childable;
 
 pub trait TrackedObserverExt: Sized {
     fn each<F>(self, f: F) -> TrackedForeach<Self, F>;
@@ -53,13 +53,9 @@ pub enum Diff<T> {
 
 pub struct TrackedForeach<UO, F>(UO, F);
 
-type TrackedAnyList<T> = Arena<(T, usize, Vec<UpdateFunc>)>;
-
 pub struct TrackedItemObserver<T: Send + Sync + 'static> {
     _marker: PhantomData<T>,
     entity: Entity,
-    group_index: usize,
-    index: Index,
 }
 
 impl<T: Send + Sync + 'static> UninitObserver for TrackedItemObserver<T> {
@@ -71,15 +67,7 @@ impl<T: Send + Sync + 'static> UninitObserver for TrackedItemObserver<T> {
         uf: F,
     ) -> UpdateFunc {
         let uf = uf(self, world);
-        let list = get_marker_list(world.entity_mut(self.entity));
-        let items = match &mut list[self.group_index] {
-            ChildNodeGroupKind::List(_, i, _) => {
-                (&mut **i).downcast_mut::<TrackedAnyList<T>>().unwrap()
-            }
-            _ => unreachable!(),
-        };
-        let (_, _, ufs) = &mut items[self.index];
-        ufs.push(uf.clone());
+        // TODO: register uf
         uf
     }
 }
@@ -88,19 +76,7 @@ impl<T: Send + Sync + 'static> Observer for TrackedItemObserver<T> {
     type Return<'w, 's> = (&'w T, usize);
 
     fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
-        let list = &world
-            .get::<crate::childable::ManagedChildrenTracker>(self.entity)
-            .unwrap()
-            .children;
-        let items = match &list[self.group_index] {
-            ChildNodeGroupKind::List(_, i, _) => {
-                (&**i).downcast_ref::<TrackedAnyList<T>>().unwrap()
-            }
-            _ => unreachable!(),
-        };
-        let (val, index, _) = &items[self.index];
-        println!("heya {}", index);
-        ((val, *index), true)
+        todo!()
     }
 }
 
@@ -109,8 +85,6 @@ impl<T: Send + Sync + 'static> Clone for TrackedItemObserver<T> {
         Self {
             _marker: PhantomData,
             entity: self.entity,
-            group_index: self.group_index,
-            index: self.index,
         }
     }
 }
@@ -123,13 +97,20 @@ pub trait Tracked: 'static {
 
 pub struct TrackedMarker;
 
+#[derive(Component)]
+struct Element<T: Send + Sync + 'static> {
+    index: usize,
+    element: T,
+    ufs: Vec<UpdateFunc>,
+}
+
 #[rustfmt::skip]
-impl<O, UO, T, F, Ff, Tt> Childable<(TrackedMarker, Tt)> for TrackedForeach<UO, F>
+impl<O, UO, T, F, C, Tt, M> Childable<(TrackedMarker, Tt, C, M)> for TrackedForeach<UO, F>
 where
     UO: UninitObserver<Observer = O>,
     O: for<'w, 's> Observer<Return<'w, 's> = &'w Tt>,
-    F: Fn(TrackedItemObserver<T>) -> Ff + Send + Sync + 'static,
-    Ff: FnOnce(&mut McCtx),
+    F: Fn(TrackedItemObserver<T>) -> C + Send + Sync + 'static,
+    C: Childable<M>,
     T: Send + Sync + 'static,
     Tt: Tracked<Item = T>,
 {
@@ -137,176 +118,95 @@ where
         let parent = ctx.current_entity;
         let f = self.1;
 
-        let list = get_marker_list(ctx.current_entity());
-        let group_index = list.len();
+        let parent = ctx.current_entity;
+        let c_parent = ctx.world.spawn().id();
+        let p = ctx.world.entity_mut(parent);
+        let group_index = p.get::<Children>().map(|c| &**c).unwrap_or(&[]).len();
+        p.push_children(&[c_parent]);
 
         self.0.register_self(ctx.world, |mut obs, world| {
             let (tv, _) = obs.get(world);
             let (tx, rx) = crossbeam_channel::unbounded();
 
             tv.register(tx);
-
-            let (uf, marker) = UpdateFunc::new::<ChildNodeUpdateFuncMarker, _>(move |world| {
+            let paramset = SystemState::<(Query<&Children>, Query<&mut Element<T>>, ResMut<UiScratchSpace>)>::new(world);
+            let (uf, marker) = UpdateFunc::new::<CnufMarker, _>(move |world| {
                 let insert = |world: &mut World, e, i: Option<usize>| {
-                    let list = get_marker_list(world.entity_mut(parent));
-                    // the +1 makes it also include this node in the calculation
-                    let mut insert_index = get_index_from_cng_list(list, group_index + 1);
-                    let (entities, items) = match &mut list[group_index] {
-                        ChildNodeGroupKind::List(v, i, _) => {
-                            (v, (&mut **i).downcast_mut::<TrackedAnyList<T>>().unwrap())
-                        }
-                        _ => unreachable!(),
-                    };
-                    let i = i.unwrap_or(entities.len());
-                    let index = items.insert((e, i, vec![]));
-                    let mut ufs = vec![];
-                    for &(_, index) in &entities[i..] {
-                        items[index].1 += 1;
-                        ufs.extend(items[index].2.iter().cloned());
-                    }
-                    entities.insert(i, (vec![], index));
+                    let index = i.unwrap_or_else(|| {
+                        world
+                            .get::<Children>(c_parent)
+                            .map(|x| x.len())
+                            .unwrap_or(0)
+                    });
+                    let element_entity = world
+                        .spawn()
+                        .insert(Element {
+                            index,
+                            element: e,
+                            ufs: vec![],
+                        })
+                        .insert(ControlNode::default())
+                        .id();
+
                     world
-                        .get_resource_mut::<UiScratchSpace>()
-                        .unwrap()
-                        .register_update_funcs(ufs);
+                        .entity_mut(c_parent)
+                        .insert_children(index, &[element_entity]);
+                    let (children, element, ufs) = paramset.get_mut(world);
+                    let entities = children.get(c_parent).unwrap();
+                    for &entity in &entities[index..] {
+                        ufs.register_update_funcs(world.get::<Element<T>>(entity).unwrap().ufs);
+                        element.get_mut(entity).unwrap().index += 1;
+                    }
                     let observer = TrackedItemObserver::<T> {
                         _marker: PhantomData,
-                        entity: parent,
-                        group_index,
-                        index,
+                        entity: element_entity,
                     };
-                    let mut get_new_child = |world: &mut World| {
-                        let id = world.spawn().id();
-                        let mut parent = world.entity_mut(parent);
-                        parent.insert_children(insert_index, &[id]);
-                        let list = get_marker_list(parent);
-                        let entities = match &mut list[group_index] {
-                            ChildNodeGroupKind::List(v, _, _) => v,
-                            _ => unreachable!(),
-                        };
-                        entities[i].0.push(id);
-                        insert_index += 1;
-                        id
-                    };
-                    (f(observer))(&mut McCtx {
+                    f(observer).insert(&mut Ctx {
+                        current_entity: {
+                            let id = world.spawn().id();
+                            world.entity_mut(element_entity).push_children(&[id]);
+                            id
+                        },
                         world,
-                        get_new_child: &mut get_new_child,
-                    });
+                    })
                 };
                 let remove = |world: &mut World, i: Option<usize>| {
-                    let list = get_marker_list(world.entity_mut(parent));
-                    let (entities, items) = match &mut list[group_index] {
-                        ChildNodeGroupKind::List(v, i, _) => {
-                            (v, (&mut **i).downcast_mut::<TrackedAnyList<T>>().unwrap())
-                        }
-                        _ => unreachable!(),
-                    };
-                    let i = i.unwrap_or(entities.len() - 1);
-                    let (list, index) = entities.remove(i);
-                    let mut ufs = vec![];
-                    for &(_, index) in &entities[i..] {
-                        items[index].1 -= 1;
-                        ufs.extend(items[index].2.iter().cloned());
+                    let children = world.get::<Children>(c_parent).unwrap();
+                    let index = i.unwrap_or_else(|| children.len() - 1);
+                    let to_despawn = children[index];
+                    world.entity_mut(to_despawn).despawn_recursive();
+                    let (children, element, ufs) = paramset.get_mut(world);
+                    let entities = children.get(c_parent).unwrap();
+                    for &entity in &entities[..index] {
+                        ufs.register_update_funcs(world.get::<Element<T>>(entity).unwrap().ufs);
+                        element.get_mut(entity).unwrap().index -= 1;
                     }
-                    items.remove(index);
-                    for entity in list {
-                        world.entity_mut(entity).despawn_recursive();
-                    }
-                    world
-                        .get_resource_mut::<UiScratchSpace>()
-                        .unwrap()
-                        .register_update_funcs(ufs);
                 };
                 for msg in rx.try_iter() {
                     match msg {
                         Diff::Init(list) => {
-                            let l = get_marker_list(world.entity_mut(parent));
-                            let mut insert_index = get_index_from_cng_list(l, group_index);
-                            for e in list {
-                                let list = get_marker_list(world.entity_mut(parent));
-                                let (entities, items) = match &mut list[group_index] {
-                                    ChildNodeGroupKind::List(v, i, _) => {
-                                        (v, (&mut **i).downcast_mut::<TrackedAnyList<T>>().unwrap())
-                                    }
-                                    _ => unreachable!(),
-                                };
-                                let index = items.insert((e, entities.len(), vec![]));
-                                entities.push((vec![], index));
-                                let observer = TrackedItemObserver::<T> {
-                                    _marker: PhantomData,
-                                    entity: parent,
-                                    group_index,
-                                    index,
-                                };
-                                let mut get_new_child = |world: &mut World| {
-                                    let id = world.spawn().id();
-                                    let mut parent = world.entity_mut(parent);
-                                    parent.insert_children(insert_index, &[id]);
-                                    let list = get_marker_list(parent);
-                                    let entities = match &mut list[group_index] {
-                                        ChildNodeGroupKind::List(v, _, _) => v,
-                                        _ => unreachable!(),
-                                    };
-                                    entities.last_mut().unwrap().0.push(id);
-                                    insert_index += 1;
-                                    id
-                                };
-                                (f(observer))(&mut McCtx {
-                                    world,
-                                    get_new_child: &mut get_new_child,
-                                });
+                            for element in list {
+                                insert(world, element, None);
                             }
                         }
                         Diff::Push(e) => insert(world, e, None),
                         Diff::Pop => remove(world, None),
                         Diff::Replace(e, i) => {
-                            let list = get_marker_list(world.entity_mut(parent));
-                            let (v, items) = match &mut list[group_index] {
-                                ChildNodeGroupKind::List(e, i, _) => {
-                                    (e, (&mut **i).downcast_mut::<TrackedAnyList<T>>().unwrap())
-                                }
-                                _ => unreachable!(),
-                            };
-                            let (_, index) = v[i];
-                            let (item, _, ufs) = &mut items[index];
-                            *item = e;
-                            let ufs: Vec<_> = ufs.iter().cloned().collect();
-                            world
-                                .get_resource_mut::<UiScratchSpace>()
-                                .unwrap()
-                                .register_update_funcs(ufs);
+                            let (children, element, ufs) = paramset.get_mut(world);
+                            let entities = children.get(c_parent).unwrap();
+                            let element = element.get_mut(entities[i]).unwrap();
+                            element.element = e;
+                            ufs.register_update_funcs(element.ufs);
                         }
                         // Diff::Switch(_, _) => todo!(),
                         Diff::Remove(i) => remove(world, Some(i)),
                         Diff::Insert(e, i) => insert(world, e, Some(i)),
                         Diff::Clear => {
-                            let list = get_marker_list(world.entity_mut(parent));
-                            let (entities, items) = match &mut list[group_index] {
-                                ChildNodeGroupKind::List(v, i, _) => {
-                                    (v, (&mut **i).downcast_mut::<TrackedAnyList<T>>().unwrap())
-                                }
-                                _ => unreachable!(),
-                            };
-                            items.clear();
-                            let mut entities = std::mem::replace(entities, Vec::new());
-                            for entity in entities.drain(..).map(|v| v.0).flatten() {
-                                world.entity_mut(entity).despawn_recursive();
-                            }
-
-                            let list = get_marker_list(world.entity_mut(parent));
-                            match &mut list[group_index] {
-                                ChildNodeGroupKind::List(v, _, _) => *v = entities,
-                                _ => unreachable!(),
-                            };
+                            world.entity_mut(c_parent).despawn_children_recursive();
                         }
                     }
                 }
             });
-            get_marker_list(world.entity_mut(parent)).push(ChildNodeGroupKind::List(
-                vec![],
-                Box::new(TrackedAnyList::<T>::new()),
-                marker,
-            ));
             uf.run(world);
             uf
         });
