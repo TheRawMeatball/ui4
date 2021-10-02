@@ -14,9 +14,13 @@ pub use {
     component::ComponentObserver, has_component::ComponentExistsObserver, res::res, single::single,
 };
 
+/// Types implementing this trait represent a mapping from world and internal state to a certain output.
 pub trait UninitObserver: Send + Sync + 'static {
+    #[doc(hidden)]
     type Observer: Observer;
 
+    /// ### Internal method!
+    #[doc(hidden)]
     fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
         self,
         world: &mut World,
@@ -27,6 +31,8 @@ pub trait UninitObserver: Send + Sync + 'static {
 pub trait Observer: Send + Sync + 'static {
     type Return<'w, 's>;
 
+    /// ### INTERNAL METHOD!
+    #[doc(hidden)]
     fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool);
 }
 

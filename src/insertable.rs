@@ -8,13 +8,15 @@ use crate::{
 };
 
 pub trait Insertable<T, M>: Send + Sync + 'static {
+    /// ### Internal method!
+    #[doc(hidden)]
     #[track_caller]
     fn insert_ui_val(self, ctx: &mut Ctx);
 }
 
 impl<T: Component> Insertable<T, Static> for T {
     fn insert_ui_val(self, ctx: &mut Ctx<'_>) {
-        ctx.current_entity().insert(self);
+        ctx.world.entity_mut(ctx.current_entity).insert(self);
     }
 }
 

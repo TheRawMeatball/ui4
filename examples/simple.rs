@@ -56,7 +56,7 @@ fn root(ctx: &mut Ctx) {
     let state = ctx.component();
     let list = ctx.component::<List>();
     let edited_text = ctx.component();
-    let this = ctx.this();
+    let this = ctx.current_entity();
 
     ctx.with_bundle(NodeBundle::default())
         .with(Style {
@@ -133,7 +133,7 @@ fn counter<M>(label: impl IntoObserver<String, M>) -> impl FnOnce(&mut Ctx) {
 
     move |ctx: &mut Ctx| {
         let component = ctx.component();
-        let entity = ctx.this();
+        let entity = ctx.current_entity();
         ctx.with_bundle(NodeBundle::default())
             .with(Style {
                 align_self: AlignSelf::FlexStart,
