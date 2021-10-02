@@ -1,4 +1,4 @@
-use bevy::{ecs::prelude::*, transform::prelude::*};
+use bevy::{ecs::prelude::*, prelude::ControlBundle, transform::prelude::*};
 
 use crate::{
     ctx::{Ctx, McCtx},
@@ -43,7 +43,7 @@ where
 {
     fn insert(self, ctx: &mut Ctx) {
         let parent = ctx.current_entity;
-        let c_parent = ctx.world.spawn().id();
+        let c_parent = ctx.world.spawn().insert_bundle(ControlBundle::default()).id();
         ctx.world.entity_mut(parent).push_children(&[c_parent]);
 
         let uf = self.register_self(ctx.world, |mut observer, world| {

@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use bevy::ecs::{prelude::*, world::EntityMut};
+use bevy::{
+    ecs::{prelude::*, world::EntityMut},
+    prelude::ControlBundle,
+};
 
 use crate::{
     childable::Childable,
@@ -30,8 +33,7 @@ impl McCtx<'_> {
 
     pub fn dyn_group<M>(&mut self, children: impl Childable<M>) -> &mut Self {
         self.c(|ctx: &mut Ctx| {
-            ctx.with(bevy::ui::ControlNode::default())
-                .children(children);
+            ctx.with_bundle(ControlBundle::default()).children(children);
         })
     }
 }

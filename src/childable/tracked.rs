@@ -5,8 +5,7 @@ use std::marker::PhantomData;
 
 use bevy::{
     ecs::{prelude::*, system::SystemState},
-    prelude::{BuildWorldChildren, Children, DespawnRecursiveExt},
-    ui::ControlNode,
+    prelude::{BuildWorldChildren, Children, ControlBundle, DespawnRecursiveExt},
 };
 use crossbeam_channel::Sender;
 pub use map::TrackedMap;
@@ -67,7 +66,11 @@ impl<T: Send + Sync + 'static> UninitObserver for TrackedItemObserver<T> {
         uf: F,
     ) -> UpdateFunc {
         let uf = uf(self, world);
-        world.get_mut::<Element<T>>(self.entity).unwrap().ufs.push(uf.clone());
+        world
+            .get_mut::<Element<T>>(self.entity)
+            .unwrap()
+            .ufs
+            .push(uf.clone());
         uf
     }
 }
@@ -125,7 +128,7 @@ where
         let parent = ctx.current_entity;
         let f = self.1;
 
-        let c_parent = ctx.world.spawn().id();
+        let c_parent = ctx.world.spawn().insert_bundle(ControlBundle::default()).id();
         ctx.world.entity_mut(parent).push_children(&[c_parent]);
 
         self.0.register_self(ctx.world, |mut obs, world| {
@@ -150,7 +153,7 @@ where
                                 element: e,
                                 ufs: vec![],
                             })
-                            .insert(ControlNode::default())
+                            .insert_bundle(ControlBundle::default())
                             .id();
 
                         world
@@ -158,21 +161,17 @@ where
                             .insert_children(index, &[element_entity]);
                         let (children, mut element, mut ufs) = paramset.get_mut(world);
                         let entities = children.get(c_parent).unwrap();
-                        for &entity in &entities[..index] {
+                        for &entity in &entities[index + 1..] {
                             let mut element = element.get_mut(entity).unwrap();
                             ufs.register_update_funcs(element.ufs.iter().cloned());
-                            element.index -= 1;
+                            element.index += 1;
                         }
                         let observer = TrackedItemObserver::<T> {
                             _marker: PhantomData,
                             entity: element_entity,
                         };
                         f(observer).insert(&mut Ctx {
-                            current_entity: {
-                                let id = world.spawn().id();
-                                world.entity_mut(element_entity).push_children(&[id]);
-                                id
-                            },
+                            current_entity: element_entity,
                             world,
                         })
                     };
@@ -183,7 +182,7 @@ where
                     world.entity_mut(to_despawn).despawn_recursive();
                     let (children, mut element, mut ufs) = paramset.get_mut(world);
                     let entities = children.get(c_parent).unwrap();
-                    for &entity in &entities[..index] {
+                    for &entity in &entities[index..] {
                         let mut element = element.get_mut(entity).unwrap();
                         ufs.register_update_funcs(element.ufs.iter().cloned());
                         element.index -= 1;
