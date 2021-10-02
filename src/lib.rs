@@ -15,7 +15,7 @@ pub mod prelude {
     use super::*;
     pub use button::{ButtonFunc, ClickFunc, FuncScratch, HoverFunc, ReleaseFunc, UnhoverFunc};
     pub use childable::{
-        tracked::{TrackedMarker, TrackedObserverExt, TrackedVec},
+        tracked::{TrackedItemObserver, TrackedMarker, TrackedObserverExt, TrackedVec},
         Childable,
     };
     pub use ctx::{Ctx, McCtx};

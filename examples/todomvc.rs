@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use derive_more::{Deref, DerefMut};
 use std::{borrow::Borrow, ops::Deref, sync::Arc};
-use ui4::{childable::tracked::TrackedItemObserver, prelude::*};
+use ui4::prelude::*;
 
 struct UiAssets {
     background: Handle<ColorMaterial>,
