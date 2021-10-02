@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use bevy::ecs::prelude::*;
+use bevy::ecs::{prelude::*, system::SystemState};
 
 use crate::runtime::{UiManagedSystems, UiScratchSpace, UpdateFunc};
 
@@ -15,14 +15,15 @@ impl<R> Clone for ResObserverTemplate<R> {
         Self(PhantomData)
     }
 }
-pub struct ResObserver<R>(PhantomData<R>);
+pub struct ResObserver<R: Send + Sync + 'static>(SystemState<Res<'static, R>>);
 
 impl<R: Send + Sync + 'static> Observer for ResObserver<R> {
     type Return<'w, 's> = &'w R;
 
     fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
-        // TODO: keep track of ticks in the observer & use it
-        (world.get_resource::<R>().unwrap(), true)
+        let res = self.0.get(world);
+        let changed = res.is_changed();
+        (res.into_inner(), changed)
     }
 }
 impl<R: Send + Sync + 'static> UninitObserver for ResObserverTemplate<R> {
@@ -33,7 +34,7 @@ impl<R: Send + Sync + 'static> UninitObserver for ResObserverTemplate<R> {
         world: &mut World,
         uf: F,
     ) -> UpdateFunc {
-        let uf = uf(ResObserver(PhantomData), world);
+        let uf = uf(ResObserver(SystemState::new(world)), world);
         let ufc = uf.clone();
         world.resource_scope(|world, mut systems: Mut<UiManagedSystems>| {
             if let Some(mut list) = world.get_resource_mut::<ResUpdateFuncs<R>>() {

@@ -1,5 +1,5 @@
 tracked range
-use change detection in res & component observer s for change hint
+use change detection in component observer s for change hint
 query::get type observer
 portals
 docs
