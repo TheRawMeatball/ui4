@@ -20,7 +20,7 @@ pub mod prelude {
     };
     pub use ctx::{Ctx, McCtx};
     pub use observer::{res, single, IntoObserver, ObserverExt};
-    pub use plugin::Ui4Plugin;
+    pub use plugin::{Ui4Plugin, Ui4Root};
     pub use textbox::{Focusable, Focused, TextBox, TextBoxFunc};
 }
 

@@ -34,7 +34,8 @@ fn init_system(
 fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
-        .add_plugin(Ui4Plugin(root))
+        .add_plugin(Ui4Plugin)
+        .add_plugin(Ui4Root(root))
         .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_startup_system(init_system);
 

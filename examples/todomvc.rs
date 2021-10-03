@@ -50,7 +50,8 @@ struct Todo {
 fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
-        .add_plugin(Ui4Plugin(root))
+        .add_plugin(Ui4Plugin)
+        .add_plugin(Ui4Root(root))
         .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .init_resource::<EditedText>()
         .init_resource::<TodoList>()
