@@ -4,6 +4,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[derive(Component)]
+pub struct Focusable;
+#[derive(Component)]
 pub struct TextBox(pub usize);
 #[derive(Component, Clone)]
 pub struct TextBoxFunc(Arc<dyn Fn(&mut World) -> &mut String + Send + Sync>);
@@ -130,10 +132,10 @@ fn move_right(string: &mut String, index: &mut usize) {
     }
 }
 
-pub(crate) fn focus_textbox_system(
+pub(crate) fn focus_system(
     mut commands: Commands,
     input: Res<Input<MouseButton>>,
-    q: Query<(Entity, &Interaction, Option<&Focused>), With<TextBox>>,
+    q: Query<(Entity, &Interaction, Option<&Focused>), With<Focusable>>,
 ) {
     if input.just_pressed(MouseButton::Left) {
         for (entity, interaction, has_focused) in q.iter() {

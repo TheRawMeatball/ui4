@@ -240,6 +240,7 @@ fn textbox<M, O: IntoObserver<String, M>>(
                 ..Default::default()
             })
             .with(TextBox(0))
+            .with(Focusable)
             .with(TextBoxFunc::new(get_text))
             .with(res().map(|assets: &UiAssets| assets.button.clone()))
             .child(|ctx: Ctx| {
@@ -355,33 +356,25 @@ where
     T: Eq + Hash + Clone + Send + Sync + 'static,
     O: IntoObserver<T, M>,
 {
-    #[derive(Component, Default)]
-    struct IsOpen(bool);
-
     let options_map: HashMap<_, _> = options.iter().cloned().collect();
     let options = Arc::new(options);
     let get_item = Arc::new(get_item);
 
     |ctx| {
-        let ctx = ctx.with(IsOpen::default());
-        let this = ctx.current_entity();
-
-        let is_open = ctx.component();
+        let is_open = ctx.has_component::<Focused>();
 
         button(
             selected
                 .into_observer()
                 .map(move |s: O::ObserverReturn<'_, '_>| options_map[s.borrow()].to_string()),
-            move |w| {
-                let mut is_open = w.get_mut::<IsOpen>(this).unwrap();
-                is_open.0 = !is_open.0;
-            },
+            move |_| {},
         )(ctx)
         .with(Style {
             size: Size::new(Val::Undefined, Val::Px(30.0)),
             ..Default::default()
         })
-        .children(is_open.map(|b: &IsOpen| b.0).dedup().map(move |&b: &bool| {
+        .with(Focusable)
+        .children(is_open.dedup().map(move |&b: &bool| {
             let options = Arc::clone(&options);
             let get_item = Arc::clone(&get_item);
             move |ctx: &mut McCtx| {

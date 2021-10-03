@@ -15,7 +15,7 @@ impl<F: Fn(Ctx) -> Ctx + Clone + Send + Sync + 'static> Plugin for Ui4Plugin<F> 
             .init_resource::<TextBoxSystemState>()
             .insert_resource(UiManagedSystems(SystemStage::parallel()))
             .add_system(primary_ui_system.exclusive_system().at_end())
-            .add_system(crate::textbox::focus_textbox_system)
+            .add_system(crate::textbox::focus_system)
             .add_startup_system(
                 (move |world: &mut World| init_ui(world, &root))
                     .exclusive_system()

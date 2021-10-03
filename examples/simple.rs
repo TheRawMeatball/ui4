@@ -229,6 +229,7 @@ fn textbox<M, O: IntoObserver<String, M>>(
                 ..Default::default()
             })
             .with(TextBox(0))
+            .with(Focusable)
             .with(TextBoxFunc::new(get_text))
             .with(res().map(|assets: &UiAssets| assets.button.clone()))
             .child(|ctx: Ctx| {
