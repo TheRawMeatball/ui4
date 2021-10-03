@@ -30,11 +30,13 @@ where
     fn insert_ui_val(self, ctx: &mut Ctx<'_>) {
         let entity = ctx.current_entity;
         let uf = self.register_self(ctx.world, |mut observer, world| {
+            let mut first = true;
             let (uf, marker) = UpdateFunc::new::<T, _>(move |world| {
                 let (val, changed) = observer.get(world);
-                if !changed {
+                if !changed && !first {
                     return;
                 }
+                first = false;
                 world.entity_mut(entity).insert(val);
             });
             world.entity_mut(entity).insert(marker);

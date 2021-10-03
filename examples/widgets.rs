@@ -145,7 +145,8 @@ fn root(ctx: Ctx) -> Ctx {
                     ],
                     move |w: &mut World| w.get_mut::<RadioButtonSelect>(this).unwrap().into_inner(),
                 ),
-            ));
+            ))
+            .c(labelled_widget("Progress bar", progressbar(0.42)));
         })
 }
 
@@ -408,5 +409,33 @@ where
                 }
             }
         }))
+    }
+}
+
+fn progressbar<O: IntoObserver<f32, M>, M>(percent: O) -> impl FnOnce(Ctx) -> Ctx {
+    |ctx| {
+        ctx.with_bundle(NodeBundle::default())
+            .with(Style {
+                size: Size::new(Val::Px(250.0), Val::Px(30.0)),
+                justify_content: JustifyContent::FlexStart,
+                ..Default::default()
+            })
+            .with(res().map(|assets: &UiAssets| assets.button.clone()))
+            .child(|ctx: Ctx| {
+                ctx.with_bundle(NodeBundle::default())
+                    .with(
+                        percent
+                            .into_observer()
+                            .map(|f: O::ObserverReturn<'_, '_>| *f.borrow())
+                            .map(|f: f32| {
+                                dbg!("HEY!", f);
+                                Style {
+                                    size: Size::new(Val::Percent(f * 100.), Val::Auto),
+                                    ..Default::default()
+                                }
+                            }),
+                    )
+                    .with(res().map(|assets: &UiAssets| assets.button_click.clone()))
+            })
     }
 }
