@@ -70,21 +70,24 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in example 'simple'",
+            "name": "Debug example 'widgets'",
             "cargo": {
                 "args": [
-                    "test",
-                    "--no-run",
-                    "--example=simple",
+                    "build",
+                    "--example=widgets",
                     "--package=ui4"
                 ],
                 "filter": {
-                    "name": "simple",
+                    "name": "widgets",
                     "kind": "example"
                 }
             },
             "args": [],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "CARGO_MANIFEST_DIR": "${workspaceFolder}",
+                "RUST_BACKTRACE": "1"
+            }
         }
     ]
 }
