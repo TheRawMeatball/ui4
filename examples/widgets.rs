@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{ecs::system::SystemState, prelude::*, utils::HashMap};
 use derive_more::{Deref, DerefMut};
 use std::{borrow::Borrow, hash::Hash, sync::Arc};
 use ui4::prelude::*;
@@ -8,6 +8,7 @@ struct UiAssets {
     button: Handle<ColorMaterial>,
     button_hover: Handle<ColorMaterial>,
     button_click: Handle<ColorMaterial>,
+    white: Handle<ColorMaterial>,
     text_style: TextStyle,
     transparent: Handle<ColorMaterial>,
 }
@@ -23,6 +24,7 @@ fn init_system(
         button: assets.add(Color::DARK_GRAY.into()),
         button_hover: assets.add(Color::GRAY.into()),
         button_click: assets.add(Color::SILVER.into()),
+        white: assets.add(Color::WHITE.into()),
         text_style: TextStyle {
             color: Color::WHITE,
             font: asset_server.load("FiraMono-Medium.ttf"),
@@ -35,6 +37,8 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
         .add_plugin(Ui4Plugin(root))
+        .init_resource::<SliderSystemState>()
+        .add_system(SliderSystemState::system.exclusive_system())
         .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_startup_system(init_system);
 
@@ -57,10 +61,15 @@ fn root(ctx: Ctx) -> Ctx {
         C,
     }
 
+    #[derive(Component)]
+    struct Slider(f32);
+
     let this = ctx.current_entity();
     let textbox_text = ctx.component();
     let checkbox_data = ctx.component();
     let radiobutton = ctx.component();
+
+    let slider_percent = ctx.component();
 
     ctx.with_bundle(NodeBundle::default())
         .with(Style {
@@ -75,6 +84,7 @@ fn root(ctx: Ctx) -> Ctx {
         .with(TextboxText::default())
         .with(CheckboxData::default())
         .with(RadioButtonSelect::A)
+        .with(Slider(0.42))
         .children(|ctx: &mut McCtx| {
             ctx.c(labelled_widget(
                 "Button",
@@ -146,7 +156,17 @@ fn root(ctx: Ctx) -> Ctx {
                     move |w: &mut World| w.get_mut::<RadioButtonSelect>(this).unwrap().into_inner(),
                 ),
             ))
-            .c(labelled_widget("Progress bar", progressbar(0.42)));
+            .c(labelled_widget(
+                "Progress",
+                progressbar(slider_percent.map(|f: &Slider| f.0)),
+            ))
+            .c(labelled_widget(
+                "Slider",
+                slider(
+                    slider_percent.map(|f: &Slider| f.0),
+                    move |w: &mut World| &mut w.get_mut::<Slider>(this).unwrap().into_inner().0,
+                ),
+            ));
         })
 }
 
@@ -422,20 +442,146 @@ fn progressbar<O: IntoObserver<f32, M>, M>(percent: O) -> impl FnOnce(Ctx) -> Ct
             })
             .with(res().map(|assets: &UiAssets| assets.button.clone()))
             .child(|ctx: Ctx| {
+                ctx.with_bundle(NodeBundle::default()).with(
+                    percent
+                        .into_observer()
+                        .map(|f: O::ObserverReturn<'_, '_>| *f.borrow())
+                        .map(|f: f32| Style {
+                            size: Size::new(Val::Percent(f * 100.), Val::Auto),
+                            justify_content: JustifyContent::FlexEnd,
+                            ..Default::default()
+                        }),
+                )
+            })
+    }
+}
+
+#[derive(Component)]
+struct EngagedSlider {
+    initial_offset: Vec2,
+    slider_entity: Entity,
+    get_percent: Arc<dyn Fn(&mut World) -> &mut f32 + Send + Sync>,
+}
+
+fn slider<O: IntoObserver<f32, M>, M>(
+    percent: O,
+    get_percent: impl Fn(&mut World) -> &mut f32 + Send + Sync + 'static,
+) -> impl FnOnce(Ctx) -> Ctx {
+    |ctx| {
+        let slider_entity = ctx.current_entity();
+        ctx.with_bundle(NodeBundle::default())
+            .with(Style {
+                size: Size::new(Val::Px(250.0), Val::Px(30.0)),
+                justify_content: JustifyContent::FlexStart,
+                ..Default::default()
+            })
+            .with(res().map(|assets: &UiAssets| assets.button.clone()))
+            .child(|ctx: Ctx| {
                 ctx.with_bundle(NodeBundle::default())
                     .with(
                         percent
                             .into_observer()
                             .map(|f: O::ObserverReturn<'_, '_>| *f.borrow())
-                            .map(|f: f32| {
-                                dbg!("HEY!", f);
-                                Style {
-                                    size: Size::new(Val::Percent(f * 100.), Val::Auto),
-                                    ..Default::default()
-                                }
+                            .map(|f: f32| Style {
+                                size: Size::new(Val::Percent(f * 100.), Val::Auto),
+                                justify_content: JustifyContent::FlexEnd,
+                                ..Default::default()
                             }),
                     )
-                    .with(res().map(|assets: &UiAssets| assets.button_click.clone()))
+                    .with(res().map(|assets: &UiAssets| assets.button_hover.clone()))
+                    .child(|ctx: Ctx| {
+                        let interaction = ctx.component();
+                        let cursor_entity = ctx.current_entity();
+                        let get_percent = Arc::new(get_percent);
+                        ctx.with_bundle(ButtonBundle::default())
+                            .with(Style {
+                                position: Rect {
+                                    left: Val::Undefined,
+                                    right: Val::Px(-10.),
+                                    top: Val::Undefined,
+                                    bottom: Val::Undefined,
+                                },
+                                size: Size {
+                                    width: Val::Px(20.),
+                                    height: Val::Auto,
+                                },
+                                flex_shrink: 0.,
+                                ..Default::default()
+                            })
+                            .with(res().and(interaction).map(
+                                |(assets, interaction): (&UiAssets, &Interaction)| match interaction
+                                {
+                                    Interaction::Clicked => assets.white.clone(),
+                                    Interaction::Hovered => assets.button_click.clone(),
+                                    Interaction::None => assets.button_click.clone(),
+                                },
+                            ))
+                            .with(FuncScratch::default())
+                            .with(ClickFunc(ButtonFunc::new(move |w| {
+                                if let Some(cursor_pos) = (|| {
+                                    w.get_resource::<Windows>()?
+                                        .get_primary()?
+                                        .cursor_position()
+                                })() {
+                                    let mut cursor = w.entity_mut(cursor_entity);
+                                    let pos = cursor
+                                        .get::<GlobalTransform>()
+                                        .unwrap()
+                                        .translation
+                                        .truncate();
+                                    cursor.insert(EngagedSlider {
+                                        initial_offset: cursor_pos - pos,
+                                        slider_entity,
+                                        get_percent: get_percent.clone(),
+                                    });
+                                }
+                            })))
+                            .with(ReleaseFunc(ButtonFunc::new(move |w| {
+                                println!("HEY!");
+                                w.entity_mut(cursor_entity).remove::<EngagedSlider>();
+                            })))
+                    })
             })
+    }
+}
+
+struct SliderSystemState {
+    state: SystemState<(
+        Query<'static, 'static, &'static EngagedSlider>,
+        Query<'static, 'static, (&'static Node, &'static GlobalTransform)>,
+        Res<'static, Windows>,
+    )>,
+}
+
+impl FromWorld for SliderSystemState {
+    fn from_world(world: &mut World) -> Self {
+        Self {
+            state: SystemState::new(world),
+        }
+    }
+}
+
+impl SliderSystemState {
+    fn run(&mut self, world: &mut World) {
+        let (engaged, slider, windows) = self.state.get(world);
+        let cursor_pos = windows
+            .get_primary()
+            .and_then(|window| window.cursor_position());
+        if let (Ok(engaged), Some(cursor_pos)) = (engaged.get_single(), cursor_pos) {
+            let (node, pos) = slider.get(engaged.slider_entity).unwrap();
+            let len = node.size.x;
+            let start = pos.translation.x - len / 2.;
+            let current = cursor_pos.x - engaged.initial_offset.x;
+            let percent = (current - start) / len;
+            let gp = engaged.get_percent.clone();
+            let p = gp(world);
+            *p = percent;
+        }
+    }
+
+    fn system(world: &mut World) {
+        world.resource_scope(|w, mut x: Mut<Self>| {
+            x.run(w);
+        })
     }
 }

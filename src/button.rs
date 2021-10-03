@@ -66,7 +66,21 @@ impl ButtonSystemState {
                     scratch.0 = *interaction;
                     match interaction {
                         Interaction::Clicked => c.map(|x| &x.0).cloned(),
-                        Interaction::Hovered => h.map(|x| &x.0).cloned(),
+                        Interaction::Hovered => match old {
+                            Interaction::Clicked => {
+                                match (dc.map(|x| &x.0).cloned(), h.map(|x| &x.0).cloned()) {
+                                    (Some(dc), Some(h)) => Some(ButtonFunc::new(move |w| {
+                                        dc.run(w);
+                                        h.run(w);
+                                    })),
+                                    (Some(dc), None) => Some(dc),
+                                    (None, Some(h)) => Some(h),
+                                    (None, None) => None,
+                                }
+                            }
+                            Interaction::Hovered => h.map(|x| &x.0).cloned(),
+                            Interaction::None => h.map(|x| &x.0).cloned(),
+                        },
                         Interaction::None => match old {
                             Interaction::Clicked => dc.map(|x| &x.0).cloned(),
                             Interaction::Hovered => dh.map(|x| &x.0).cloned(),
