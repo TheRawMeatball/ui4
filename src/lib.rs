@@ -4,6 +4,7 @@
 mod insertable;
 mod runtime;
 
+pub mod animation;
 pub mod button;
 pub mod childable;
 pub mod ctx;
@@ -13,6 +14,7 @@ pub mod textbox;
 
 pub mod prelude {
     use super::*;
+    pub use animation::TweenExt;
     pub use button::{ButtonFunc, ClickFunc, FuncScratch, HoverFunc, ReleaseFunc, UnhoverFunc};
     pub use childable::{
         tracked::{TrackedItemObserver, TrackedMarker, TrackedObserverExt, TrackedVec},

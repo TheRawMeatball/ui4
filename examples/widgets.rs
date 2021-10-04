@@ -167,6 +167,16 @@ fn root(ctx: Ctx) -> Ctx {
                     slider_percent.map(|f: &Slider| f.0),
                     move |w: &mut World| &mut w.get_mut::<Slider>(this).unwrap().into_inner().0,
                 ),
+            ))
+            .c(labelled_widget(
+                "Tweened",
+                progressbar(
+                    textbox_text
+                        .map(|t: &TextboxText| t.0.parse::<f32>().unwrap_or(0.42).clamp(0., 1.))
+                        .dedup()
+                        .map(|x: &f32| *x)
+                        .tween(0.2),
+                ),
             ));
         })
 }

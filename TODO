@@ -2,4 +2,8 @@ tracked range
 use change detection in component observer s for change hint
 query::get type observer
 portals
+lenses
+
+[HARD] stop using simple despawn_recursive and implement in-out transitions
+
 docs

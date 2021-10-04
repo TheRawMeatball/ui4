@@ -1,6 +1,7 @@
 use bevy::app::Plugin;
 use bevy::ecs::prelude::*;
 
+use crate::animation::RunningTweens;
 use crate::button::ButtonSystemState;
 use crate::ctx::Ctx;
 use crate::runtime::{primary_ui_system, UiManagedSystems, UiScratchSpace};
@@ -12,7 +13,10 @@ impl Plugin for Ui4Plugin {
         app.init_resource::<UiScratchSpace>()
             .init_resource::<ButtonSystemState>()
             .init_resource::<TextBoxSystemState>()
-            .insert_resource(UiManagedSystems(SystemStage::parallel()))
+            .init_resource::<RunningTweens>()
+            .insert_resource(UiManagedSystems(
+                SystemStage::parallel().with_system(crate::animation::tween_system),
+            ))
             .add_system(primary_ui_system.exclusive_system().at_end())
             .add_system(crate::textbox::focus_system);
     }
