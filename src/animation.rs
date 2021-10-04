@@ -100,7 +100,6 @@ where
                 let running_tweens = world.get_resource_mut::<RunningTweens>().unwrap().into_inner();
                 if let Some(ct) = current {
                     if let Some(current) = running_tweens.arena.get_mut(ct) {
-                        dbg!("hi");
                         let intp = current.time_left / current.duration;
                         current.start = current.end + (current.start - current.end) * intp.clamp(0., 1.);
                         current.end = val;
@@ -143,7 +142,6 @@ pub(crate) fn tween_system(
         tween.time_left -= time.delta_seconds();
         let intp = tween.time_left / tween.duration;
         let val = tween.end + (tween.start - tween.end) * intp.clamp(0., 1.);
-        dbg!(tween.time_left, intp, val);
         tween
             .arc
             .store(f32::to_bits(val), std::sync::atomic::Ordering::SeqCst);
