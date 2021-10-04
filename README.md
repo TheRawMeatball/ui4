@@ -16,7 +16,7 @@ More specifically, this lib offers a widget abstraction, reactivity, and a large
 
 For how to use this lib, look at the [examples](examples) folder!
 
-Important note: you'll need to use [a custom branch of bevy](https://github.com/TheRawMeatball/bevy/tree/runs-ui4), as there's still multiple PR s this library needs that haven't been merged into main yet.
+Important note: You'll need nightly rust, and use [a custom branch of bevy](https://github.com/TheRawMeatball/bevy/tree/runs-ui4), as there's still multiple PR s this library needs that haven't been merged into main yet.
 
 ## Help
 
