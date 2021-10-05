@@ -176,84 +176,108 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(Ctx) -> Ctx {
                 32.,
                 item.map(|t: (&Todo, usize)| t.0.text.to_string()),
             ))
-            .children(item.map(|(todo, _): (&Todo, usize)| todo.done).dedup().map(
-                move |&done: &bool| {
-                    move |ctx: &mut McCtx| {
-                        if done {
-                            ctx.c(|ctx: Ctx| {
-                                ctx.with_bundle(NodeBundle::default())
-                                    .with(Style {
-                                        size: Size::new(Val::Px(250.), Val::Px(30.0)),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..Default::default()
-                                    })
-                                    .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
-                                    .child(|ctx: Ctx| {
-                                        button("Unmark", |_| {})(ctx)
-                                            .with(Style {
-                                                size: Size::new(Val::Percent(50.), Val::Px(30.0)),
-                                                justify_content: JustifyContent::Center,
-                                                align_items: AlignItems::Center,
-                                                ..Default::default()
-                                            })
-                                            .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
-                                                |&i: &usize| {
-                                                    ClickFunc(ButtonFunc::new(move |world| {
-                                                        let mut list = world
+            .children(
+                item.map(|(todo, _): (&Todo, usize)| todo.done)
+                    .dedup()
+                    .map_child(move |&done: &bool| {
+                        move |ctx: &mut McCtx| {
+                            if done {
+                                ctx.c(|ctx: Ctx| {
+                                    ctx.with_bundle(NodeBundle::default())
+                                        .with(Style {
+                                            size: Size::new(Val::Px(250.), Val::Px(30.0)),
+                                            justify_content: JustifyContent::Center,
+                                            align_items: AlignItems::Center,
+                                            ..Default::default()
+                                        })
+                                        .with(
+                                            res().map(|assets: &UiAssets| {
+                                                assets.transparent.clone()
+                                            }),
+                                        )
+                                        .child(|ctx: Ctx| {
+                                            button("Unmark", |_| {})(ctx)
+                                                .with(Style {
+                                                    size: Size::new(
+                                                        Val::Percent(50.),
+                                                        Val::Px(30.0),
+                                                    ),
+                                                    justify_content: JustifyContent::Center,
+                                                    align_items: AlignItems::Center,
+                                                    ..Default::default()
+                                                })
+                                                .with(
+                                                    item.map(|(_, i): (&Todo, usize)| i)
+                                                        .dedup()
+                                                        .map(|&i: &usize| {
+                                                            ClickFunc(ButtonFunc::new(
+                                                                move |world| {
+                                                                    let mut list = world
                                                             .get_resource_mut::<TodoList>()
                                                             .unwrap();
-                                                        let text = list[i].text.clone();
-                                                        list.replace(Todo { text, done: false }, i);
-                                                    }))
-                                                },
-                                            ))
-                                    })
-                                    .child(|ctx: Ctx| {
-                                        button("Remove", |_| {})(ctx)
-                                            .with(Style {
-                                                size: Size::new(Val::Percent(50.), Val::Px(30.0)),
-                                                justify_content: JustifyContent::Center,
-                                                align_items: AlignItems::Center,
-                                                ..Default::default()
-                                            })
-                                            .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
-                                                |&i: &usize| {
-                                                    ClickFunc(ButtonFunc::new(move |world| {
-                                                        let mut list = world
+                                                                    let text = list[i].text.clone();
+                                                                    list.replace(
+                                                                        Todo { text, done: false },
+                                                                        i,
+                                                                    );
+                                                                },
+                                                            ))
+                                                        }),
+                                                )
+                                        })
+                                        .child(|ctx: Ctx| {
+                                            button("Remove", |_| {})(ctx)
+                                                .with(Style {
+                                                    size: Size::new(
+                                                        Val::Percent(50.),
+                                                        Val::Px(30.0),
+                                                    ),
+                                                    justify_content: JustifyContent::Center,
+                                                    align_items: AlignItems::Center,
+                                                    ..Default::default()
+                                                })
+                                                .with(
+                                                    item.map(|(_, i): (&Todo, usize)| i)
+                                                        .dedup()
+                                                        .map(|&i: &usize| {
+                                                            ClickFunc(ButtonFunc::new(
+                                                                move |world| {
+                                                                    let mut list = world
                                                             .get_resource_mut::<TodoList>()
                                                             .unwrap();
-                                                        list.remove(i);
-                                                    }))
-                                                },
-                                            ))
-                                    })
-                            });
-                        } else {
-                            ctx.c(|ctx: Ctx| {
-                                button("Mark Complete", |_| {})(ctx)
-                                    .with(Style {
-                                        size: Size::new(Val::Px(250.), Val::Px(30.0)),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
+                                                                    list.remove(i);
+                                                                },
+                                                            ))
+                                                        }),
+                                                )
+                                        })
+                                });
+                            } else {
+                                ctx.c(|ctx: Ctx| {
+                                    button("Mark Complete", |_| {})(ctx)
+                                        .with(Style {
+                                            size: Size::new(Val::Px(250.), Val::Px(30.0)),
+                                            justify_content: JustifyContent::Center,
+                                            align_items: AlignItems::Center,
 
-                                        ..Default::default()
-                                    })
-                                    .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
-                                        |&i: &usize| {
-                                            ClickFunc(ButtonFunc::new(move |world| {
-                                                let mut list =
-                                                    world.get_resource_mut::<TodoList>().unwrap();
-                                                let text = list[i].text.clone();
-                                                list.replace(Todo { text, done: true }, i);
-                                            }))
-                                        },
-                                    ))
-                            });
+                                            ..Default::default()
+                                        })
+                                        .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
+                                            |&i: &usize| {
+                                                ClickFunc(ButtonFunc::new(move |world| {
+                                                    let mut list = world
+                                                        .get_resource_mut::<TodoList>()
+                                                        .unwrap();
+                                                    let text = list[i].text.clone();
+                                                    list.replace(Todo { text, done: true }, i);
+                                                }))
+                                            },
+                                        ))
+                                });
+                            }
                         }
-                    }
-                },
-            ))
+                    }),
+            )
     }
 }
 

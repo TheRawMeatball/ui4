@@ -34,11 +34,22 @@ where
     }
 }
 
+pub trait ChildMapExt: Sized {
+    fn map_child<F>(self, f: F) -> ChildMap<Self, F> {
+        ChildMap(self, f)
+    }
+}
+
+impl<UO> ChildMapExt for UO where UO: UninitObserver {}
+
+pub struct ChildMap<UO, F>(UO, F);
+
 #[rustfmt::skip]
-impl<UO, O, F> Childable<Dynamic> for UO
+impl<UO, F, MF> Childable<Dynamic> for ChildMap<UO, MF>
 where
-    for<'w, 's> O: Observer<Return<'w, 's> = F>,
-    UO: UninitObserver<Observer = O>,
+    UO: UninitObserver,
+    MF: for<'w, 's> Fn(<<UO as UninitObserver>::Observer as Observer>::Return<'w, 's>) -> F,
+    MF: Send + Sync + 'static,
     F: FnOnce(&mut McCtx),
 {
     fn insert(self, ctx: &mut Ctx) {
@@ -46,12 +57,13 @@ where
         let c_parent = ctx.world.spawn().insert_bundle(ControlBundle::default()).id();
         ctx.world.entity_mut(parent).push_children(&[c_parent]);
 
-        let uf = self.register_self(ctx.world, |mut observer, world| {
+        let uf = self.0.register_self(ctx.world, |mut observer, world| {
             let (uf, marker) = UpdateFunc::new::<CnufMarker, _>(move |world| {
-                let (func, changed) = observer.get(world);
+                let (ret, changed) = observer.get(world);
                 if !changed {
                     return;
                 }
+                let func = (self.1)(ret);
 
                 world.entity_mut(c_parent).despawn_children_recursive();
                 

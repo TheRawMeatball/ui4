@@ -406,7 +406,7 @@ where
             ..Default::default()
         })
         .with(Focusable)
-        .children(is_open.dedup().map(move |&b: &bool| {
+        .children(is_open.dedup().map_child(move |&b: &bool| {
             let options = Arc::clone(&options);
             let get_item = Arc::clone(&get_item);
             move |ctx: &mut McCtx| {

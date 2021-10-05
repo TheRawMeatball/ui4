@@ -18,7 +18,7 @@ pub mod prelude {
     pub use button::{ButtonFunc, ClickFunc, FuncScratch, HoverFunc, ReleaseFunc, UnhoverFunc};
     pub use childable::{
         tracked::{TrackedItemObserver, TrackedMarker, TrackedObserverExt, TrackedVec},
-        Childable,
+        ChildMapExt, Childable,
     };
     pub use ctx::{Ctx, McCtx};
     pub use observer::{res, single, IntoObserver, ObserverExt};

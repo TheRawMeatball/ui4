@@ -117,7 +117,7 @@ fn root(ctx: Ctx) -> Ctx {
             res()
                 .map(|time: &Time| time.seconds_since_startup() as usize % 2 == 0)
                 .dedup()
-                .map(|b: &bool| {
+                .map_child(|b: &bool| {
                     let b = *b;
                     move |ctx: &mut McCtx| {
                         if b {
