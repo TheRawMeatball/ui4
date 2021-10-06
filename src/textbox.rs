@@ -93,6 +93,8 @@ impl TextBoxSystemState {
             }
             let (_, mut q, _, _) = self.state.get_mut(world);
             q.single_mut().1 .0 = cursor;
+        } else {
+            self.tmp_chars.clear();
         }
     }
 }
