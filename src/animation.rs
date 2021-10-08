@@ -162,7 +162,7 @@ pub(crate) type TriggerCallState = SystemState<(
         (
             &'static Transition,
             &'static mut TransitionProgress,
-            Option<&'static ActiveTransition>,
+            Option<&'static mut ActiveTransition>,
         ),
     >,
 )>;
@@ -290,7 +290,7 @@ pub(crate) fn trigger_transition_out_cn(
     transition_q: &mut Query<(
         &Transition,
         &mut TransitionProgress,
-        Option<&ActiveTransition>,
+        Option<&mut ActiveTransition>,
     )>,
 ) -> bool {
     let children = children_q.get(e).map(|c| &**c).unwrap_or(&[]);
@@ -342,17 +342,19 @@ fn trigger_transition_out_n(
     transition_q: &mut Query<(
         &Transition,
         &mut TransitionProgress,
-        Option<&ActiveTransition>,
+        Option<&mut ActiveTransition>,
     )>,
 ) {
     if let Some((transition, mut progress, running)) = transition_q.get_mut(e).ok() {
-        if running.is_some() {
+        if let Some(mut running) = running {
             if progress.direction.unwrap() == TransitionDirection::In {
                 match transition {
                     Transition::Out { .. }
                     | Transition::Bidirectional { .. }
                     | Transition::InAndOut { .. } => {
                         progress.direction = Some(TransitionDirection::Out);
+                        running.0 = Some(cn);
+                        *acc += 1;
                     }
                     _ => {
                         progress.direction = None;

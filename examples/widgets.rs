@@ -242,7 +242,7 @@ fn text_fade<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx 
     move |ctx: Ctx| {
         let transition = ctx.component().map(TransitionProgress::progress);
         ctx.with_bundle(TextBundle::default())
-            .with_bundle(TransitionBundle::bidirectional(0.2))
+            .with_bundle(TransitionBundle::bidirectional(1.))
             .with(Style {
                 align_self: AlignSelf::FlexStart,
                 ..Default::default()
