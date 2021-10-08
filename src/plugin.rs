@@ -14,11 +14,11 @@ impl Plugin for Ui4Plugin {
             .init_resource::<ButtonSystemState>()
             .init_resource::<TextBoxSystemState>()
             .init_resource::<RunningTweens>()
-            .insert_resource(UiManagedSystems(
-                SystemStage::parallel().with_system(crate::animation::tween_system),
-            ))
+            .insert_resource(UiManagedSystems(SystemStage::parallel()))
             .add_system(primary_ui_system.exclusive_system().at_end())
-            .add_system(crate::textbox::focus_system);
+            .add_system(crate::textbox::focus_system)
+            .add_system(crate::animation::transition_system)
+            .add_system(crate::animation::tween_system);
     }
 }
 

@@ -1,6 +1,7 @@
 use bevy::{ecs::prelude::*, prelude::ControlBundle, transform::prelude::*};
 
 use crate::{
+    animation::{trigger_transition_out_cn, TriggerCallState},
     ctx::{Ctx, McCtx},
     observer::{Observer, UninitObserver},
     runtime::UpdateFunc,
@@ -44,7 +45,6 @@ impl<UO> ChildMapExt for UO where UO: UninitObserver {}
 
 pub struct ChildMap<UO, F>(UO, F);
 
-#[rustfmt::skip]
 impl<UO, F, MF> Childable<Dynamic> for ChildMap<UO, MF>
 where
     UO: UninitObserver,
@@ -54,9 +54,14 @@ where
 {
     fn insert(self, ctx: &mut Ctx) {
         let parent = ctx.current_entity;
-        let c_parent = ctx.world.spawn().insert_bundle(ControlBundle::default()).id();
+        let c_parent = ctx
+            .world
+            .spawn()
+            .insert_bundle(ControlBundle::default())
+            .id();
         ctx.world.entity_mut(parent).push_children(&[c_parent]);
 
+        let mut state = TriggerCallState::new(ctx.world);
         let uf = self.0.register_self(ctx.world, |mut observer, world| {
             let (uf, marker) = UpdateFunc::new::<CnufMarker, _>(move |world| {
                 let (ret, changed) = observer.get(world);
@@ -65,8 +70,19 @@ where
                 }
                 let func = (self.1)(ret);
 
-                world.entity_mut(c_parent).despawn_children_recursive();
-                
+                let mut params = state.get_mut(world);
+                if !trigger_transition_out_cn(
+                    c_parent,
+                    None,
+                    &mut params.0,
+                    &params.1,
+                    &params.2,
+                    &mut params.3,
+                ) {
+                    world.entity_mut(c_parent).despawn_children_recursive();
+                }
+                state.apply(world);
+
                 let mut new_child_func = |world: &mut World| {
                     let nc = world.spawn().id();
                     world.entity_mut(c_parent).push_children(&[nc]);

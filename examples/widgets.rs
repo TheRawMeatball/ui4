@@ -107,6 +107,19 @@ fn root(ctx: Ctx) -> Ctx {
                     move |w| w.get_mut::<CheckboxData>(this).unwrap().into_inner(),
                 ),
             ))
+            .dyn_group(
+                checkbox_data
+                    .map(|t: &CheckboxData| t.0)
+                    .dedup()
+                    .map(|&b: &bool| b)
+                    .map_child(|b| {
+                        move |ctx: &mut McCtx| {
+                            if b {
+                                ctx.c(text_fade("Now you see me!"));
+                            }
+                        }
+                    }),
+            )
             .c(labelled_widget("Radio buttons", |ctx| {
                 ctx.with_bundle(NodeBundle::default())
                     .with(Style {
@@ -222,6 +235,32 @@ fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
                     Text::with_section(text.borrow(), assets.text_style.clone(), Default::default())
                 },
             ))
+    }
+}
+
+fn text_fade<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
+    move |ctx: Ctx| {
+        let transition = ctx.component().map(TransitionProgress::progress);
+        ctx.with_bundle(TextBundle::default())
+            .with_bundle(TransitionBundle::bidirectional(0.2))
+            .with(Style {
+                align_self: AlignSelf::FlexStart,
+                ..Default::default()
+            })
+            .with(
+                res()
+                    .and(transition)
+                    .map(|(assets, opacity): (&UiAssets, f32)| TextStyle {
+                        color: Color::rgba(1., 1., 1., dbg!(opacity)),
+                        ..assets.text_style.clone()
+                    })
+                    .and(text.into_observer())
+                    .map(
+                        move |(style, text): (TextStyle, O::ObserverReturn<'_, '_>)| {
+                            Text::with_section(text.borrow(), style, Default::default())
+                        },
+                    ),
+            )
     }
 }
 
