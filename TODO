@@ -4,10 +4,8 @@ query::get type observer
 portals
 lenses
 
-[HARD] stop using simple despawn_recursive and implement in-out transitions
+transition support in lists
 
-[HARD MAYBE] switch to directly using morphorm & custom styling
-
-[HARD VERY-UNLIKELY-MAYBE] alternate render stack aswell, completely ditch bevy_ui
+[HARD] switch to morphorm + epaint and ditch bevy_ui
 
 docs
