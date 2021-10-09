@@ -276,7 +276,7 @@ fn recursive_cn_climb(
         if let Some(e) = count.1 {
             recursive_cn_climb(e, commands, btc_q)
         } else {
-            commands.entity(cn).despawn_children_recursive();
+            commands.entity(cn).despawn_recursive();
         }
     }
 }
@@ -303,6 +303,7 @@ pub(crate) fn cancel_transition_out(
                     }
                     _ => {
                         progress.direction = None;
+                        progress.progress = 1.;
                         commands.entity(entity).remove::<ActiveTransition>();
                     }
                 }

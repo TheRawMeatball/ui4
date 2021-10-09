@@ -1,5 +1,6 @@
 #![feature(generic_associated_types)]
 #![feature(unboxed_closures)]
+#![feature(entry_insert)]
 
 mod insertable;
 mod runtime;

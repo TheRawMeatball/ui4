@@ -1,5 +1,7 @@
-use bevy::{ecs::prelude::*, prelude::ControlBundle, transform::prelude::*};
+use bevy::{ecs::prelude::*, prelude::ControlBundle, transform::prelude::*, utils::HashMap};
+use std::{collections::hash_map::Entry, hash::Hash};
 
+use crate::animation::cancel_transition_out;
 use crate::{
     animation::{trigger_transition_out_cn, TriggerCallState},
     ctx::{Ctx, McCtx},
@@ -53,6 +55,7 @@ where
     MF: Send + Sync + 'static,
     F: FnOnce(&mut McCtx),
     for<'w, 's> <UO as UninitObserver>::Observer: Observer<Return<'w, 's> = T>,
+    T: Clone + Eq + Hash + Send + Sync + 'static,
 {
     fn insert(self, ctx: &mut Ctx) {
         let parent = ctx.current_entity;
@@ -62,38 +65,56 @@ where
             .insert_bundle(ControlBundle::default())
             .id();
         ctx.world.entity_mut(parent).push_children(&[c_parent]);
-
+        let mut parents = HashMap::<T, Entity>::default();
         let mut state = TriggerCallState::new(ctx.world);
+        let mut last = None;
         let uf = self.0.register_self(ctx.world, |mut observer, world| {
             let (uf, marker) = UpdateFunc::new::<CnufMarker, _>(move |world| {
                 let (ret, changed) = observer.get(world);
-                if !changed {
+                if !changed || Some(&ret) == last.as_ref() {
                     return;
                 }
-                let func = (self.1)(ret);
 
-                let mut params = state.get_mut(world);
-                if !trigger_transition_out_cn(
-                    c_parent,
-                    None,
-                    &mut params.0,
-                    &params.1,
-                    &params.2,
-                    &mut params.3,
-                ) {
-                    world.entity_mut(c_parent).despawn_children_recursive();
+                parents.retain(|_, entity| world.entities().contains(*entity));
+
+                if let Some(&old) = last.as_ref().and_then(|e| parents.get(e)) {
+                    let mut params = state.get_mut(world);
+
+                    if !trigger_transition_out_cn(
+                        old,
+                        None,
+                        &mut params.0,
+                        &params.1,
+                        &params.2,
+                        &mut params.3,
+                    ) {
+                        world.entity_mut(old).despawn_recursive();
+                    }
                 }
-                state.apply(world);
 
-                let mut new_child_func = |world: &mut World| {
-                    let nc = world.spawn().id();
-                    world.entity_mut(c_parent).push_children(&[nc]);
-                    nc
-                };
-                func(&mut McCtx {
-                    world,
-                    get_new_child: &mut new_child_func,
-                });
+                let mut parent_e = parents.entry(ret.clone());
+                if let Entry::Occupied(existing) = &mut parent_e {
+                    let existing = existing.get();
+                    let mut params = state.get_mut(world);
+                    cancel_transition_out(*existing, &mut params.0, &params.1, &mut params.3);
+                } else {
+                    let c_parent = world.spawn().insert_bundle(ControlBundle::default()).id();
+                    world.entity_mut(parent).push_children(&[c_parent]);
+                    parent_e.insert(c_parent);
+
+                    let mut new_child_func = |world: &mut World| {
+                        let nc = world.spawn().id();
+                        world.entity_mut(c_parent).push_children(&[nc]);
+                        nc
+                    };
+                    (self.1)(ret.clone())(&mut McCtx {
+                        world,
+                        get_new_child: &mut new_child_func,
+                    });
+                }
+
+                last = Some(ret);
+                state.apply(world);
             });
 
             world.entity_mut(c_parent).insert(marker);

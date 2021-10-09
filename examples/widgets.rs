@@ -40,7 +40,7 @@ fn main() {
         .add_plugin(Ui4Root(root))
         .init_resource::<SliderSystemState>()
         .add_system(SliderSystemState::system.exclusive_system())
-        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
+        //.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_startup_system(init_system);
 
     app.world.spawn().insert_bundle(UiCameraBundle::default());
@@ -110,8 +110,6 @@ fn root(ctx: Ctx) -> Ctx {
             .dyn_group(
                 checkbox_data
                     .map(|t: &CheckboxData| t.0)
-                    .dedup()
-                    .map(|&b: &bool| b)
                     .map_child(|b| {
                         move |ctx: &mut McCtx| {
                             if b {
@@ -463,7 +461,7 @@ where
             ..Default::default()
         })
         .with(Focusable)
-        .children(is_open.dedup().cloned().map_child(move |b: bool| {
+        .children(is_open.map_child(move |b: bool| {
             let options = Arc::clone(&options);
             let get_item = Arc::clone(&get_item);
             move |ctx: &mut McCtx| {

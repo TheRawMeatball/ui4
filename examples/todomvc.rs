@@ -178,8 +178,6 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(Ctx) -> Ctx {
             ))
             .children(
                 item.map(|(todo, _): (&Todo, usize)| todo.done)
-                    .dedup()
-                    .cloned()
                     .map_child(move |done: bool| {
                         move |ctx: &mut McCtx| {
                             if done {
