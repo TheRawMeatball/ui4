@@ -252,7 +252,18 @@ pub(crate) fn transition_system(
                 TransitionDirection::In => *duration_in,
                 TransitionDirection::Out => -duration_out,
             },
-            _ => continue,
+            (Transition::In { .. }, TransitionDirection::Out) => {
+                progress.direction = None;
+                commands.entity(entity).remove::<ActiveTransition>();
+                if let Some(cn) = active.0 {
+                    recursive_cn_climb(cn, &mut commands, &mut btc_q);
+                }
+                continue;
+            }
+            (Transition::Out { .. }, TransitionDirection::In) => {
+                progress.progress = 1.;
+                continue;
+            }
         };
 
         progress.progress += time.delta_seconds() / duration;

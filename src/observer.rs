@@ -36,7 +36,7 @@ pub trait Observer: Send + Sync + 'static {
     fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Map<O, F>(O, F);
 impl<O, F> Observer for Map<O, F>
 where

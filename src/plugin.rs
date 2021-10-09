@@ -1,5 +1,6 @@
 use bevy::app::Plugin;
 use bevy::ecs::prelude::*;
+use bevy::prelude::CoreStage;
 
 use crate::animation::RunningTweens;
 use crate::button::ButtonSystemState;
@@ -17,8 +18,8 @@ impl Plugin for Ui4Plugin {
             .insert_resource(UiManagedSystems(SystemStage::parallel()))
             .add_system(primary_ui_system.exclusive_system().at_end())
             .add_system(crate::textbox::focus_system)
-            .add_system(crate::animation::transition_system)
-            .add_system(crate::animation::tween_system);
+            .add_system(crate::animation::tween_system)
+            .add_system_to_stage(CoreStage::PostUpdate, crate::animation::transition_system);
     }
 }
 
