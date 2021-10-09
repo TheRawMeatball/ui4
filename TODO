@@ -6,4 +6,8 @@ lenses
 
 [HARD] stop using simple despawn_recursive and implement in-out transitions
 
+[HARD MAYBE] switch to directly using morphorm & custom styling
+
+[HARD VERY-UNLIKELY-MAYBE] alternate render stack aswell, completely ditch bevy_ui
+
 docs

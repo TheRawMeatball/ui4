@@ -251,24 +251,6 @@ fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     }
 }
 
-fn text_slide<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
-    move |ctx: Ctx| {
-        let transition = ctx.component().map(TransitionProgress::progress);
-        ctx.with_bundle(TextBundle::default())
-            .with_bundle(TransitionBundle::bidirectional(1.))
-            .with(transition.map(|size| Style {
-                align_self: AlignSelf::FlexStart,
-                size: Size::new(Val::Undefined, Val::Px(size * 32.)),
-                ..Default::default()
-            }))
-            .with(res().and(text.into_observer()).map(
-                move |(assets, text): (&UiAssets, O::ObserverReturn<'_, '_>)| {
-                    Text::with_section(text.borrow(), assets.text_style.clone(), Default::default())
-                },
-            ))
-    }
-}
-
 fn text_fade<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         let transition = ctx.component().map(TransitionProgress::progress);
