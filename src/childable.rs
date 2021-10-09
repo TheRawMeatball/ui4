@@ -45,12 +45,14 @@ impl<UO> ChildMapExt for UO where UO: UninitObserver {}
 
 pub struct ChildMap<UO, F>(UO, F);
 
-impl<UO, F, MF> Childable<Dynamic> for ChildMap<UO, MF>
+#[rustfmt::skip]
+impl<UO, F, MF, T> Childable<Dynamic> for ChildMap<UO, MF>
 where
     UO: UninitObserver,
-    MF: for<'w, 's> Fn(<<UO as UninitObserver>::Observer as Observer>::Return<'w, 's>) -> F,
+    MF: Fn(T) -> F,
     MF: Send + Sync + 'static,
     F: FnOnce(&mut McCtx),
+    for<'w, 's> <UO as UninitObserver>::Observer: Observer<Return<'w, 's> = T>,
 {
     fn insert(self, ctx: &mut Ctx) {
         let parent = ctx.current_entity;

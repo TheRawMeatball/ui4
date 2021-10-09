@@ -69,6 +69,39 @@ where
 }
 
 #[derive(Clone)]
+pub struct ClonedTemplate<O>(O);
+pub struct Cloned<O>(O);
+#[rustfmt::skip]
+impl<O, T: Clone + 'static> Observer for Cloned<O>
+where
+    O: for<'w, 's> Observer<Return<'w, 's> = &'s T>,
+{
+    type Return<'w, 's> = T;
+
+    fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
+        let (val, change) = self.0.get(world);
+        (val.clone(), change)
+    }
+}
+#[rustfmt::skip]
+impl<UO, O, T: Clone + 'static> UninitObserver for ClonedTemplate<UO>
+where
+    O: for<'w, 's> Observer<Return<'w, 's> = &'s T>,
+    UO: UninitObserver<Observer = O>,
+{
+    type Observer = Cloned<O>;
+
+    fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
+        self,
+        world: &mut World,
+        uf: F,
+    ) -> UpdateFunc {
+        self.0
+            .register_self(world, move |obs, world| uf(Cloned(obs), world))
+    }
+}
+
+#[derive(Clone)]
 pub struct And<O1, O2>(O1, O2);
 impl<O1: Observer, O2: Observer> Observer for And<O1, O2> {
     type Return<'w, 's> = (O1::Return<'w, 's>, O2::Return<'w, 's>);
@@ -151,6 +184,7 @@ pub trait ObserverExt: UninitObserver + Sized {
     where
         O: UninitObserver;
     fn dedup(self) -> DedupTemplate<Self>;
+    fn cloned(self) -> ClonedTemplate<Self>;
 }
 
 impl<T: UninitObserver> ObserverExt for T {
@@ -164,6 +198,9 @@ impl<T: UninitObserver> ObserverExt for T {
 
     fn dedup(self) -> DedupTemplate<Self> {
         DedupTemplate(self)
+    }
+    fn cloned(self) -> ClonedTemplate<Self> {
+        ClonedTemplate(self)
     }
 }
 

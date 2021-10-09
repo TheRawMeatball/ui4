@@ -238,6 +238,24 @@ fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     }
 }
 
+fn text_slide<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
+    move |ctx: Ctx| {
+        let transition = ctx.component().map(TransitionProgress::progress);
+        ctx.with_bundle(TextBundle::default())
+            .with_bundle(TransitionBundle::bidirectional(1.))
+            .with(transition.map(|size| Style {
+                align_self: AlignSelf::FlexStart,
+                size: Size::new(Val::Undefined, Val::Px(size * 32.)),
+                ..Default::default()
+            }))
+            .with(res().and(text.into_observer()).map(
+                move |(assets, text): (&UiAssets, O::ObserverReturn<'_, '_>)| {
+                    Text::with_section(text.borrow(), assets.text_style.clone(), Default::default())
+                },
+            ))
+    }
+}
+
 fn text_fade<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         let transition = ctx.component().map(TransitionProgress::progress);
@@ -251,7 +269,7 @@ fn text_fade<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx 
                 res()
                     .and(transition)
                     .map(|(assets, opacity): (&UiAssets, f32)| TextStyle {
-                        color: Color::rgba(1., 1., 1., dbg!(opacity)),
+                        color: Color::rgba(1., 1., 1., opacity),
                         ..assets.text_style.clone()
                     })
                     .and(text.into_observer())
@@ -445,7 +463,7 @@ where
             ..Default::default()
         })
         .with(Focusable)
-        .children(is_open.dedup().map_child(move |&b: &bool| {
+        .children(is_open.dedup().cloned().map_child(move |b: bool| {
             let options = Arc::clone(&options);
             let get_item = Arc::clone(&get_item);
             move |ctx: &mut McCtx| {

@@ -281,6 +281,40 @@ fn recursive_cn_climb(
     }
 }
 
+pub(crate) fn cancel_transition_out(
+    entity: Entity,
+    commands: &mut Commands,
+    children_q: &Query<&Children>,
+    transition_q: &mut Query<(
+        &Transition,
+        &mut TransitionProgress,
+        Option<&mut ActiveTransition>,
+    )>,
+) {
+    if let Some((transition, mut progress, running)) = transition_q.get_mut(entity).ok() {
+        if let Some(mut running) = running {
+            if progress.direction.unwrap() == TransitionDirection::In {
+                match transition {
+                    Transition::In { .. }
+                    | Transition::Bidirectional { .. }
+                    | Transition::InAndOut { .. } => {
+                        progress.direction = Some(TransitionDirection::In);
+                        running.0 = None;
+                    }
+                    _ => {
+                        progress.direction = None;
+                        commands.entity(entity).remove::<ActiveTransition>();
+                    }
+                }
+            }
+        }
+    }
+    let children = children_q.get(entity).map(|c| &**c).unwrap_or(&[]);
+    for &child in children {
+        cancel_transition_out(child, commands, children_q, transition_q);
+    }
+}
+
 pub(crate) fn trigger_transition_out_cn(
     e: Entity,
     parent_cn: Option<Entity>,
