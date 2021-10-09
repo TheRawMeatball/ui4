@@ -165,6 +165,7 @@ pub(crate) type TriggerCallState = SystemState<(
             Option<&'static mut ActiveTransition>,
         ),
     >,
+    Query<'static, 'static, &'static mut BlockingTransitionCount>,
 )>;
 
 #[derive(Component)]
@@ -293,7 +294,7 @@ pub(crate) fn cancel_transition_out(
 ) {
     if let Some((transition, mut progress, running)) = transition_q.get_mut(entity).ok() {
         if let Some(mut running) = running {
-            if progress.direction.unwrap() == TransitionDirection::In {
+            if progress.direction.unwrap() == TransitionDirection::Out {
                 match transition {
                     Transition::In { .. }
                     | Transition::Bidirectional { .. }
@@ -327,6 +328,7 @@ pub(crate) fn trigger_transition_out_cn(
         &mut TransitionProgress,
         Option<&mut ActiveTransition>,
     )>,
+    btc_q: &mut Query<&mut BlockingTransitionCount>,
 ) -> bool {
     let children = children_q.get(e).map(|c| &**c).unwrap_or(&[]);
 
@@ -341,6 +343,7 @@ pub(crate) fn trigger_transition_out_cn(
                 children_q,
                 control_node,
                 transition_q,
+                btc_q,
             ) {
                 acc += 1;
             }
@@ -353,12 +356,19 @@ pub(crate) fn trigger_transition_out_cn(
                 children_q,
                 control_node,
                 transition_q,
+                btc_q,
             );
         }
     }
 
     if acc == 0 {
         false
+    } else if let Ok(mut btc) = btc_q.get_mut(e) {
+        if btc.1.is_none() {
+            btc.1 = parent_cn;
+        }
+        btc.0 = acc;
+        true
     } else {
         commands
             .entity(e)
@@ -379,6 +389,7 @@ fn trigger_transition_out_n(
         &mut TransitionProgress,
         Option<&mut ActiveTransition>,
     )>,
+    btc_q: &mut Query<&mut BlockingTransitionCount>,
 ) {
     if let Some((transition, mut progress, running)) = transition_q.get_mut(e).ok() {
         if let Some(mut running) = running {
@@ -396,6 +407,8 @@ fn trigger_transition_out_n(
                         commands.entity(e).remove::<ActiveTransition>();
                     }
                 }
+            } else {
+                *acc += 1;
             }
         } else {
             commands.entity(e).insert(ActiveTransition(Some(cn)));
@@ -409,14 +422,17 @@ fn trigger_transition_out_n(
 
     for &child in children {
         if control_node.get(child).is_ok() {
-            trigger_transition_out_cn(
+            if trigger_transition_out_cn(
                 child,
                 Some(cn),
                 commands,
                 children_q,
                 control_node,
                 transition_q,
-            );
+                btc_q,
+            ) {
+                *acc += 1;
+            }
         } else {
             trigger_transition_out_n(
                 child,
@@ -426,6 +442,7 @@ fn trigger_transition_out_n(
                 children_q,
                 control_node,
                 transition_q,
+                btc_q,
             );
         }
     }

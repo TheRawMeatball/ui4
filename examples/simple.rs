@@ -36,7 +36,7 @@ fn main() {
     app.add_plugins(DefaultPlugins)
         .add_plugin(Ui4Plugin)
         .add_plugin(Ui4Root(root))
-        //.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
+        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_startup_system(init_system);
 
     app.world.spawn().insert_bundle(UiCameraBundle::default());

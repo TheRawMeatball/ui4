@@ -40,7 +40,7 @@ fn main() {
         .add_plugin(Ui4Root(root))
         .init_resource::<SliderSystemState>()
         .add_system(SliderSystemState::system.exclusive_system())
-        //.add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
+        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_startup_system(init_system);
 
     app.world.spawn().insert_bundle(UiCameraBundle::default());
@@ -107,17 +107,6 @@ fn root(ctx: Ctx) -> Ctx {
                     move |w| w.get_mut::<CheckboxData>(this).unwrap().into_inner(),
                 ),
             ))
-            .dyn_group(
-                checkbox_data
-                    .map(|t: &CheckboxData| t.0)
-                    .map_child(|b| {
-                        move |ctx: &mut McCtx| {
-                            if b {
-                                ctx.c(text_fade("Now you see me!"));
-                            }
-                        }
-                    }),
-            )
             .c(labelled_widget("Radio buttons", |ctx| {
                 ctx.with_bundle(NodeBundle::default())
                     .with(Style {
@@ -188,7 +177,8 @@ fn root(ctx: Ctx) -> Ctx {
                         .map(|x: &f32| *x)
                         .tween(0.2),
                 ),
-            ));
+            ))
+            .c(toggle(|| toggle(|| text_fade("Hey!"))));
         })
 }
 
@@ -196,7 +186,7 @@ fn labelled_widget(
     label: &'static str,
     widget: impl FnOnce(Ctx) -> Ctx,
 ) -> impl FnOnce(Ctx) -> Ctx {
-    move |ctx| {
+    move |ctx: Ctx| {
         ctx.with_bundle(NodeBundle::default())
             .with(Style {
                 size: Size {
@@ -218,6 +208,31 @@ fn labelled_widget(
                 })
                 .c(widget);
             })
+    }
+}
+
+fn toggle<F: FnOnce(Ctx) -> Ctx>(
+    child: impl Fn() -> F + Send + Sync + 'static,
+) -> impl FnOnce(Ctx) -> Ctx {
+    #[derive(Component, Deref, DerefMut, Default)]
+    struct Toggle(bool);
+    |ctx: Ctx| {
+        let checked = ctx.component::<Toggle>();
+        let entity = ctx.current_entity();
+        ctx.with_bundle(NodeBundle::default())
+            .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
+            .with(Toggle(false))
+            .child(checkbox(checked.map(|&Toggle(b): &Toggle| b), move |w| {
+                &mut w.get_mut::<Toggle>(entity).unwrap().into_inner().0
+            }))
+            .children(checked.map(|t: &Toggle| t.0).map_child(move |b| {
+                let child = child();
+                move |ctx: &mut McCtx| {
+                    if b {
+                        ctx.c(child);
+                    }
+                }
+            }))
     }
 }
 
@@ -258,7 +273,7 @@ fn text_fade<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx 
     move |ctx: Ctx| {
         let transition = ctx.component().map(TransitionProgress::progress);
         ctx.with_bundle(TextBundle::default())
-            .with_bundle(TransitionBundle::bidirectional(1.))
+            .with_bundle(TransitionBundle::bidirectional(10.))
             .with(Style {
                 align_self: AlignSelf::FlexStart,
                 ..Default::default()

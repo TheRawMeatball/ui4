@@ -59,23 +59,24 @@ where
 {
     fn insert(self, ctx: &mut Ctx) {
         let parent = ctx.current_entity;
-        let c_parent = ctx
+        let main_c_parent = ctx
             .world
             .spawn()
             .insert_bundle(ControlBundle::default())
             .id();
-        ctx.world.entity_mut(parent).push_children(&[c_parent]);
+        ctx.world.entity_mut(parent).push_children(&[main_c_parent]);
         let mut parents = HashMap::<T, Entity>::default();
         let mut state = TriggerCallState::new(ctx.world);
         let mut last = None;
         let uf = self.0.register_self(ctx.world, |mut observer, world| {
             let (uf, marker) = UpdateFunc::new::<CnufMarker, _>(move |world| {
                 let (ret, changed) = observer.get(world);
+
+                parents.retain(|_, entity| world.entities().contains(*entity));
+                
                 if !changed || Some(&ret) == last.as_ref() {
                     return;
                 }
-
-                parents.retain(|_, entity| world.entities().contains(*entity));
 
                 if let Some(&old) = last.as_ref().and_then(|e| parents.get(e)) {
                     let mut params = state.get_mut(world);
@@ -87,20 +88,21 @@ where
                         &params.1,
                         &params.2,
                         &mut params.3,
+                        &mut params.4,
                     ) {
                         world.entity_mut(old).despawn_recursive();
                     }
                 }
 
-                let mut parent_e = parents.entry(ret.clone());
-                if let Entry::Occupied(existing) = &mut parent_e {
+                let mut parent = parents.entry(ret.clone());
+                if let Entry::Occupied(existing) = &mut parent {
                     let existing = existing.get();
                     let mut params = state.get_mut(world);
                     cancel_transition_out(*existing, &mut params.0, &params.1, &mut params.3);
                 } else {
                     let c_parent = world.spawn().insert_bundle(ControlBundle::default()).id();
-                    world.entity_mut(parent).push_children(&[c_parent]);
-                    parent_e.insert(c_parent);
+                    world.entity_mut(main_c_parent).push_children(&[c_parent]);
+                    parent.insert(c_parent);
 
                     let mut new_child_func = |world: &mut World| {
                         let nc = world.spawn().id();
@@ -117,7 +119,7 @@ where
                 state.apply(world);
             });
 
-            world.entity_mut(c_parent).insert(marker);
+            world.entity_mut(main_c_parent).insert(marker);
             uf
         });
         uf.run(&mut ctx.world);
