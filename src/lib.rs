@@ -9,6 +9,7 @@ pub mod animation;
 pub mod button;
 pub mod childable;
 pub mod ctx;
+pub mod dom;
 pub mod observer;
 pub mod plugin;
 pub mod textbox;

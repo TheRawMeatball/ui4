@@ -5,6 +5,7 @@ portals
 lenses
 
 transition support in lists
+trait hackery to enable builder pattern widgets
 
 [HARD] switch to morphorm + epaint and ditch bevy_ui
 
