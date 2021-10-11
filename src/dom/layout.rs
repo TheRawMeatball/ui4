@@ -1,5 +1,7 @@
 use bevy::ecs::prelude::*;
-use morphorm::{Node, Units};
+use morphorm::{Hierarchy, Node, Units};
+
+use super::{Control, FirstChild, NextSibling, Parent};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct NodeEntity(pub Entity);
@@ -211,4 +213,179 @@ impl<'w> Node<'w> for NodeEntity {
         [row_span, RowSpan],
         [col_span, ColSpan],
     );
+}
+
+#[derive(Clone, Copy)]
+pub struct Tree<'borrow, 'world, 'state> {
+    root: Entity,
+    parent_query: &'borrow Query<'world, 'state, &'static Parent>,
+    first_child_query: &'borrow Query<'world, 'state, &'static FirstChild>,
+    next_sibling_query: &'borrow Query<'world, 'state, &'static NextSibling>,
+    control_node_query: &'borrow Query<'world, 'state, &'static Control>,
+}
+
+impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
+    pub fn new(
+        root: Entity,
+        parent_query: &'borrow Query<'world, 'state, &'static Parent>,
+        first_child_query: &'borrow Query<'world, 'state, &'static FirstChild>,
+        next_sibling_query: &'borrow Query<'world, 'state, &'static NextSibling>,
+        control_node_query: &'borrow Query<'world, 'state, &'static Control>,
+    ) -> Self {
+        Self {
+            root,
+            parent_query,
+            first_child_query,
+            next_sibling_query,
+            control_node_query,
+        }
+    }
+}
+
+impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
+    pub fn flatten(&self) -> Vec<NodeEntity> {
+        let iterator = DownwardIterator {
+            tree: *self,
+            current_node: Some(self.root),
+        };
+
+        iterator.collect::<Vec<_>>()
+    }
+
+    pub fn get_first_child(&self, node: Entity) -> Option<Entity> {
+        let mut first = self.first_child_query.get(node).map(|f| f.0).ok();
+
+        while let Some(entity) = first {
+            if let Ok(_control_node) = self.control_node_query.get(entity) {
+                first = self.first_child_query.get(entity).map(|f| f.0).ok();
+            } else {
+                break;
+            }
+        }
+
+        first
+    }
+
+    pub fn get_next_sibling(&self, node: Entity) -> Option<Entity> {
+        let mut next = self.next_sibling_query.get(node).map(|ns| ns.0).ok();
+
+        while let Some(entity) = next {
+            if let Ok(_control_node) = self.control_node_query.get(entity) {
+                next = self.next_sibling_query.get(entity).map(|ns| ns.0).ok();
+            } else {
+                break;
+            }
+        }
+
+        next
+    }
+}
+
+impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'state> {
+    type Item = NodeEntity;
+    type DownIter = std::vec::IntoIter<NodeEntity>;
+    type UpIter = std::iter::Rev<std::vec::IntoIter<NodeEntity>>;
+    type ChildIter = ChildIterator<'borrow, 'world, 'state>;
+
+    fn up_iter(&self) -> Self::UpIter {
+        self.flatten().into_iter().rev()
+    }
+
+    fn down_iter(&self) -> Self::DownIter {
+        self.flatten().into_iter()
+    }
+
+    fn parent(&self, node: Self::Item) -> Option<Self::Item> {
+        self.parent_query
+            .get(node.entity())
+            .map_or(None, |parent| Some(NodeEntity(parent.0)))
+    }
+
+    fn child_iter(&'borrow self, node: Self::Item) -> Self::ChildIter {
+        ChildIterator {
+            next_sibling_query: &self.next_sibling_query,
+            current_node: self.get_first_child(node.entity()).map(NodeEntity),
+        }
+    }
+
+    fn is_first_child(&self, node: Self::Item) -> bool {
+        if let Some(parent) = self.parent(node) {
+            if let Some(first_child) = self.get_first_child(parent.entity()) {
+                if first_child == node.entity() {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    fn is_last_child(&self, node: Self::Item) -> bool {
+        if let Some(parent) = self.parent(node) {
+            if let Some(mut temp) = self.get_first_child(parent.entity()) {
+                while let Some(next_sibling) = self.get_next_sibling(temp) {
+                    temp = next_sibling;
+                }
+
+                if temp == node.entity() {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+}
+
+pub struct DownwardIterator<'borrow, 'world, 'state> {
+    tree: Tree<'borrow, 'world, 'state>,
+    current_node: Option<Entity>,
+}
+
+impl<'borrow, 'world, 'state> Iterator for DownwardIterator<'borrow, 'world, 'state> {
+    type Item = NodeEntity;
+    fn next(&mut self) -> Option<NodeEntity> {
+        let r = self.current_node;
+
+        if let Some(current) = self.current_node {
+            if let Some(first_child) = self.tree.get_first_child(current) {
+                self.current_node = Some(first_child);
+            } else {
+                let mut temp = Some(current);
+                while let Some(entity) = temp {
+                    if let Some(next_sibling) = self.tree.get_next_sibling(entity) {
+                        self.current_node = Some(next_sibling);
+                        return r.map(NodeEntity);
+                    } else {
+                        temp = self.tree.parent(NodeEntity(entity)).map(|p| p.0);
+                    }
+                }
+
+                self.current_node = None;
+            }
+        }
+
+        return r.map(NodeEntity);
+    }
+}
+
+pub struct ChildIterator<'borrow, 'world, 'state> {
+    pub next_sibling_query: &'borrow Query<'world, 'state, &'static NextSibling>,
+    pub current_node: Option<NodeEntity>,
+}
+
+impl<'borrow, 'world, 'state> Iterator for ChildIterator<'borrow, 'world, 'state> {
+    type Item = NodeEntity;
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(entity) = self.current_node {
+            //self.current_node = self.tree.next_sibling[entity.index()].as_ref();
+            self.current_node = self
+                .next_sibling_query
+                .get(entity.entity())
+                .map_or(None, |next_sibling| Some(NodeEntity(next_sibling.0)));
+            return Some(entity);
+        }
+
+        None
+    }
 }

@@ -3,10 +3,11 @@ use std::sync::{Arc, Mutex};
 
 use bevy::core::Time;
 use bevy::ecs::prelude::*;
-use bevy::ecs::system::SystemState;
-use bevy::prelude::{Children, DespawnRecursiveExt};
+use bevy::ecs::system::lifetimeless::*;
+use bevy::ecs::system::{SystemParam, SystemState};
 use slotmap::{DefaultKey, SlotMap};
 
+use crate::dom::{despawn_control_node, Control, FirstChild, NextSibling, Parent};
 use crate::observer::{Observer, UninitObserver};
 use crate::runtime::{UiScratchSpace, UpdateFunc};
 
@@ -153,19 +154,16 @@ pub(crate) fn tween_system(
 }
 
 pub(crate) type TriggerCallState = SystemState<(
-    Commands<'static, 'static>,
-    Query<'static, 'static, &'static Children>,
-    Query<'static, 'static, &'static bevy::ui::ControlNode>,
-    Query<
-        'static,
-        'static,
-        (
-            &'static Transition,
-            &'static mut TransitionProgress,
-            Option<&'static mut ActiveTransition>,
-        ),
-    >,
-    Query<'static, 'static, &'static mut BlockingTransitionCount>,
+    SCommands,
+    SQuery<Read<NextSibling>>,
+    SQuery<Read<FirstChild>>,
+    SQuery<Read<Control>>,
+    SQuery<(
+        Read<Transition>,
+        Write<TransitionProgress>,
+        Option<Write<ActiveTransition>>,
+    )>,
+    SQuery<Write<BlockingTransitionCount>>,
 )>;
 
 #[derive(Component)]
@@ -288,15 +286,26 @@ fn recursive_cn_climb(
         if let Some(e) = count.1 {
             recursive_cn_climb(e, commands, btc_q)
         } else {
-            commands.entity(cn).despawn_recursive();
+            commands.add(CWrapper(move |world: &mut World| {
+                despawn_control_node(cn, world);
+            }));
         }
+    }
+}
+
+struct CWrapper<F>(F);
+
+impl<F: FnOnce(&mut World) + Send + Sync + 'static> bevy::ecs::system::Command for CWrapper<F> {
+    fn write(self, world: &mut World) {
+        (self.0)(world);
     }
 }
 
 pub(crate) fn cancel_transition_out(
     entity: Entity,
     commands: &mut Commands,
-    children_q: &Query<&Children>,
+    next_sibling_q: &Query<&NextSibling>,
+    first_child_q: &Query<&FirstChild>,
     transition_q: &mut Query<(
         &Transition,
         &mut TransitionProgress,
@@ -322,18 +331,23 @@ pub(crate) fn cancel_transition_out(
             }
         }
     }
-    let children = children_q.get(entity).map(|c| &**c).unwrap_or(&[]);
-    for &child in children {
-        cancel_transition_out(child, commands, children_q, transition_q);
+
+    let mut next_child = first_child_q.get(entity).ok().map(|c| c.0);
+
+    while let Some(child) = next_child {
+        next_child = next_sibling_q.get(child).ok().map(|c| c.0);
+        cancel_transition_out(child, commands, next_sibling_q, first_child_q, transition_q);
     }
 }
 
 pub(crate) fn trigger_transition_out_cn(
-    e: Entity,
+    entity: Entity,
+    last_managed: Option<Entity>,
     parent_cn: Option<Entity>,
     commands: &mut Commands,
-    children_q: &Query<&Children>,
-    control_node: &Query<&bevy::ui::ControlNode>,
+    next_sibling_q: &Query<&NextSibling>,
+    first_child_q: &Query<&FirstChild>,
+    control_q: &Query<&Control>,
     transition_q: &mut Query<(
         &Transition,
         &mut TransitionProgress,
@@ -341,18 +355,22 @@ pub(crate) fn trigger_transition_out_cn(
     )>,
     btc_q: &mut Query<&mut BlockingTransitionCount>,
 ) -> bool {
-    let children = children_q.get(e).map(|c| &**c).unwrap_or(&[]);
-
     let mut acc = 0;
 
-    for &child in children {
-        if control_node.get(child).is_ok() {
+    let mut next_sibling = next_sibling_q.get(entity).ok().map(|c| c.0);
+
+    while let Some(managed) = next_sibling {
+        next_sibling = next_sibling_q.get(managed).ok().map(|c| c.0);
+
+        if let Ok(c) = control_q.get(managed) {
             if trigger_transition_out_cn(
-                child,
-                Some(e),
+                managed,
+                c.last_managed,
+                Some(entity),
                 commands,
-                children_q,
-                control_node,
+                next_sibling_q,
+                first_child_q,
+                control_q,
                 transition_q,
                 btc_q,
             ) {
@@ -360,21 +378,25 @@ pub(crate) fn trigger_transition_out_cn(
             }
         } else {
             trigger_transition_out_n(
-                child,
-                e,
+                managed,
+                entity,
                 &mut acc,
                 commands,
-                children_q,
-                control_node,
+                next_sibling_q,
+                first_child_q,
+                control_q,
                 transition_q,
                 btc_q,
             );
+        }
+        if Some(managed) == last_managed {
+            break;
         }
     }
 
     if acc == 0 {
         false
-    } else if let Ok(mut btc) = btc_q.get_mut(e) {
+    } else if let Ok(mut btc) = btc_q.get_mut(entity) {
         if btc.1.is_none() {
             btc.1 = parent_cn;
         }
@@ -382,19 +404,20 @@ pub(crate) fn trigger_transition_out_cn(
         true
     } else {
         commands
-            .entity(e)
+            .entity(entity)
             .insert(BlockingTransitionCount(acc, parent_cn));
         true
     }
 }
 
 fn trigger_transition_out_n(
-    e: Entity,
+    entity: Entity,
     cn: Entity,
     acc: &mut usize,
     commands: &mut Commands,
-    children_q: &Query<&Children>,
-    control_node: &Query<&bevy::ui::ControlNode>,
+    next_sibling_q: &Query<&NextSibling>,
+    first_child_q: &Query<&FirstChild>,
+    control_q: &Query<&Control>,
     transition_q: &mut Query<(
         &Transition,
         &mut TransitionProgress,
@@ -402,7 +425,7 @@ fn trigger_transition_out_n(
     )>,
     btc_q: &mut Query<&mut BlockingTransitionCount>,
 ) {
-    if let Some((transition, mut progress, running)) = transition_q.get_mut(e).ok() {
+    if let Some((transition, mut progress, running)) = transition_q.get_mut(entity).ok() {
         if let Some(mut running) = running {
             if progress.direction.unwrap() == TransitionDirection::In {
                 match transition {
@@ -415,43 +438,50 @@ fn trigger_transition_out_n(
                     }
                     _ => {
                         progress.direction = None;
-                        commands.entity(e).remove::<ActiveTransition>();
+                        commands.entity(entity).remove::<ActiveTransition>();
                     }
                 }
             } else {
                 *acc += 1;
             }
         } else {
-            commands.entity(e).insert(ActiveTransition(Some(cn)));
+            commands.entity(entity).insert(ActiveTransition(Some(cn)));
             progress.progress = 1.;
             progress.direction = Some(TransitionDirection::Out);
             *acc += 1;
         }
     }
 
-    let children = children_q.get(e).map(|c| &**c).unwrap_or(&[]);
+    let mut next_child = first_child_q.get(entity).ok().map(|c| c.0);
 
-    for &child in children {
-        if control_node.get(child).is_ok() {
+    while let Some(child) = next_child {
+        if let Ok(c) = control_q.get(child) {
+            next_child = c
+                .last_managed
+                .and_then(|e| next_sibling_q.get(e).ok().map(|c| c.0));
             if trigger_transition_out_cn(
                 child,
+                c.last_managed,
                 Some(cn),
                 commands,
-                children_q,
-                control_node,
+                next_sibling_q,
+                first_child_q,
+                control_q,
                 transition_q,
                 btc_q,
             ) {
                 *acc += 1;
             }
         } else {
+            next_child = next_sibling_q.get(child).ok().map(|c| c.0);
             trigger_transition_out_n(
                 child,
                 cn,
                 acc,
                 commands,
-                children_q,
-                control_node,
+                next_sibling_q,
+                first_child_q,
+                control_q,
                 transition_q,
                 btc_q,
             );

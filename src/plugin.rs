@@ -39,5 +39,6 @@ fn init_ui(world: &mut World, root: impl Fn(Ctx) -> Ctx) {
     root(Ctx {
         current_entity: world.spawn().id(),
         world,
+        last_child: None,
     });
 }

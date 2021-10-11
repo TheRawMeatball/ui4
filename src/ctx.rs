@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
-use bevy::{ecs::prelude::*, prelude::ControlBundle};
+use bevy::ecs::prelude::*;
 
 use crate::{
     childable::Childable,
+    dom::Control,
     insertable::Insertable,
     observer::{ComponentExistsObserver, ComponentObserver},
 };
@@ -13,6 +14,7 @@ use crate::{
 pub struct Ctx<'a> {
     pub(crate) world: &'a mut World,
     pub(crate) current_entity: Entity,
+    pub(crate) last_child: Option<Entity>,
 }
 
 pub struct McCtx<'a> {
@@ -29,12 +31,14 @@ impl McCtx<'_> {
         f(Ctx {
             current_entity: new_child,
             world: self.world,
+            last_child: None,
         });
         self
     }
 
     pub fn dyn_group<M>(&mut self, children: impl Childable<M>) -> &mut Self {
-        self.c(|ctx: Ctx| ctx.with_bundle(ControlBundle::default()).children(children))
+        // TODO: this will probably break spectacularly
+        self.c(|ctx: Ctx| ctx.with(Control::default()).children(children))
     }
 }
 
