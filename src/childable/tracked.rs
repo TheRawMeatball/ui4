@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use bevy::{
     ecs::{prelude::*, system::SystemState},
-    prelude::{BuildWorldChildren, Children, ControlBundle, DespawnRecursiveExt},
+    prelude::{BuildWorldChildren, Children, DespawnRecursiveExt},
 };
 use crossbeam_channel::Sender;
 pub use map::TrackedMap;
@@ -13,6 +13,7 @@ pub use vec::TrackedVec;
 
 use crate::{
     childable::CnufMarker,
+    dom::ControlBundle,
     observer::{Observer, UninitObserver},
     prelude::Ctx,
     runtime::{UiScratchSpace, UpdateFunc},
@@ -128,7 +129,11 @@ where
         let parent = ctx.current_entity;
         let f = self.1;
 
-        let c_parent = ctx.world.spawn().insert_bundle(ControlBundle::default()).id();
+        let c_parent = ctx
+            .world
+            .spawn()
+            .insert_bundle(ControlBundle::default())
+            .id();
         ctx.world.entity_mut(parent).push_children(&[c_parent]);
 
         self.0.register_self(ctx.world, |mut obs, world| {
@@ -208,7 +213,13 @@ where
                         Diff::Remove(i) => remove(world, &mut paramset, Some(i)),
                         Diff::Insert(e, i) => insert(world, &mut paramset, e, Some(i)),
                         Diff::Clear => {
-                            world.entity_mut(c_parent).despawn_children_recursive();
+                            for _ in 0..world
+                                .get::<Children>(c_parent)
+                                .map(|x| x.len())
+                                .unwrap_or(0)
+                            {
+                                remove(world, &mut paramset, None);
+                            }
                         }
                     }
                 }

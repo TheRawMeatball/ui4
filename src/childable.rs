@@ -1,7 +1,8 @@
-use bevy::{ecs::prelude::*, prelude::ControlBundle, transform::prelude::*, utils::HashMap};
+use bevy::{ecs::prelude::*, transform::prelude::*, utils::HashMap};
 use std::{collections::hash_map::Entry, hash::Hash};
 
 use crate::animation::cancel_transition_out;
+use crate::dom::{ControlBundle, NodeBundle};
 use crate::{
     animation::{trigger_transition_out_cn, TriggerCallState},
     ctx::{Ctx, McCtx},
@@ -25,7 +26,7 @@ where
     fn insert(self, ctx: &mut Ctx) {
         let parent = ctx.current_entity;
         let mut new_child = |world: &mut World| {
-            let nc = world.spawn().id();
+            let nc = world.spawn().insert_bundle(NodeBundle::default()).id();
             let mut parent = world.entity_mut(parent);
             parent.push_children(&[nc]);
             nc
@@ -105,7 +106,7 @@ where
                     parent.insert(c_parent);
 
                     let mut new_child_func = |world: &mut World| {
-                        let nc = world.spawn().id();
+                        let nc = world.spawn().insert_bundle(NodeBundle::default()).id();
                         world.entity_mut(c_parent).push_children(&[nc]);
                         nc
                     };

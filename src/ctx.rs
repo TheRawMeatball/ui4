@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
-use bevy::{ecs::prelude::*, prelude::ControlBundle};
+use bevy::ecs::prelude::*;
 
 use crate::{
     childable::Childable,
+    dom::ControlBundle,
     insertable::Insertable,
     observer::{ComponentExistsObserver, ComponentObserver},
 };

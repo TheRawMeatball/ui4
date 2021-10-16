@@ -1,6 +1,7 @@
 use bevy::{ecs::system::SystemState, prelude::*, utils::HashMap};
 use derive_more::{Deref, DerefMut};
 use std::{borrow::Borrow, hash::Hash, sync::Arc};
+use ui4::prelude::PositionType;
 use ui4::prelude::*;
 
 struct UiAssets {
@@ -72,16 +73,7 @@ fn root(ctx: Ctx) -> Ctx {
 
     let slider_percent = ctx.component();
 
-    ctx.with_bundle(NodeBundle::default())
-        .with(Style {
-            size: Size {
-                width: Val::Percent(100.),
-                height: Val::Percent(100.),
-            },
-            flex_direction: FlexDirection::ColumnReverse,
-            ..Default::default()
-        })
-        .with(res().map(|assets: &UiAssets| assets.background.clone()))
+    ctx.with(res().map(|assets: &UiAssets| assets.background.clone()))
         .with(TextboxText::default())
         .with(CheckboxData::default())
         .with(RadioButtonSelect::A)
@@ -108,15 +100,8 @@ fn root(ctx: Ctx) -> Ctx {
                 ),
             ))
             .c(labelled_widget("Radio buttons", |ctx| {
-                ctx.with_bundle(NodeBundle::default())
-                    .with(Style {
-                        size: Size {
-                            width: Val::Px(250.),
-                            height: Val::Px(30.),
-                        },
-                        justify_content: JustifyContent::SpaceBetween,
-                        ..Default::default()
-                    })
+                ctx.with(Width(Units::Pixels(250.)))
+                    .with(Height(Units::Pixels(30.)))
                     .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
                     .children(|ctx: &mut McCtx| {
                         ctx.c(radio_button(
@@ -187,24 +172,14 @@ fn labelled_widget(
     widget: impl FnOnce(Ctx) -> Ctx,
 ) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
-        ctx.with_bundle(NodeBundle::default())
-            .with(Style {
-                size: Size {
-                    width: Val::Px(400.),
-                    height: Val::Px(30.),
-                },
-                ..Default::default()
-            })
+        ctx.with(Width(Units::Pixels(400.)))
+            .with(Height(Units::Pixels(30.)))
             .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
             .children(|ctx: &mut McCtx| {
                 ctx.c(|ctx| {
-                    text(label)(ctx).with(Style {
-                        size: Size {
-                            width: Val::Px(150.),
-                            height: Val::Px(30.),
-                        },
-                        ..Default::default()
-                    })
+                    text(label)(ctx)
+                        .with(Width(Units::Pixels(150.)))
+                        .with(Height(Units::Pixels(30.)))
                 })
                 .c(widget);
             })
@@ -219,8 +194,7 @@ fn toggle<F: FnOnce(Ctx) -> Ctx>(
     |ctx: Ctx| {
         let checked = ctx.component::<Toggle>();
         let entity = ctx.current_entity();
-        ctx.with_bundle(NodeBundle::default())
-            .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
+        ctx.with(res().map(|assets: &UiAssets| assets.transparent.clone()))
             .with(Toggle(false))
             .child(checkbox(checked.map(|&Toggle(b): &Toggle| b), move |w| {
                 &mut w.get_mut::<Toggle>(entity).unwrap().into_inner().0
@@ -238,42 +212,31 @@ fn toggle<F: FnOnce(Ctx) -> Ctx>(
 
 fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
-        ctx.with_bundle(TextBundle::default())
-            .with(Style {
-                align_self: AlignSelf::FlexStart,
-                ..Default::default()
-            })
-            .with(res().and(text.into_observer()).map(
-                move |(assets, text): (&UiAssets, O::ObserverReturn<'_, '_>)| {
-                    Text::with_section(text.borrow(), assets.text_style.clone(), Default::default())
-                },
-            ))
+        ctx.with(res().and(text.into_observer()).map(
+            move |(assets, text): (&UiAssets, O::ObserverReturn<'_, '_>)| {
+                Text::with_section(text.borrow(), assets.text_style.clone(), Default::default())
+            },
+        ))
     }
 }
 
 fn text_fade<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         let transition = ctx.component().map(TransitionProgress::progress);
-        ctx.with_bundle(TextBundle::default())
-            .with_bundle(TransitionBundle::bidirectional(10.))
-            .with(Style {
-                align_self: AlignSelf::FlexStart,
-                ..Default::default()
-            })
-            .with(
-                res()
-                    .and(transition)
-                    .map(|(assets, opacity): (&UiAssets, f32)| TextStyle {
-                        color: Color::rgba(1., 1., 1., opacity),
-                        ..assets.text_style.clone()
-                    })
-                    .and(text.into_observer())
-                    .map(
-                        move |(style, text): (TextStyle, O::ObserverReturn<'_, '_>)| {
-                            Text::with_section(text.borrow(), style, Default::default())
-                        },
-                    ),
-            )
+        ctx.with_bundle(TransitionBundle::bidirectional(10.)).with(
+            res()
+                .and(transition)
+                .map(|(assets, opacity): (&UiAssets, f32)| TextStyle {
+                    color: Color::rgba(1., 1., 1., opacity),
+                    ..assets.text_style.clone()
+                })
+                .and(text.into_observer())
+                .map(
+                    move |(style, text): (TextStyle, O::ObserverReturn<'_, '_>)| {
+                        Text::with_section(text.borrow(), style, Default::default())
+                    },
+                ),
+        )
     }
 }
 
@@ -283,14 +246,8 @@ fn button<O: IntoObserver<String, M>, M>(
 ) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         let component = ctx.component();
-        ctx.with_bundle(ButtonBundle::default())
-            .with(Style {
-                size: Size::new(Val::Undefined, Val::Px(30.0)),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-
-                ..Default::default()
-            })
+        ctx.with(Interaction::None)
+            .with(Height(Units::Pixels(30.)))
             .with(
                 res()
                     .and(component)
@@ -316,76 +273,67 @@ fn textbox<M, O: IntoObserver<String, M>>(
         let has_focused = ctx.has_component::<Focused>();
         let cursor = ctx.component();
 
-        ctx.with_bundle(ButtonBundle::default())
-            .with(Style {
-                size: Size::new(Val::Px(250.0), Val::Px(30.0)),
-                justify_content: JustifyContent::FlexStart,
-                align_items: AlignItems::Center,
-                ..Default::default()
-            })
+        ctx.with(Width(Units::Pixels(250.)))
+            .with(Height(Units::Pixels(30.)))
             .with(TextBox(0))
             .with(Focusable)
             .with(TextBoxFunc::new(get_text))
             .with(res().map(|assets: &UiAssets| assets.button.clone()))
             .child(|ctx: Ctx| {
-                ctx.with_bundle(TextBundle::default())
-                    .with(Style {
-                        align_self: AlignSelf::FlexStart,
-                        ..Default::default()
-                    })
-                    .with(
-                        res()
-                            .and(text.into_observer())
-                            .and(has_focused.and(cursor).map(
-                                |(focused, cursor): (bool, &TextBox)| focused.then(|| cursor.0),
-                            ))
-                            .map(
-                                move |((assets, text), cursor): (
-                                    (&UiAssets, O::ObserverReturn<'_, '_>),
-                                    Option<usize>,
-                                )| {
-                                    let text: &str = &text.borrow();
-                                    if let Some(cursor) = cursor {
-                                        Text {
-                                            sections: vec![
-                                                TextSection {
-                                                    value: text
-                                                        .get(..cursor)
-                                                        .unwrap_or("")
-                                                        .to_owned(),
-                                                    style: assets.text_style.clone(),
+                ctx.with(
+                    res()
+                        .and(text.into_observer())
+                        .and(
+                            has_focused
+                                .and(cursor)
+                                .map(|(focused, cursor): (bool, &TextBox)| {
+                                    focused.then(|| cursor.0)
+                                }),
+                        )
+                        .map(
+                            move |((assets, text), cursor): (
+                                (&UiAssets, O::ObserverReturn<'_, '_>),
+                                Option<usize>,
+                            )| {
+                                let text: &str = &text.borrow();
+                                if let Some(cursor) = cursor {
+                                    Text {
+                                        sections: vec![
+                                            TextSection {
+                                                value: text.get(..cursor).unwrap_or("").to_owned(),
+                                                style: assets.text_style.clone(),
+                                            },
+                                            TextSection {
+                                                value: text
+                                                    .get(cursor..cursor + 1)
+                                                    .map(|c| if c == " " { "_" } else { c })
+                                                    .unwrap_or("_")
+                                                    .to_string(),
+                                                style: TextStyle {
+                                                    color: Color::BLACK,
+                                                    ..assets.text_style.clone()
                                                 },
-                                                TextSection {
-                                                    value: text
-                                                        .get(cursor..cursor + 1)
-                                                        .map(|c| if c == " " { "_" } else { c })
-                                                        .unwrap_or("_")
-                                                        .to_string(),
-                                                    style: TextStyle {
-                                                        color: Color::BLACK,
-                                                        ..assets.text_style.clone()
-                                                    },
-                                                },
-                                                TextSection {
-                                                    value: text
-                                                        .get(cursor + 1..)
-                                                        .unwrap_or("")
-                                                        .to_owned(),
-                                                    style: assets.text_style.clone(),
-                                                },
-                                            ],
-                                            alignment: Default::default(),
-                                        }
-                                    } else {
-                                        Text::with_section(
-                                            text.borrow(),
-                                            assets.text_style.clone(),
-                                            Default::default(),
-                                        )
+                                            },
+                                            TextSection {
+                                                value: text
+                                                    .get(cursor + 1..)
+                                                    .unwrap_or("")
+                                                    .to_owned(),
+                                                style: assets.text_style.clone(),
+                                            },
+                                        ],
+                                        alignment: Default::default(),
                                     }
-                                },
-                            ),
-                    )
+                                } else {
+                                    Text::with_section(
+                                        text.borrow(),
+                                        assets.text_style.clone(),
+                                        Default::default(),
+                                    )
+                                }
+                            },
+                        ),
+                )
             })
     }
 }
@@ -453,10 +401,7 @@ where
                 .map(move |s: O::ObserverReturn<'_, '_>| options_map[s.borrow()].to_string()),
             move |_| {},
         )(ctx)
-        .with(Style {
-            size: Size::new(Val::Undefined, Val::Px(30.0)),
-            ..Default::default()
-        })
+        .with(Height(Units::Pixels(30.)))
         .with(Focusable)
         .children(is_open.map_child(move |b: bool| {
             let options = Arc::clone(&options);
@@ -464,19 +409,8 @@ where
             move |ctx: &mut McCtx| {
                 if b {
                     ctx.c(move |ctx| {
-                        ctx.with_bundle(NodeBundle::default())
-                            .with(Style {
-                                align_self: AlignSelf::FlexEnd,
-                                position_type: PositionType::Absolute,
-                                flex_direction: FlexDirection::ColumnReverse,
-                                position: Rect {
-                                    left: Val::Undefined,
-                                    right: Val::Undefined,
-                                    top: Val::Percent(100.),
-                                    bottom: Val::Undefined,
-                                },
-                                ..Default::default()
-                            })
+                        ctx.with(PositionType::SelfDirected)
+                            .with(Top(Units::Percentage(100.)))
                             .children(move |ctx: &mut McCtx| {
                                 for (item, display) in &*options {
                                     let display: &'static str = display;
@@ -497,23 +431,15 @@ where
 
 fn progressbar<O: IntoObserver<f32, M>, M>(percent: O) -> impl FnOnce(Ctx) -> Ctx {
     |ctx| {
-        ctx.with_bundle(NodeBundle::default())
-            .with(Style {
-                size: Size::new(Val::Px(250.0), Val::Px(30.0)),
-                justify_content: JustifyContent::FlexStart,
-                ..Default::default()
-            })
+        ctx.with(Width(Units::Pixels(250.)))
+            .with(Height(Units::Pixels(30.)))
             .with(res().map(|assets: &UiAssets| assets.button.clone()))
             .child(|ctx: Ctx| {
-                ctx.with_bundle(NodeBundle::default()).with(
+                ctx.with(Height(Units::Auto)).with(
                     percent
                         .into_observer()
                         .map(|f: O::ObserverReturn<'_, '_>| *f.borrow())
-                        .map(|f: f32| Style {
-                            size: Size::new(Val::Percent(f * 100.), Val::Auto),
-                            justify_content: JustifyContent::FlexEnd,
-                            ..Default::default()
-                        }),
+                        .map(|f: f32| Width(Units::Percentage(f * 100.))),
                 )
             })
     }
@@ -532,45 +458,26 @@ fn slider<O: IntoObserver<f32, M>, M>(
 ) -> impl FnOnce(Ctx) -> Ctx {
     |ctx| {
         let slider_entity = ctx.current_entity();
-        ctx.with_bundle(NodeBundle::default())
-            .with(Style {
-                size: Size::new(Val::Px(250.0), Val::Px(30.0)),
-                justify_content: JustifyContent::FlexStart,
-                ..Default::default()
-            })
+        ctx.with(Width(Units::Pixels(250.)))
+            .with(Height(Units::Pixels(30.)))
             .with(res().map(|assets: &UiAssets| assets.button.clone()))
             .child(|ctx: Ctx| {
-                ctx.with_bundle(NodeBundle::default())
+                ctx.with(Height(Units::Auto))
                     .with(
                         percent
                             .into_observer()
                             .map(|f: O::ObserverReturn<'_, '_>| *f.borrow())
-                            .map(|f: f32| Style {
-                                size: Size::new(Val::Percent(f * 100.), Val::Auto),
-                                justify_content: JustifyContent::FlexEnd,
-                                ..Default::default()
-                            }),
+                            .map(|f: f32| Width(Units::Percentage(f * 100.))),
                     )
                     .with(res().map(|assets: &UiAssets| assets.button_hover.clone()))
                     .child(|ctx: Ctx| {
                         let interaction = ctx.component();
                         let cursor_entity = ctx.current_entity();
                         let get_percent = Arc::new(get_percent);
-                        ctx.with_bundle(ButtonBundle::default())
-                            .with(Style {
-                                position: Rect {
-                                    left: Val::Undefined,
-                                    right: Val::Px(-10.),
-                                    top: Val::Undefined,
-                                    bottom: Val::Undefined,
-                                },
-                                size: Size {
-                                    width: Val::Px(20.),
-                                    height: Val::Auto,
-                                },
-                                flex_shrink: 0.,
-                                ..Default::default()
-                            })
+                        ctx.with(Interaction::None)
+                            .with(Width(Units::Pixels(20.)))
+                            .with(Height(Units::Auto))
+                            .with(Right(Units::Pixels(-10.)))
                             .with(res().and(interaction).map(
                                 |(assets, interaction): (&UiAssets, &Interaction)| match interaction
                                 {

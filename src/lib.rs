@@ -2,6 +2,7 @@
 #![feature(unboxed_closures)]
 #![feature(entry_insert)]
 
+mod dom;
 mod insertable;
 mod runtime;
 
@@ -22,6 +23,8 @@ pub mod prelude {
         ChildMapExt, Childable,
     };
     pub use ctx::{Ctx, McCtx};
+    pub use dom::layout::layout_components::*;
+    pub use morphorm::Units;
     pub use observer::{res, single, IntoObserver, ObserverExt};
     pub use plugin::{Ui4Plugin, Ui4Root};
     pub use textbox::{Focusable, Focused, TextBox, TextBoxFunc};
