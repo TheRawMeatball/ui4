@@ -152,20 +152,32 @@ where
             let (uf, marker) = UpdateFunc::new::<CnufMarker, _>(move |world| {
                 let insert =
                     |world: &mut World, paramset: &mut Paramset<T>, e, i: Option<usize>| {
-                        let index = i.unwrap_or_else(|| {
-                            world
-                                .get::<Children>(main_c_node)
-                                .map(|x| x.len())
-                                .unwrap_or(0)
-                        });
+                        let mut next_child = world.get::<FirstChild>(main_c_node).map(|x| x.0);
+                        let mut count = 0;
+                        let prev_entity = loop {
+                            if Some(count) == i {
+                                break next_child;
+                            }
+                            count += 1;
+                            if let Some(next) = next_child {
+                                next_child = world.get::<NextSibling>(main_c_node).map(|x| x.0);
+                                if next_child.is_none() && i.is_none() {
+                                    break Some(next);
+                                }
+                            } else if i.is_none() {
+                                break None;
+                            } else {
+                                panic!();
+                            }
+                        };
                         let element_entity = world
                             .spawn()
                             .insert(Element {
-                                index,
+                                index: count,
                                 element: e,
                                 ufs: vec![],
                             })
-                            .insert(Control)
+                            .insert(Control::default())
                             .id();
 
                         world
