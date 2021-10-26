@@ -1,50 +1,22 @@
+use bevy::PipelinedDefaultPlugins;
 use bevy::{ecs::system::SystemState, prelude::*, utils::HashMap};
 use derive_more::{Deref, DerefMut};
 use std::{borrow::Borrow, hash::Hash, sync::Arc};
-use ui4::prelude::PositionType;
 use ui4::prelude::*;
-
-struct UiAssets {
-    background: Handle<ColorMaterial>,
-    button: Handle<ColorMaterial>,
-    button_hover: Handle<ColorMaterial>,
-    button_click: Handle<ColorMaterial>,
-    white: Handle<ColorMaterial>,
-    text_style: TextStyle,
-    transparent: Handle<ColorMaterial>,
-}
-
-fn init_system(
-    mut commands: Commands,
-    mut assets: ResMut<Assets<ColorMaterial>>,
-    asset_server: Res<AssetServer>,
-) {
-    commands.insert_resource(UiAssets {
-        background: assets.add(Color::BLACK.into()),
-        transparent: assets.add(Color::NONE.into()),
-        button: assets.add(Color::DARK_GRAY.into()),
-        button_hover: assets.add(Color::GRAY.into()),
-        button_click: assets.add(Color::SILVER.into()),
-        white: assets.add(Color::WHITE.into()),
-        text_style: TextStyle {
-            color: Color::WHITE,
-            font: asset_server.load("FiraMono-Medium.ttf"),
-            font_size: 32.0,
-        },
-    })
-}
+use ui4::prelude::{PositionType, Text};
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins)
+    app.add_plugins(PipelinedDefaultPlugins)
         .add_plugin(Ui4Plugin)
         .add_plugin(Ui4Root(root))
         .init_resource::<SliderSystemState>()
         .add_system(SliderSystemState::system.exclusive_system())
-        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
-        .add_startup_system(init_system);
+        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default());
 
-    app.world.spawn().insert_bundle(UiCameraBundle::default());
+    app.world
+        .spawn()
+        .insert_bundle(bevy::render2::camera::OrthographicCameraBundle::new_2d());
 
     app.run()
 }
@@ -73,8 +45,7 @@ fn root(ctx: Ctx) -> Ctx {
 
     let slider_percent = ctx.component();
 
-    ctx.with(res().map(|assets: &UiAssets| assets.background.clone()))
-        .with(TextboxText::default())
+    ctx.with(TextboxText::default())
         .with(CheckboxData::default())
         .with(RadioButtonSelect::A)
         .with(Slider(0.42))
@@ -102,7 +73,6 @@ fn root(ctx: Ctx) -> Ctx {
             .c(labelled_widget("Radio buttons", |ctx| {
                 ctx.with(Width(Units::Pixels(250.)))
                     .with(Height(Units::Pixels(30.)))
-                    .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
                     .children(|ctx: &mut McCtx| {
                         ctx.c(radio_button(
                             radiobutton.map(|x: &RadioButtonSelect| *x),
@@ -174,7 +144,6 @@ fn labelled_widget(
     move |ctx: Ctx| {
         ctx.with(Width(Units::Pixels(400.)))
             .with(Height(Units::Pixels(30.)))
-            .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
             .children(|ctx: &mut McCtx| {
                 ctx.c(|ctx| {
                     text(label)(ctx)
@@ -194,8 +163,7 @@ fn toggle<F: FnOnce(Ctx) -> Ctx>(
     |ctx: Ctx| {
         let checked = ctx.component::<Toggle>();
         let entity = ctx.current_entity();
-        ctx.with(res().map(|assets: &UiAssets| assets.transparent.clone()))
-            .with(Toggle(false))
+        ctx.with(Toggle(false))
             .child(checkbox(checked.map(|&Toggle(b): &Toggle| b), move |w| {
                 &mut w.get_mut::<Toggle>(entity).unwrap().into_inner().0
             }))
@@ -212,31 +180,22 @@ fn toggle<F: FnOnce(Ctx) -> Ctx>(
 
 fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
-        ctx.with(res().and(text.into_observer()).map(
-            move |(assets, text): (&UiAssets, O::ObserverReturn<'_, '_>)| {
-                Text::with_section(text.borrow(), assets.text_style.clone(), Default::default())
-            },
-        ))
+        ctx.with(
+            text.into_observer()
+                .map(|text: O::ObserverReturn<'_, '_>| Text {
+                    text: text.borrow().clone(),
+                    style: epaint::TextStyle::Body,
+                }),
+        )
     }
 }
 
-fn text_fade<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
+fn text_fade<O: IntoObserver<String, M>, M>(_text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         let transition = ctx.component().map(TransitionProgress::progress);
-        ctx.with_bundle(TransitionBundle::bidirectional(10.)).with(
-            res()
-                .and(transition)
-                .map(|(assets, opacity): (&UiAssets, f32)| TextStyle {
-                    color: Color::rgba(1., 1., 1., opacity),
-                    ..assets.text_style.clone()
-                })
-                .and(text.into_observer())
-                .map(
-                    move |(style, text): (TextStyle, O::ObserverReturn<'_, '_>)| {
-                        Text::with_section(text.borrow(), style, Default::default())
-                    },
-                ),
-        )
+        text(_text)(ctx)
+            .with_bundle(TransitionBundle::bidirectional(10.))
+            .with(transition.map(|opacity| UiColor(Color::rgba(1., 1., 1., opacity))))
     }
 }
 
@@ -249,15 +208,11 @@ fn button<O: IntoObserver<String, M>, M>(
         ctx.with(Interaction::None)
             .with(Height(Units::Pixels(30.)))
             .with(
-                res()
-                    .and(component)
-                    .map(
-                        |(assets, interaction): (&UiAssets, &Interaction)| match interaction {
-                            Interaction::Clicked => assets.button_click.clone(),
-                            Interaction::Hovered => assets.button_hover.clone(),
-                            Interaction::None => assets.button.clone(),
-                        },
-                    ),
+                component.map(|interaction: &Interaction| match interaction {
+                    Interaction::Clicked => UiColor(Color::SILVER),
+                    Interaction::Hovered => UiColor(Color::GRAY),
+                    Interaction::None => UiColor(Color::DARK_GRAY),
+                }),
             )
             .with(FuncScratch::default())
             .with(ClickFunc(ButtonFunc::new(on_click)))
@@ -278,11 +233,10 @@ fn textbox<M, O: IntoObserver<String, M>>(
             .with(TextBox(0))
             .with(Focusable)
             .with(TextBoxFunc::new(get_text))
-            .with(res().map(|assets: &UiAssets| assets.button.clone()))
+            .with(UiColor(Color::DARK_GRAY))
             .child(|ctx: Ctx| {
                 ctx.with(
-                    res()
-                        .and(text.into_observer())
+                    text.into_observer()
                         .and(
                             has_focused
                                 .and(cursor)
@@ -291,45 +245,46 @@ fn textbox<M, O: IntoObserver<String, M>>(
                                 }),
                         )
                         .map(
-                            move |((assets, text), cursor): (
-                                (&UiAssets, O::ObserverReturn<'_, '_>),
-                                Option<usize>,
-                            )| {
+                            move |(text, _cursor): (O::ObserverReturn<'_, '_>, Option<usize>)| {
                                 let text: &str = &text.borrow();
-                                if let Some(cursor) = cursor {
-                                    Text {
-                                        sections: vec![
-                                            TextSection {
-                                                value: text.get(..cursor).unwrap_or("").to_owned(),
-                                                style: assets.text_style.clone(),
-                                            },
-                                            TextSection {
-                                                value: text
-                                                    .get(cursor..cursor + 1)
-                                                    .map(|c| if c == " " { "_" } else { c })
-                                                    .unwrap_or("_")
-                                                    .to_string(),
-                                                style: TextStyle {
-                                                    color: Color::BLACK,
-                                                    ..assets.text_style.clone()
-                                                },
-                                            },
-                                            TextSection {
-                                                value: text
-                                                    .get(cursor + 1..)
-                                                    .unwrap_or("")
-                                                    .to_owned(),
-                                                style: assets.text_style.clone(),
-                                            },
-                                        ],
-                                        alignment: Default::default(),
-                                    }
-                                } else {
-                                    Text::with_section(
-                                        text.borrow(),
-                                        assets.text_style.clone(),
-                                        Default::default(),
-                                    )
+                                // if let Some(cursor) = cursor {
+                                //     Text {
+                                //         sections: vec![
+                                //             TextSection {
+                                //                 value: text.get(..cursor).unwrap_or("").to_owned(),
+                                //                 style: assets.text_style.clone(),
+                                //             },
+                                //             TextSection {
+                                //                 value: text
+                                //                     .get(cursor..cursor + 1)
+                                //                     .map(|c| if c == " " { "_" } else { c })
+                                //                     .unwrap_or("_")
+                                //                     .to_string(),
+                                //                 style: TextStyle {
+                                //                     color: Color::BLACK,
+                                //                     ..assets.text_style.clone()
+                                //                 },
+                                //             },
+                                //             TextSection {
+                                //                 value: text
+                                //                     .get(cursor + 1..)
+                                //                     .unwrap_or("")
+                                //                     .to_owned(),
+                                //                 style: assets.text_style.clone(),
+                                //             },
+                                //         ],
+                                //         alignment: Default::default(),
+                                //     }
+                                // } else {
+                                //     Text::with_section(
+                                //         text.borrow(),
+                                //         assets.text_style.clone(),
+                                //         Default::default(),
+                                //     )
+                                // }
+                                Text {
+                                    text: text.to_owned(),
+                                    style: epaint::TextStyle::Body,
                                 }
                             },
                         ),
@@ -433,7 +388,7 @@ fn progressbar<O: IntoObserver<f32, M>, M>(percent: O) -> impl FnOnce(Ctx) -> Ct
     |ctx| {
         ctx.with(Width(Units::Pixels(250.)))
             .with(Height(Units::Pixels(30.)))
-            .with(res().map(|assets: &UiAssets| assets.button.clone()))
+            .with(UiColor(Color::DARK_GRAY))
             .child(|ctx: Ctx| {
                 ctx.with(Height(Units::Auto)).with(
                     percent
@@ -460,7 +415,7 @@ fn slider<O: IntoObserver<f32, M>, M>(
         let slider_entity = ctx.current_entity();
         ctx.with(Width(Units::Pixels(250.)))
             .with(Height(Units::Pixels(30.)))
-            .with(res().map(|assets: &UiAssets| assets.button.clone()))
+            .with(UiColor(Color::DARK_GRAY))
             .child(|ctx: Ctx| {
                 ctx.with(Height(Units::Auto))
                     .with(
@@ -469,7 +424,7 @@ fn slider<O: IntoObserver<f32, M>, M>(
                             .map(|f: O::ObserverReturn<'_, '_>| *f.borrow())
                             .map(|f: f32| Width(Units::Percentage(f * 100.))),
                     )
-                    .with(res().map(|assets: &UiAssets| assets.button_hover.clone()))
+                    .with(UiColor(Color::GRAY))
                     .child(|ctx: Ctx| {
                         let interaction = ctx.component();
                         let cursor_entity = ctx.current_entity();
@@ -478,14 +433,13 @@ fn slider<O: IntoObserver<f32, M>, M>(
                             .with(Width(Units::Pixels(20.)))
                             .with(Height(Units::Auto))
                             .with(Right(Units::Pixels(-10.)))
-                            .with(res().and(interaction).map(
-                                |(assets, interaction): (&UiAssets, &Interaction)| match interaction
-                                {
-                                    Interaction::Clicked => assets.white.clone(),
-                                    Interaction::Hovered => assets.button_click.clone(),
-                                    Interaction::None => assets.button_click.clone(),
-                                },
-                            ))
+                            .with(
+                                interaction.map(|interaction: &Interaction| match interaction {
+                                    Interaction::Clicked => UiColor(Color::WHITE),
+                                    Interaction::Hovered => UiColor(Color::GRAY),
+                                    Interaction::None => UiColor(Color::GRAY),
+                                }),
+                            )
                             .with(FuncScratch::default())
                             .with(ClickFunc(ButtonFunc::new(move |w| {
                                 if let Some(cursor_pos) = (|| {

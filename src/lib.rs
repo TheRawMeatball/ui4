@@ -24,6 +24,7 @@ pub mod prelude {
     };
     pub use ctx::{Ctx, McCtx};
     pub use dom::layout::layout_components::*;
+    pub use dom::{Color as UiColor, Text};
     pub use morphorm::Units;
     pub use observer::{res, single, IntoObserver, ObserverExt};
     pub use plugin::{Ui4Plugin, Ui4Root};
