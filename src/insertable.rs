@@ -1,9 +1,9 @@
-use bevy::prelude::Component;
+use bevy::prelude::{Component, Mut};
 
 use crate::{
     ctx::Ctx,
     observer::{Observer, UninitObserver},
-    runtime::UpdateFunc,
+    runtime::{UfMarker, UiScratchSpace, UpdateFunc},
     Dynamic, Static,
 };
 
@@ -37,7 +37,11 @@ where
                     return;
                 }
                 first = false;
-                world.entity_mut(entity).insert(val);
+                world.resource_scope(|world, mut ctx: Mut<UiScratchSpace>| {
+                    let mut e = world.entity_mut(entity);
+                    e.get_mut::<UfMarker<T>>().unwrap().trigger(&mut ctx);
+                    e.insert(val);
+                })
             });
             world.entity_mut(entity).insert(marker);
             uf

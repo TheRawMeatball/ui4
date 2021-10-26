@@ -4,7 +4,7 @@ use bevy::{ecs::prelude::*, utils::HashMap};
 
 use crate::runtime::{UiManagedSystems, UiScratchSpace, UpdateFunc};
 
-use super::{process_update_func_list, Observer, UninitObserver};
+use super::{Observer, UninitObserver};
 
 struct ComponentExistsUpdateFuncs<T>(HashMap<Entity, Vec<UpdateFunc>>, PhantomData<T>);
 
@@ -63,13 +63,13 @@ fn component_exist_track_system<T: Component>(
 ) {
     update_funcs.0.retain(|entity, list| {
         if added_detector.get(*entity).is_ok() {
-            process_update_func_list(list, &mut ui);
+            ui.process_list(list);
         }
         !list.is_empty()
     });
     for e in removed_detector.iter() {
         if let Some(list) = update_funcs.0.get_mut(&e) {
-            process_update_func_list(list, &mut ui);
+            ui.process_list(list);
             if list.is_empty() {
                 update_funcs.0.remove(&e);
             }

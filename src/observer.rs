@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use bevy::prelude::World;
 
-use crate::runtime::{UiScratchSpace, UpdateFunc};
+use crate::runtime::UpdateFunc;
 use crate::{Dynamic, Static};
 
 mod component;
@@ -201,22 +201,6 @@ impl<T: UninitObserver> ObserverExt for T {
     }
     fn cloned(self) -> ClonedTemplate<Self> {
         ClonedTemplate(self)
-    }
-}
-
-fn process_update_func_list(list: &mut Vec<UpdateFunc>, ui: &mut UiScratchSpace) {
-    let mut i = 0usize;
-    loop {
-        if i == list.len() {
-            break;
-        }
-        let relevant_uf = &list[i];
-        if relevant_uf.flagged() {
-            list.swap_remove(i);
-        } else {
-            ui.register_update_func(relevant_uf.clone());
-            i += 1;
-        }
     }
 }
 

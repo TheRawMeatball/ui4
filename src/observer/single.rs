@@ -11,7 +11,7 @@ use bevy::{
     prelude::{QueryState, World},
 };
 
-use super::{process_update_func_list, Observer};
+use super::Observer;
 
 struct SingleUpdateFuncs<T: SingleObserverTuple>(Vec<UpdateFunc>, PhantomData<T>);
 
@@ -82,7 +82,7 @@ fn single_change_track_system<T: SingleObserverTuple>(
 {
     let flags = q.single();
     if T::get_changed(&flags) {
-        process_update_func_list(&mut list.0, &mut ui);
+        ui.process_list(&mut list.0);
     }
 }
 

@@ -2,9 +2,9 @@ use std::marker::PhantomData;
 
 use bevy::{ecs::prelude::*, utils::HashMap};
 
-use crate::runtime::{UiManagedSystems, UiScratchSpace, UpdateFunc};
+use crate::runtime::{UfMarker, UiManagedSystems, UiScratchSpace, UpdateFunc};
 
-use super::{process_update_func_list, Observer, UninitObserver};
+use super::{Observer, UninitObserver};
 
 struct ComponentUpdateFuncs<T>(HashMap<Entity, Vec<UpdateFunc>>, PhantomData<T>);
 
@@ -41,7 +41,9 @@ impl<T: Component> UninitObserver for ComponentObserver<T> {
         let uf = (uf)(self, world);
         let ufc = uf.clone();
         world.resource_scope(|world, mut systems: Mut<UiManagedSystems>| {
-            if let Some(mut lists) = world.get_resource_mut::<ComponentUpdateFuncs<T>>() {
+            if let Some(mut marker) = world.get_mut::<UfMarker<T>>(self.0) {
+                marker.add_dependent(uf);
+            } else if let Some(mut lists) = world.get_resource_mut::<ComponentUpdateFuncs<T>>() {
                 lists.0.entry(self.0).or_default().push(uf);
             } else {
                 systems.0.add_system(component_change_track_system::<T>);
@@ -63,7 +65,7 @@ fn component_change_track_system<T: Component>(
     update_funcs.0.retain(|entity, list| {
         if let Some(ticks) = detector.get(*entity).ok() {
             if ticks.is_changed() {
-                process_update_func_list(list, &mut ui)
+                ui.process_list(list);
             }
             !list.is_empty()
         } else {

@@ -4,7 +4,7 @@ use bevy::ecs::{prelude::*, system::SystemState};
 
 use crate::runtime::{UiManagedSystems, UiScratchSpace, UpdateFunc};
 
-use super::{process_update_func_list, Observer, UninitObserver};
+use super::{Observer, UninitObserver};
 
 struct ResUpdateFuncs<T>(Vec<UpdateFunc>, PhantomData<T>);
 
@@ -59,6 +59,6 @@ fn resource_change_track_system<T: Send + Sync + 'static>(
     detector: Res<T>,
 ) {
     if detector.is_changed() {
-        process_update_func_list(&mut update_funcs.0, &mut ui)
+        ui.process_list(&mut update_funcs.0);
     }
 }

@@ -24,6 +24,21 @@ impl UiScratchSpace {
     pub fn register_update_funcs(&mut self, ufs: impl IntoIterator<Item = UpdateFunc>) {
         self.update_hashset_a.extend(ufs);
     }
+
+    pub fn process_list(&mut self, list: &mut Vec<UpdateFunc>) {
+        self.update_hashset_a.reserve(list.len());
+        list.retain(|uf| {
+            let flagged = uf.flagged();
+            if !flagged {
+                self.register_update_func(uf.clone());
+            }
+            flagged
+        });
+    }
+
+    pub fn unmark(&mut self, uf: &UpdateFunc) {
+        self.update_hashset_a.remove(uf);
+    }
 }
 
 pub(crate) struct UiManagedSystems(pub(crate) SystemStage);
@@ -72,16 +87,27 @@ impl<F: ?Sized> Debug for UfInner<F> {
 }
 
 #[derive(Component)]
-pub(crate) struct UfMarker<T>(
-    Arc<UfInner<dyn FnMut(&mut World) + Send + Sync>>,
-    PhantomData<T>,
-);
+pub(crate) struct UfMarker<T> {
+    arc: Arc<UfInner<dyn FnMut(&mut World) + Send + Sync>>,
+    list: Vec<UpdateFunc>,
+    _marker: PhantomData<T>,
+}
 
 impl<T> Drop for UfMarker<T> {
     fn drop(&mut self) {
-        self.0
+        self.arc
             .flag
             .store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+impl<T> UfMarker<T> {
+    pub fn add_dependent(&mut self, uf: UpdateFunc) {
+        self.list.push(uf);
+    }
+
+    pub fn trigger(&mut self, ctx: &mut UiScratchSpace) {
+        ctx.process_list(&mut self.list);
     }
 }
 
@@ -95,10 +121,21 @@ impl UpdateFunc {
             created_at: std::panic::Location::caller(),
             func: Mutex::new(func),
         });
-        (Self(arc.clone()), UfMarker(arc, PhantomData))
+        (
+            Self(arc.clone()),
+            UfMarker {
+                arc,
+                list: vec![],
+                _marker: PhantomData,
+            },
+        )
     }
     pub fn run(&self, world: &mut World) {
         if !self.flagged() {
+            world
+                .get_resource_mut::<UiScratchSpace>()
+                .unwrap()
+                .unmark(self);
             (self.0.func.lock().unwrap())(world);
         }
     }
