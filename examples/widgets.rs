@@ -1,7 +1,7 @@
 use bevy::{ecs::system::SystemState, prelude::*, utils::HashMap};
 use derive_more::{Deref, DerefMut};
 use std::{borrow::Borrow, hash::Hash, sync::Arc};
-use ui4::prelude::*;
+use ui4::{lens::Lens, prelude::*};
 
 struct UiAssets {
     background: Handle<ColorMaterial>,
@@ -52,6 +52,21 @@ fn root(ctx: Ctx) -> Ctx {
     #[derive(Component, Deref, DerefMut, Default)]
     struct TextboxText(String);
 
+    #[derive(Copy, Clone)]
+    struct TbtLens;
+    impl Lens for TbtLens {
+        type In = TextboxText;
+        type Out = String;
+
+        fn get<'a>(&self, val: &'a Self::In) -> &'a Self::Out {
+            &val.0
+        }
+
+        fn get_mut<'a>(&self, val: &'a mut Self::In) -> &'a mut Self::Out {
+            &mut val.0
+        }
+    }
+
     #[derive(Component, Deref, DerefMut, Default)]
     struct CheckboxData(bool);
 
@@ -93,9 +108,7 @@ fn root(ctx: Ctx) -> Ctx {
             ))
             .c(labelled_widget(
                 "Textbox",
-                textbox(textbox_text.map(|t: &TextboxText| t.0.clone()), move |w| {
-                    w.get_mut::<TextboxText>(this).unwrap().into_inner()
-                }),
+                textbox(textbox_text.lens(TbtLens)),
             ))
             .c(labelled_widget(
                 "Checkbox",
@@ -308,10 +321,7 @@ fn button<O: IntoObserver<String, M>, M>(
     }
 }
 
-fn textbox<M, O: IntoObserver<String, M>>(
-    text: O,
-    get_text: impl Fn(&mut World) -> &mut String + Send + Sync + 'static,
-) -> impl FnOnce(Ctx) -> Ctx {
+fn textbox(text: impl WorldLens<Out = String>) -> impl FnOnce(Ctx) -> Ctx where {
     move |ctx: Ctx| {
         let has_focused = ctx.has_component::<Focused>();
         let cursor = ctx.component();
@@ -325,7 +335,7 @@ fn textbox<M, O: IntoObserver<String, M>>(
             })
             .with(TextBox(0))
             .with(Focusable)
-            .with(TextBoxFunc::new(get_text))
+            .with(TextBoxFunc::new(move |world| text.get_mut(world)))
             .with(res().map(|assets: &UiAssets| assets.button.clone()))
             .child(|ctx: Ctx| {
                 ctx.with_bundle(TextBundle::default())
@@ -334,14 +344,14 @@ fn textbox<M, O: IntoObserver<String, M>>(
                         ..Default::default()
                     })
                     .with(
-                        res()
-                            .and(text.into_observer())
+                        res::<UiAssets>()
+                            .and(text)
                             .and(has_focused.and(cursor).map(
                                 |(focused, cursor): (bool, &TextBox)| focused.then(|| cursor.0),
                             ))
                             .map(
                                 move |((assets, text), cursor): (
-                                    (&UiAssets, O::ObserverReturn<'_, '_>),
+                                    (&UiAssets, &String),
                                     Option<usize>,
                                 )| {
                                     let text: &str = &text.borrow();
