@@ -55,7 +55,7 @@ where
     MF: Fn(T) -> F,
     MF: Send + Sync + 'static,
     F: FnOnce(&mut McCtx),
-    for<'w, 's> <UO as UninitObserver>::Observer: Observer<Return<'w, 's> = T>,
+    for<'a> <UO as UninitObserver>::Observer: Observer<Return<'a> = T>,
     T: Clone + Eq + Hash + Send + Sync + 'static,
 {
     fn insert(self, ctx: &mut Ctx) {

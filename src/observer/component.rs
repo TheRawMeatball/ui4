@@ -22,9 +22,9 @@ impl<T: Send + Sync + 'static> Clone for ComponentObserver<T> {
 impl<T: Send + Sync + 'static> Copy for ComponentObserver<T> {}
 
 impl<T: Component> Observer for ComponentObserver<T> {
-    type Return<'w, 's> = &'w T;
+    type Return<'a> = &'a T;
 
-    fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
+    fn get<'a>(&'a mut self, world: &'a World) -> (Self::Return<'a>, bool) {
         // TODO: use change detection
         (world.get::<T>(self.0).unwrap(), true)
     }

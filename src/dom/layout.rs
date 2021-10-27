@@ -211,8 +211,8 @@ type StyleQuery<'w, 's> = Query<
     ],
 >;
 
-impl<'w> Node<'w> for NodeEntity {
-    type Data = StyleQuery<'w, 'w>;
+impl<'a> Node<'a> for NodeEntity {
+    type Data = StyleQuery<'a, 'a>;
 
     fn layout_type(&self, store: &'_ Self::Data) -> Option<morphorm::LayoutType> {
         store
@@ -294,15 +294,15 @@ pub(crate) struct TreeQueries<'w, 's> {
 }
 
 #[derive(Clone, Copy)]
-pub struct Tree<'borrow, 'world, 'state> {
+pub struct Tree<'borrow, 'aorld, 'state> {
     root: Entity,
-    parent_query: &'borrow Query<'world, 'state, &'static Parent>,
-    children_query: &'borrow Query<'world, 'state, &'static Children>,
-    control_node_query: &'borrow Query<'world, 'state, &'static Control>,
+    parent_query: &'borrow Query<'aorld, 'state, &'static Parent>,
+    children_query: &'borrow Query<'aorld, 'state, &'static Children>,
+    control_node_query: &'borrow Query<'aorld, 'state, &'static Control>,
 }
 
-impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
-    fn new(root: Entity, queries: &'borrow TreeQueries<'world, 'state>) -> Self {
+impl<'borrow, 'aorld, 'state> Tree<'borrow, 'aorld, 'state> {
+    fn new(root: Entity, queries: &'borrow TreeQueries<'aorld, 'state>) -> Self {
         Self {
             root,
             parent_query: &queries.parent_query,
@@ -312,7 +312,7 @@ impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
     }
 }
 
-impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
+impl<'borrow, 'aorld, 'state> Tree<'borrow, 'aorld, 'state> {
     pub fn flatten(&self) -> Vec<NodeEntity> {
         let mut vec = vec![];
 
@@ -346,11 +346,11 @@ impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
     }
 }
 
-impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'state> {
+impl<'borrow, 'aorld, 'state> Hierarchy<'borrow> for Tree<'borrow, 'aorld, 'state> {
     type Item = NodeEntity;
     type DownIter = std::vec::IntoIter<NodeEntity>;
     type UpIter = std::iter::Rev<std::vec::IntoIter<NodeEntity>>;
-    type ChildIter = ChildIterator<'borrow, 'world, 'state>;
+    type ChildIter = ChildIterator<'borrow, 'aorld, 'state>;
 
     fn up_iter(&self) -> Self::UpIter {
         self.flatten().into_iter().rev()
@@ -414,14 +414,14 @@ impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'stat
     }
 }
 
-pub struct ChildIterator<'borrow, 'world, 'state> {
+pub struct ChildIterator<'borrow, 'aorld, 'state> {
     // TODO: make this a smallvec
     inners: Vec<std::slice::Iter<'borrow, Entity>>,
-    children_query: &'borrow Query<'world, 'state, &'static Children>,
-    control_node_query: &'borrow Query<'world, 'state, &'static Control>,
+    children_query: &'borrow Query<'aorld, 'state, &'static Children>,
+    control_node_query: &'borrow Query<'aorld, 'state, &'static Control>,
 }
 
-impl<'borrow, 'world, 'state> Iterator for ChildIterator<'borrow, 'world, 'state> {
+impl<'borrow, 'aorld, 'state> Iterator for ChildIterator<'borrow, 'aorld, 'state> {
     type Item = NodeEntity;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -452,8 +452,8 @@ impl<'borrow, 'world, 'state> Iterator for ChildIterator<'borrow, 'world, 'state
     }
 }
 
-struct DataCache<'borrow, 'world, 'state> {
-    query: &'borrow mut Query<'world, 'state, &'static mut UiNode>,
+struct DataCache<'borrow, 'aorld, 'state> {
+    query: &'borrow mut Query<'aorld, 'state, &'static mut UiNode>,
     cache: &'borrow mut LayoutScratchpad,
 }
 
@@ -513,7 +513,7 @@ impl LayoutScratchpad {
     }
 }
 
-impl<'borrow, 'world, 'state> Cache for DataCache<'borrow, 'world, 'state> {
+impl<'borrow, 'aorld, 'state> Cache for DataCache<'borrow, 'aorld, 'state> {
     type Item = NodeEntity;
 
     fn visible(&self, _: Self::Item) -> bool {

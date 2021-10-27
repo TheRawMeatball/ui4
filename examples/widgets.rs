@@ -35,7 +35,7 @@ fn root(ctx: Ctx) -> Ctx {
         C,
     }
 
-    #[derive(Component, Lens)]
+    #[derive(Component, Deref, Lens)]
     struct Slider(f32);
 
     let textbox_text = ctx.component();
@@ -87,7 +87,7 @@ fn root(ctx: Ctx) -> Ctx {
             ))
             .c(labelled_widget(
                 "Progress",
-                progressbar(slider_percent.map(|f: &Slider| f.0)),
+                progressbar(slider_percent.dereffed().copied()),
             ))
             .c(labelled_widget(
                 "Slider",
@@ -99,7 +99,7 @@ fn root(ctx: Ctx) -> Ctx {
                     textbox_text
                         .map(|t: &TextboxText| t.0.parse::<f32>().unwrap_or(0.42).clamp(0., 1.))
                         .dedup()
-                        .map(|x: &f32| *x)
+                        .copied()
                         .tween(0.2),
                 ),
             ))
@@ -135,7 +135,7 @@ fn toggle<F: FnOnce(Ctx) -> Ctx>(
         ctx.with_bundle(NodeBundle::default())
             .with(Toggle(false))
             .child(checkbox(checked.lens(Toggle::F0)))
-            .children(checked.map(|t: &Toggle| t.0).map_child(move |b| {
+            .children(checked.dereffed().copied().map_child(move |b| {
                 let child = child();
                 move |ctx: &mut McCtx| {
                     if b {
@@ -150,7 +150,7 @@ fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         ctx.with(
             text.into_observer()
-                .map(|text: O::ObserverReturn<'_, '_>| Text {
+                .map(|text: O::ObserverReturn<'_>| Text {
                     text: text.borrow().clone(),
                     style: epaint::TextStyle::Body,
                 }),
@@ -253,7 +253,7 @@ fn checkbox(checked: impl WorldLens<Out = bool>) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx| {
         button(
             checked
-                .map(|&b: &bool| b)
+                .copied()
                 .dedup()
                 .map(|b: &bool| if *b { "x" } else { " " })
                 .map(|s: &'static str| s.to_string()),
@@ -272,7 +272,7 @@ where
     let this1 = this.clone();
     move |ctx| {
         button(
-            item.map(|t: &T| t.clone())
+            item.cloned()
                 .dedup()
                 .map(move |t: &T| if t == &this1 { "x" } else { " " })
                 .map(|s: &'static str| s.to_string()),
@@ -338,7 +338,7 @@ fn progressbar<O: IntoObserver<f32, M>, M>(percent: O) -> impl FnOnce(Ctx) -> Ct
                 ctx.with(Height(Units::Auto)).with(
                     percent
                         .into_observer()
-                        .map(|f: O::ObserverReturn<'_, '_>| *f.borrow())
+                        .map(|f: O::ObserverReturn<'_>| *f.borrow())
                         .map(|f: f32| Width(Units::Percentage(f * 100.))),
                 )
             })
@@ -362,7 +362,7 @@ fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
                 ctx.with(Height(Units::Auto))
                     .with(
                         percent
-                            .map(|&f: &f32| f)
+                            .copied()
                             .map(|f: f32| Width(Units::Percentage(f * 100.))),
                     )
                     .with(UiColor(Color::GRAY))

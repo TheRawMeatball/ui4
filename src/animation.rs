@@ -51,7 +51,7 @@ pub trait TweenExt: Sized {
 impl<UO, O> TweenExt for UO
 where
     UO: UninitObserver<Observer = O>,
-    O: for<'w, 's> Observer<Return<'w, 's> = f32>,
+    O: for<'a> Observer<Return<'a> = f32>,
 {
 }
 
@@ -71,7 +71,7 @@ impl TweenObserver {
 impl<UO, O> UninitObserver for UninitTweenObserver<UO>
 where
     UO: UninitObserver<Observer = O>,
-    O: for<'w, 's> Observer<Return<'w, 's> = f32>,
+    O: for<'a> Observer<Return<'a> = f32>,
 {
     type Observer = TweenObserver;
 
@@ -127,9 +127,9 @@ where
 }
 
 impl Observer for TweenObserver {
-    type Return<'w, 's> = f32;
+    type Return<'a> = f32;
 
-    fn get<'w, 's>(&'s mut self, _: &'w World) -> (Self::Return<'w, 's>, bool) {
+    fn get<'a>(&'a mut self, _: &'a World) -> (Self::Return<'a>, bool) {
         let val = self.current_val.load(std::sync::atomic::Ordering::SeqCst);
         (f32::from_bits(val), true)
     }

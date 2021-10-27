@@ -54,9 +54,9 @@ impl<T: SingleObserverTuple> Observer for SingleObserver<T>
 where
     <T::DataQuery as WorldQuery>::Fetch: ReadOnlyFetch,
 {
-    type Return<'w, 's> = <<T::DataQuery as WorldQuery>::Fetch as Fetch<'w, 's>>::Item;
+    type Return<'a> = <<T::DataQuery as WorldQuery>::Fetch as Fetch<'a, 'a>>::Item;
 
-    fn get<'w, 's>(&'s mut self, world: &'w bevy::prelude::World) -> (Self::Return<'w, 's>, bool) {
+    fn get<'a>(&'a mut self, world: &'a bevy::prelude::World) -> (Self::Return<'a>, bool) {
         let mut iter = self.0.iter(world);
         let item = iter.next().unwrap();
         assert!(iter.next().is_none());

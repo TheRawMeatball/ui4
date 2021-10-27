@@ -18,9 +18,9 @@ impl<R> Clone for ResObserverTemplate<R> {
 pub struct ResObserver<R: Send + Sync + 'static>(SystemState<Res<'static, R>>);
 
 impl<R: Send + Sync + 'static> Observer for ResObserver<R> {
-    type Return<'w, 's> = &'w R;
+    type Return<'a> = &'a R;
 
-    fn get<'w, 's>(&'s mut self, world: &'w World) -> (Self::Return<'w, 's>, bool) {
+    fn get<'a>(&'a mut self, world: &'a World) -> (Self::Return<'a>, bool) {
         let res = self.0.get(world);
         let changed = res.is_changed();
         (res.into_inner(), changed)

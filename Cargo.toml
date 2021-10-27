@@ -13,7 +13,7 @@ slotmap = "1.0"
 morphorm = "0.2"
 derive_more = "0.99.16"
 concat-idents = "1.1.3"
-epaint = "0.14.0"
+epaint = "0.15.0"
 ui4-macros = { path = "./ui4-macros" }
 
 [dependencies.bevy]

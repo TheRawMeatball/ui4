@@ -1,8 +1,10 @@
 use super::{Color, Node, Text};
 use bevy::{ecs::prelude::*, transform::prelude::*, window::Windows};
 use epaint::{
-    emath::*, tessellator::tessellate_shapes, text::Fonts, ClippedShape, Color32, Shape,
-    TessellationOptions,
+    emath::*,
+    tessellator::tessellate_shapes,
+    text::{Fonts, LayoutJob},
+    ClippedShape, Color32, RectShape, Shape, Stroke, TessellationOptions, TextShape,
 };
 
 fn create_shapes_system(
@@ -26,22 +28,22 @@ fn create_shapes_system(
         });
         vec.push(ClippedShape(
             clip,
-            match text {
-                None => Shape::Rect {
+            if let Some(text) = text {
+                let galley = fonts.layout_delayed_color(text.text.clone(), text.style, node.size.x);
+                Shape::Text(TextShape {
+                    pos,
+                    galley,
+                    override_text_color: color,
+                    angle: 0.,
+                    underline: Stroke::none(),
+                })
+            } else {
+                Shape::Rect(RectShape {
                     rect: clip,
                     corner_radius: 0.,
                     fill: color.unwrap_or(Color32::TRANSPARENT),
                     stroke: Default::default(),
-                },
-                Some(text) => {
-                    let galley = fonts.layout_multiline(text.style, text.text.clone(), node.size.x);
-                    Shape::Text {
-                        pos,
-                        galley,
-                        color: color.unwrap_or(Color32::WHITE),
-                        fake_italics: false,
-                    }
-                }
+                })
             },
         ));
         let clip = Rect {

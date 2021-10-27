@@ -15,7 +15,7 @@ impl TextBoxFunc {
         Self(Arc::new(f))
     }
 
-    fn get<'w>(&self, world: &'w mut World) -> &'w mut String {
+    fn get<'a>(&self, world: &'a mut World) -> &'a mut String {
         (self.0)(world)
     }
 }
