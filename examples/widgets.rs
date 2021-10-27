@@ -86,10 +86,11 @@ fn root(ctx: Ctx) -> Ctx {
         .with(RadioButtonSelect::A)
         .with(Slider(0.42))
         .children(|ctx: &mut McCtx| {
-            ctx.c(labelled_widget(
-                "Button",
-                button("Click me!", |_| println!("you clicked the button!")),
-            ))
+            ctx.c(labelled_widget("Button", |ctx| {
+                button("Click me!")(ctx).with(ClickFunc(ButtonFunc::new(|_| {
+                    println!("you clicked the button!")
+                })))
+            }))
             .c(labelled_widget(
                 "Textbox",
                 textbox(textbox_text.lens(TextboxText::F0)),
@@ -243,10 +244,7 @@ fn text_fade<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx 
     }
 }
 
-fn button<O: IntoObserver<String, M>, M>(
-    t: O,
-    on_click: impl Fn(&mut World) + Send + Sync + 'static,
-) -> impl FnOnce(Ctx) -> Ctx {
+fn button<O: IntoObserver<String, M>, M>(t: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         let component = ctx.component();
         ctx.with_bundle(ButtonBundle::default())
@@ -269,7 +267,6 @@ fn button<O: IntoObserver<String, M>, M>(
                     ),
             )
             .with(FuncScratch::default())
-            .with(ClickFunc(ButtonFunc::new(on_click)))
             .child(text(t))
     }
 }
@@ -354,17 +351,19 @@ fn textbox(text: impl WorldLens<Out = String>) -> impl FnOnce(Ctx) -> Ctx where 
 }
 
 fn checkbox(checked: impl WorldLens<Out = bool>) -> impl FnOnce(Ctx) -> Ctx {
-    button(
-        checked
-            .map(|&b: &bool| b)
-            .dedup()
-            .map(|b: &bool| if *b { "x" } else { " " })
-            .map(|s: &'static str| s.to_string()),
-        move |w| {
+    move |ctx| {
+        button(
+            checked
+                .map(|&b: &bool| b)
+                .dedup()
+                .map(|b: &bool| if *b { "x" } else { " " })
+                .map(|s: &'static str| s.to_string()),
+        )(ctx)
+        .with(ClickFunc(ButtonFunc::new(move |w| {
             let val = checked.get_mut(w);
             *val = !*val;
-        },
-    )
+        })))
+    }
 }
 
 fn radio_button<T>(this: T, item: impl WorldLens<Out = T>) -> impl FnOnce(Ctx) -> Ctx
@@ -372,16 +371,18 @@ where
     T: PartialEq + Clone + Send + Sync + 'static,
 {
     let this1 = this.clone();
-    button(
-        item.map(|t: &T| t.clone())
-            .dedup()
-            .map(move |t: &T| if t == &this1 { "x" } else { " " })
-            .map(|s: &'static str| s.to_string()),
-        move |w| {
+    move |ctx| {
+        button(
+            item.map(|t: &T| t.clone())
+                .dedup()
+                .map(move |t: &T| if t == &this1 { "x" } else { " " })
+                .map(|s: &'static str| s.to_string()),
+        )(ctx)
+        .with(ClickFunc(ButtonFunc::new(move |w| {
             let val = item.get_mut(w);
             *val = this.clone();
-        },
-    )
+        })))
+    }
 }
 
 fn dropdown<T, const N: usize>(
@@ -397,48 +398,49 @@ where
     move |ctx| {
         let is_open = ctx.has_component::<Focused>();
 
-        button(
-            item.map(move |s: &T| options_map[s.borrow()].to_string()),
-            move |_| {},
-        )(ctx)
-        .with(Style {
-            size: Size::new(Val::Undefined, Val::Px(30.0)),
-            ..Default::default()
-        })
-        .with(Focusable)
-        .children(is_open.map_child(move |b: bool| {
-            let options = Arc::clone(&options);
-            move |ctx: &mut McCtx| {
-                if b {
-                    ctx.c(move |ctx| {
-                        ctx.with_bundle(NodeBundle::default())
-                            .with(Style {
-                                align_self: AlignSelf::FlexEnd,
-                                position_type: PositionType::Absolute,
-                                flex_direction: FlexDirection::ColumnReverse,
-                                position: Rect {
-                                    left: Val::Undefined,
-                                    right: Val::Undefined,
-                                    top: Val::Percent(100.),
-                                    bottom: Val::Undefined,
-                                },
-                                ..Default::default()
-                            })
-                            .children(move |ctx: &mut McCtx| {
-                                let wl = item;
-                                for (item, display) in &*options {
-                                    let display: &'static str = display;
-                                    let item = item.clone();
-                                    ctx.c(button(display, move |w| {
-                                        let m_item = wl.get_mut(w);
-                                        *m_item = item.clone();
-                                    }));
-                                }
-                            })
-                    });
+        button(item.map(move |s: &T| options_map[s.borrow()].to_string()))(ctx)
+            .with(Style {
+                size: Size::new(Val::Undefined, Val::Px(30.0)),
+                ..Default::default()
+            })
+            .with(Focusable)
+            .children(is_open.map_child(move |b: bool| {
+                let options = Arc::clone(&options);
+                move |ctx: &mut McCtx| {
+                    if b {
+                        ctx.c(move |ctx| {
+                            ctx.with_bundle(NodeBundle::default())
+                                .with(Style {
+                                    align_self: AlignSelf::FlexEnd,
+                                    position_type: PositionType::Absolute,
+                                    flex_direction: FlexDirection::ColumnReverse,
+                                    position: Rect {
+                                        left: Val::Undefined,
+                                        right: Val::Undefined,
+                                        top: Val::Percent(100.),
+                                        bottom: Val::Undefined,
+                                    },
+                                    ..Default::default()
+                                })
+                                .children(move |ctx: &mut McCtx| {
+                                    let wl = item;
+                                    for (item, display) in &*options {
+                                        let display: &'static str = display;
+                                        let item = item.clone();
+                                        ctx.c(|ctx| {
+                                            button(display)(ctx).with(ClickFunc(ButtonFunc::new(
+                                                move |w| {
+                                                    let m_item = wl.get_mut(w);
+                                                    *m_item = item.clone();
+                                                },
+                                            )))
+                                        });
+                                    }
+                                })
+                        });
+                    }
                 }
-            }
-        }))
+            }))
     }
 }
 

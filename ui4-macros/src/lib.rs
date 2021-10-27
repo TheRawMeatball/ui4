@@ -13,18 +13,32 @@ pub fn my_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let (inner_impls, outer_impls) = match input.data {
         syn::Data::Struct(s) => match s.fields {
-            Fields::Named(fields) => {
-                let iter: TokenStream = fields
-                    .named
-                    .into_iter()
-                    .map(|field| (field.ident.unwrap(), field.ty))
-                    .map(|(ident, ty)| {
-                        // TODO
-                        quote! {}
-                    })
-                    .collect();
-                (quote! {}, quote! {})
-            }
+            Fields::Named(fields) => fields
+                .named
+                .into_iter()
+                .map(|field| (field.ident.unwrap(), field.ty))
+                .map(|(ident, ty)| {
+                    let outer = quote! {
+                        #lens_vis struct #ident;
+                        impl ::ui4::lens::Lens for #ident {
+                            type In = #lensed_ident;
+                            type Out = #ty;
+
+                            fn get<'a>(&self, v: &'a #lensed_ident) -> &'a #ty {
+                                &v.#ident
+                            }
+
+                            fn get_mut<'a>(&self, v: &'a mut #lensed_ident) -> &'a mut #ty {
+                                &mut v.#ident
+                            }
+                        }
+                    };
+                    let inner = quote! {
+                        #lens_vis const #ident: #ident = #ident;
+                    };
+                    (inner, outer)
+                })
+                .unzip::<_, _, TokenStream, TokenStream>(),
             Fields::Unnamed(fields) => {
                 let lens_name =
                     syn::Ident::new(&format!("{}Lens", lensed_ident), Span::call_site());
