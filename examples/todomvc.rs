@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use derive_more::{Deref, DerefMut};
 use std::{borrow::Borrow, ops::Deref, sync::Arc};
+use ui4::prelude::Text;
 use ui4::prelude::*;
 
 struct UiAssets {
@@ -176,129 +177,96 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(Ctx) -> Ctx {
                 32.,
                 item.map(|t: (&Todo, usize)| t.0.text.to_string()),
             ))
-            .children(
-                item.map(|(todo, _): (&Todo, usize)| todo.done)
-                    .map_child(move |done: bool| {
-                        move |ctx: &mut McCtx| {
-                            if done {
-                                ctx.c(|ctx: Ctx| {
-                                    ctx.with_bundle(NodeBundle::default())
-                                        .with(Style {
-                                            size: Size::new(Val::Px(250.), Val::Px(30.0)),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            ..Default::default()
-                                        })
-                                        .with(
-                                            res().map(|assets: &UiAssets| {
-                                                assets.transparent.clone()
-                                            }),
-                                        )
-                                        .child(|ctx: Ctx| {
-                                            button("Unmark", |_| {})(ctx)
-                                                .with(Style {
-                                                    size: Size::new(
-                                                        Val::Percent(50.),
-                                                        Val::Px(30.0),
-                                                    ),
-                                                    justify_content: JustifyContent::Center,
-                                                    align_items: AlignItems::Center,
-                                                    ..Default::default()
-                                                })
-                                                .with(
-                                                    item.map(|(_, i): (&Todo, usize)| i)
-                                                        .dedup()
-                                                        .map(|&i: &usize| {
-                                                            ClickFunc(ButtonFunc::new(
-                                                                move |world| {
-                                                                    let mut list = world
+            .children(item.map(|(todo, _): (&Todo, usize)| todo.done).map_child(
+                move |done: bool| {
+                    move |ctx: &mut McCtx| {
+                        if done {
+                            ctx.c(|ctx: Ctx| {
+                                ctx.with_bundle(NodeBundle::default())
+                                    .with(Style {
+                                        size: Size::new(Val::Px(250.), Val::Px(30.0)),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..Default::default()
+                                    })
+                                    .with(res().map(|assets: &UiAssets| assets.transparent.clone()))
+                                    .child(|ctx: Ctx| {
+                                        button("Unmark", |_| {})(ctx)
+                                            .with(Style {
+                                                size: Size::new(Val::Percent(50.), Val::Px(30.0)),
+                                                justify_content: JustifyContent::Center,
+                                                align_items: AlignItems::Center,
+                                                ..Default::default()
+                                            })
+                                            .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
+                                                |&i: &usize| {
+                                                    ClickFunc(ButtonFunc::new(move |world| {
+                                                        let mut list = world
                                                             .get_resource_mut::<TodoList>()
                                                             .unwrap();
-                                                                    let text = list[i].text.clone();
-                                                                    list.replace(
-                                                                        Todo { text, done: false },
-                                                                        i,
-                                                                    );
-                                                                },
-                                                            ))
-                                                        }),
-                                                )
-                                        })
-                                        .child(|ctx: Ctx| {
-                                            button("Remove", |_| {})(ctx)
-                                                .with(Style {
-                                                    size: Size::new(
-                                                        Val::Percent(50.),
-                                                        Val::Px(30.0),
-                                                    ),
-                                                    justify_content: JustifyContent::Center,
-                                                    align_items: AlignItems::Center,
-                                                    ..Default::default()
-                                                })
-                                                .with(
-                                                    item.map(|(_, i): (&Todo, usize)| i)
-                                                        .dedup()
-                                                        .map(|&i: &usize| {
-                                                            ClickFunc(ButtonFunc::new(
-                                                                move |world| {
-                                                                    let mut list = world
+                                                        let text = list[i].text.clone();
+                                                        list.replace(Todo { text, done: false }, i);
+                                                    }))
+                                                },
+                                            ))
+                                    })
+                                    .child(|ctx: Ctx| {
+                                        button("Remove", |_| {})(ctx)
+                                            .with(Style {
+                                                size: Size::new(Val::Percent(50.), Val::Px(30.0)),
+                                                justify_content: JustifyContent::Center,
+                                                align_items: AlignItems::Center,
+                                                ..Default::default()
+                                            })
+                                            .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
+                                                |&i: &usize| {
+                                                    ClickFunc(ButtonFunc::new(move |world| {
+                                                        let mut list = world
                                                             .get_resource_mut::<TodoList>()
                                                             .unwrap();
-                                                                    list.remove(i);
-                                                                },
-                                                            ))
-                                                        }),
-                                                )
-                                        })
-                                });
-                            } else {
-                                ctx.c(|ctx: Ctx| {
-                                    button("Mark Complete", |_| {})(ctx)
-                                        .with(Style {
-                                            size: Size::new(Val::Px(250.), Val::Px(30.0)),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
+                                                        list.remove(i);
+                                                    }))
+                                                },
+                                            ))
+                                    })
+                            });
+                        } else {
+                            ctx.c(|ctx: Ctx| {
+                                button("Mark Complete", |_| {})(ctx)
+                                    .with(Style {
+                                        size: Size::new(Val::Px(250.), Val::Px(30.0)),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
 
-                                            ..Default::default()
-                                        })
-                                        .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
-                                            |&i: &usize| {
-                                                ClickFunc(ButtonFunc::new(move |world| {
-                                                    let mut list = world
-                                                        .get_resource_mut::<TodoList>()
-                                                        .unwrap();
-                                                    let text = list[i].text.clone();
-                                                    list.replace(Todo { text, done: true }, i);
-                                                }))
-                                            },
-                                        ))
-                                });
-                            }
+                                        ..Default::default()
+                                    })
+                                    .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
+                                        |&i: &usize| {
+                                            ClickFunc(ButtonFunc::new(move |world| {
+                                                let mut list =
+                                                    world.get_resource_mut::<TodoList>().unwrap();
+                                                let text = list[i].text.clone();
+                                                list.replace(Todo { text, done: true }, i);
+                                            }))
+                                        },
+                                    ))
+                            });
                         }
-                    }),
-            )
+                    }
+                },
+            ))
     }
 }
 
-fn text<O: IntoObserver<String, M>, M>(font_size: f32, text: O) -> impl FnOnce(Ctx) -> Ctx {
+fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
-        ctx.with_bundle(TextBundle::default())
-            .with(Style {
-                align_self: AlignSelf::FlexStart,
-                ..Default::default()
-            })
-            .with(res().and(text.into_observer()).map(
-                move |(assets, text): (&UiAssets, O::ObserverReturn<'_, '_>)| {
-                    Text::with_section(
-                        text.borrow(),
-                        TextStyle {
-                            font_size,
-                            ..assets.text_style.clone()
-                        },
-                        Default::default(),
-                    )
-                },
-            ))
+        ctx.with(
+            text.into_observer()
+                .map(|text: ObsReturn<'_, _, _, O>| Text {
+                    text: text.borrow().clone(),
+                    style: epaint::TextStyle::Body,
+                }),
+        )
     }
 }
 
@@ -368,7 +336,7 @@ fn textbox<M, O: IntoObserver<String, M>>(
                             ))
                             .map(
                                 move |((assets, text), cursor): (
-                                    (&UiAssets, O::ObserverReturn<'_, '_>),
+                                    (&UiAssets, ObsReturn<'_, _, _, O>),
                                     Option<usize>,
                                 )| {
                                     let text: &str = &text.borrow();

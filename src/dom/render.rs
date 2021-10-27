@@ -1,3 +1,5 @@
+use crate::dom::TextFont;
+
 use super::{Color, Node, Text};
 use bevy::{ecs::prelude::*, transform::prelude::*, window::Windows};
 use epaint::{
@@ -7,9 +9,21 @@ use epaint::{
     ClippedShape, Color32, RectShape, Shape, Stroke, TessellationOptions, TextShape,
 };
 
+type ShapeQ<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static Node,
+        Option<&'static Text>,
+        Option<&'static TextFont>,
+        Option<&'static Color>,
+        Option<&'static Children>,
+    ),
+>;
+
 fn create_shapes_system(
     roots: Query<Entity, (With<Node>, Without<Parent>)>,
-    shapes_q: Query<(&Node, Option<&Text>, Option<&Color>, Option<&Children>)>,
+    shapes_q: ShapeQ,
     fonts: Res<Fonts>,
     windows: Res<Windows>,
 ) {
@@ -17,10 +31,10 @@ fn create_shapes_system(
         vec: &mut Vec<ClippedShape>,
         entity: Entity,
         clip: Rect,
-        q: &Query<(&Node, Option<&Text>, Option<&Color>, Option<&Children>)>,
+        q: &ShapeQ,
         fonts: &Fonts,
     ) {
-        let (node, text, color, children) = q.get(entity).unwrap();
+        let (node, text, font, color, children) = q.get(entity).unwrap();
         let pos = Pos2::new(node.pos.x, node.pos.y);
         let color = color.map(|x| {
             let [r, g, b, a] = x.as_rgba_u8();
@@ -30,7 +44,11 @@ fn create_shapes_system(
             clip,
             if let Some(text) = text {
                 fonts.layout_job(LayoutJob::default());
-                let galley = fonts.layout_delayed_color(text.text.clone(), text.style, node.size.x);
+                let galley = fonts.layout_delayed_color(
+                    text.0.clone(),
+                    font.map(|f| f.0).unwrap_or(epaint::TextStyle::Body),
+                    node.size.x,
+                );
                 Shape::Text(TextShape {
                     pos,
                     galley,

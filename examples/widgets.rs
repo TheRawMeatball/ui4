@@ -150,10 +150,7 @@ fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         ctx.with(
             text.into_observer()
-                .map(|text: ObsReturn<'_, _, _, O>| Text {
-                    text: text.borrow().clone(),
-                    style: epaint::TextStyle::Body,
-                }),
+                .map(|text: ObsReturn<'_, _, _, O>| Text(text.borrow().clone())),
         )
     }
 }
@@ -239,10 +236,7 @@ fn textbox(text: impl WorldLens<Out = String>) -> impl FnOnce(Ctx) -> Ctx where 
                         //         Default::default(),
                         //     )
                         // }
-                        Text {
-                            text: text.to_owned(),
-                            style: epaint::TextStyle::Body,
-                        }
+                        Text(text.to_owned())
                     }),
                 )
             })

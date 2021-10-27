@@ -31,10 +31,10 @@ pub(crate) struct NodeBundle {
 }
 
 #[derive(Component)]
-pub struct Text {
-    pub text: String,
-    pub style: epaint::TextStyle,
-}
+pub struct Text(pub String);
+
+#[derive(Component)]
+pub struct TextFont(epaint::TextStyle);
 
 #[derive(Component)]
 pub struct Color(pub bevy::prelude::Color);
