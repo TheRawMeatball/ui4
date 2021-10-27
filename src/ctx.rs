@@ -3,10 +3,8 @@ use std::marker::PhantomData;
 use bevy::ecs::prelude::*;
 
 use crate::{
-    childable::Childable,
-    dom::ControlBundle,
-    insertable::Insertable,
-    observer::{ComponentExistsObserver, ComponentObserver},
+    childable::Childable, dom::ControlBundle, insertable::Insertable, lens::ComponentLens,
+    observer::ComponentExistsObserver,
 };
 
 /// Entry point for creating entities. Having a `Ctx` means you control all components on this entity, and all
@@ -67,10 +65,10 @@ impl Ctx<'_> {
         self
     }
 
-    /// Gets an observer for a component on the entity being built. Panics if the component is removed
-    /// and the observer is still in-use.
-    pub fn component<T: Send + Sync + 'static>(&self) -> ComponentObserver<T> {
-        ComponentObserver(self.current_entity, PhantomData)
+    /// Gets an lens for a component on the entity being built. Panics if the component is removed
+    /// and the lens is still in-use.
+    pub fn component<T: Component>(&self) -> ComponentLens<T> {
+        ComponentLens(self.current_entity, PhantomData)
     }
 
     /// Gets an observer for whether the current entity has a particular component. Most useful with marker
