@@ -23,7 +23,7 @@ impl<T: Component> Insertable<T, Static> for T {
 #[rustfmt::skip]
 impl<T: Component, O, UO> Insertable<T, Dynamic> for UO
 where
-    for<'a> O: Observer<Return<'a> = T>,
+    for<'a> O: Observer<'a, Return = T>,
     UO: UninitObserver<Observer = O>,
 {
     #[track_caller]

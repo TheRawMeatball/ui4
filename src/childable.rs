@@ -55,7 +55,7 @@ where
     MF: Fn(T) -> F,
     MF: Send + Sync + 'static,
     F: FnOnce(&mut McCtx),
-    for<'a> <UO as UninitObserver>::Observer: Observer<Return<'a> = T>,
+    for<'a> <UO as UninitObserver>::Observer: Observer<'a, Return = T>,
     T: Clone + Eq + Hash + Send + Sync + 'static,
 {
     fn insert(self, ctx: &mut Ctx) {
@@ -103,7 +103,7 @@ where
                 } else {
                     let c_parent = world.spawn().insert_bundle(ControlBundle::default()).id();
                     world.entity_mut(main_c_parent).push_children(&[c_parent]);
-                    parent.insert(c_parent);
+                    parents.insert(ret.clone(), c_parent);
 
                     let mut new_child_func = |world: &mut World| {
                         let nc = world.spawn().insert_bundle(NodeBundle::default()).id();

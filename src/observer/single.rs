@@ -50,13 +50,13 @@ where
     }
 }
 
-impl<T: SingleObserverTuple> Observer for SingleObserver<T>
+impl<'a, T: SingleObserverTuple> Observer<'a> for SingleObserver<T>
 where
     <T::DataQuery as WorldQuery>::Fetch: ReadOnlyFetch,
 {
-    type Return<'a> = <<T::DataQuery as WorldQuery>::Fetch as Fetch<'a, 'a>>::Item;
+    type Return = <<T::DataQuery as WorldQuery>::Fetch as Fetch<'a, 'a>>::Item;
 
-    fn get<'a>(&'a mut self, world: &'a bevy::prelude::World) -> (Self::Return<'a>, bool) {
+    fn get(&'a mut self, world: &'a bevy::prelude::World) -> (Self::Return, bool) {
         let mut iter = self.0.iter(world);
         let item = iter.next().unwrap();
         assert!(iter.next().is_none());

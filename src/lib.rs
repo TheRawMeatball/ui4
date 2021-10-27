@@ -1,8 +1,3 @@
-#![feature(generic_associated_types)]
-#![feature(associated_type_bounds)]
-#![feature(unboxed_closures)]
-#![feature(entry_insert)]
-
 mod dom;
 mod insertable;
 mod runtime;
@@ -32,6 +27,8 @@ pub mod prelude {
     pub use observer::{res, single, IntoObserver, ObserverExt};
     pub use plugin::{Ui4Plugin, Ui4Root};
     pub use textbox::{Focusable, Focused, TextBox, TextBoxFunc};
+    pub type ObsReturn<'a, T, M, O> =
+        <<O as IntoObserver<T, M>>::ReturnSpec as observer::ReturnSpec<'a, T>>::R;
 
     pub use ui4_macros::Lens;
 }

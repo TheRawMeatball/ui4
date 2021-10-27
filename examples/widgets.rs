@@ -150,7 +150,7 @@ fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         ctx.with(
             text.into_observer()
-                .map(|text: O::ObserverReturn<'_>| Text {
+                .map(|text: ObsReturn<'_, _, _, O>| Text {
                     text: text.borrow().clone(),
                     style: epaint::TextStyle::Body,
                 }),
@@ -338,7 +338,7 @@ fn progressbar<O: IntoObserver<f32, M>, M>(percent: O) -> impl FnOnce(Ctx) -> Ct
                 ctx.with(Height(Units::Auto)).with(
                     percent
                         .into_observer()
-                        .map(|f: O::ObserverReturn<'_>| *f.borrow())
+                        .map(|f: ObsReturn<'_, _, _, O>| *f.borrow())
                         .map(|f: f32| Width(Units::Percentage(f * 100.))),
                 )
             })

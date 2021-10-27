@@ -10,7 +10,7 @@ use crate::{
 pub trait WorldLens: Copy + Send + Sync + 'static {
     type UninitObserver: UninitObserver<Observer = Self::Observer>;
     #[rustfmt::skip]
-    type Observer: for<'a> Observer<Return<'a> = &'a Self::LensIn>;
+    type Observer: for<'a> Observer<'a, Return = &'a Self::LensIn>;
     type LensIn;
     type Lens: Lens<In = Self::LensIn, Out = Self::Out>;
     type Out: 'static;
@@ -84,25 +84,23 @@ where
 
 pub struct LensObserver<L: WorldLens>(L::Lens, <L::UninitObserver as UninitObserver>::Observer);
 
-#[rustfmt::skip]
-impl<L: Send + Sync + 'static> Observer for LensObserver<L>
+impl<'a, L: Send + Sync + 'static> Observer<'a> for LensObserver<L>
 where
     L: WorldLens,
-    <L::UninitObserver as UninitObserver>::Observer: for<'a> Observer<Return<'a> = &'a L::LensIn>,
+    <L::UninitObserver as UninitObserver>::Observer: for<'x> Observer<'x, Return = &'x L::LensIn>,
 {
-    type Return<'a> = &'a L::Out;
-    
-    fn get<'a>(&'a mut self, world: &'a World) -> (Self::Return<'a>, bool) {
+    type Return = &'a L::Out;
+
+    fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
         let (val, changed) = self.1.get(world);
         (self.0.get(val), changed)
     }
 }
 
-#[rustfmt::skip]
 impl<L: Send + Sync + 'static> UninitObserver for L
 where
     L: WorldLens,
-    <L::UninitObserver as UninitObserver>::Observer: for<'a> Observer<Return<'a> = &'a L::LensIn>,
+    <L::UninitObserver as UninitObserver>::Observer: for<'a> Observer<'a, Return = &'a L::LensIn>,
 {
     type Observer = LensObserver<L>;
 

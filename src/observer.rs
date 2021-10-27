@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::marker::PhantomData;
 use std::ops::Deref;
 
 use bevy::prelude::World;
@@ -18,7 +19,7 @@ pub use {
 /// Types implementing this trait represent a mapping from world and internal state to a certain output.
 pub trait UninitObserver: Send + Sync + 'static {
     #[doc(hidden)]
-    type Observer: Observer;
+    type Observer: for<'a> Observer<'a>;
 
     /// ### Internal method!
     #[doc(hidden)]
@@ -29,32 +30,32 @@ pub trait UninitObserver: Send + Sync + 'static {
     ) -> UpdateFunc;
 }
 
-pub trait Observer: Send + Sync + 'static {
-    type Return<'a>;
+pub trait Observer<'a>: Send + Sync + 'static {
+    type Return;
 
     /// ### INTERNAL METHOD!
     #[doc(hidden)]
-    fn get<'a>(&'a mut self, world: &'a World) -> (Self::Return<'a>, bool);
+    fn get(&'a mut self, world: &'a World) -> (Self::Return, bool);
 }
 
 #[derive(Clone, Copy)]
 pub struct Map<O, F>(O, F);
-impl<O, F> Observer for Map<O, F>
+impl<'a, O, F> Observer<'a> for Map<O, F>
 where
-    O: Observer,
-    F: for<'a> Fn<(O::Return<'a>,)> + Send + Sync + 'static,
+    O: for<'x> Observer<'x>,
+    F: for<'x> FnHack<'x, O>,
 {
-    type Return<'a> = <F as FnOnce<(O::Return<'a>,)>>::Output;
+    type Return = <F as FnHack<'a, O>>::Return;
 
-    fn get<'a>(&'a mut self, world: &'a World) -> (Self::Return<'a>, bool) {
+    fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
         let (val, change) = self.0.get(world);
-        ((self.1)(val), change)
+        (self.1.call(val), change)
     }
 }
 impl<O, MF> UninitObserver for Map<O, MF>
 where
     O: UninitObserver,
-    MF: for<'a> Fn<(<<O as UninitObserver>::Observer as Observer>::Return<'a>,)>,
+    MF: for<'a> FnHack<'a, O::Observer>,
     MF: Send + Sync + 'static,
 {
     type Observer = Map<O::Observer, MF>;
@@ -69,25 +70,40 @@ where
     }
 }
 
+pub trait FnHack<'a, O: for<'x> Observer<'x>>: Send + Sync + 'static {
+    type Return;
+    fn call(&self, x: <O as Observer<'a>>::Return) -> Self::Return;
+}
+impl<'a, O, F, T> FnHack<'a, O> for F
+where
+    O: for<'x> Observer<'x>,
+    F: Fn(<O as Observer<'a>>::Return) -> T,
+    F: Send + Sync + 'static,
+{
+    type Return = T;
+    fn call(&self, x: <O as Observer<'a>>::Return) -> Self::Return {
+        (self)(x)
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct ClonedTemplate<O>(O);
 pub struct Cloned<O>(O);
-#[rustfmt::skip]
-impl<O, T: Clone + 'static> Observer for Cloned<O>
+impl<'a, O, T: Clone + 'static> Observer<'a> for Cloned<O>
 where
-    O: for<'a> Observer<Return<'a> = &'a T>,
+    O: for<'x> Observer<'x, Return = &'x T>,
 {
-    type Return<'a> = T;
+    type Return = T;
 
-    fn get<'a>(&'a mut self, world: &'a World) -> (Self::Return<'a>, bool) {
+    fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
         let (val, change) = self.0.get(world);
         (val.clone(), change)
     }
 }
-#[rustfmt::skip]
+
 impl<UO, O, T: Clone + 'static> UninitObserver for ClonedTemplate<UO>
 where
-    O: for<'a> Observer<Return<'a> = &'a T>,
+    O: for<'a> Observer<'a, Return = &'a T>,
     UO: UninitObserver<Observer = O>,
 {
     type Observer = Cloned<O>;
@@ -105,22 +121,21 @@ where
 #[derive(Clone, Copy)]
 pub struct CopiedTemplate<O>(O);
 pub struct Copied<O>(O);
-#[rustfmt::skip]
-impl<O, T: Copy + 'static> Observer for Copied<O>
+impl<'a, O, T: Copy + 'static> Observer<'a> for Copied<O>
 where
-    O: for<'a> Observer<Return<'a> = &'a T>,
+    O: for<'x> Observer<'x, Return = &'x T>,
 {
-    type Return<'a> = T;
+    type Return = T;
 
-    fn get<'a>(&'a mut self, world: &'a World) -> (Self::Return<'a>, bool) {
+    fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
         let (val, change) = self.0.get(world);
         (val.clone(), change)
     }
 }
-#[rustfmt::skip]
+
 impl<UO, O, T: Copy + 'static> UninitObserver for CopiedTemplate<UO>
 where
-    O: for<'a> Observer<Return<'a> = &'a T>,
+    O: for<'x> Observer<'x, Return = &'x T>,
     UO: UninitObserver<Observer = O>,
 {
     type Observer = Copied<O>;
@@ -138,14 +153,14 @@ where
 #[derive(Clone, Copy)]
 pub struct DereffedTemplate<O>(O);
 pub struct Dereffed<O>(O);
-#[rustfmt::skip]
-impl<O, T: Deref + 'static> Observer for Dereffed<O>
-where
-    O: for<'a> Observer<Return<'a> = &'a T>,
-{
-    type Return<'a> = &'a T::Target;
 
-    fn get<'a>(&'a mut self, world: &'a World) -> (Self::Return<'a>, bool) {
+impl<'a, O, T: Deref + 'static> Observer<'a> for Dereffed<O>
+where
+    O: for<'x> Observer<'x, Return = &'x T>,
+{
+    type Return = &'a T::Target;
+
+    fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
         let (val, change) = self.0.get(world);
         (val.deref(), change)
     }
@@ -153,7 +168,7 @@ where
 #[rustfmt::skip]
 impl<UO, O, T: Deref + 'static> UninitObserver for DereffedTemplate<UO>
 where
-    O: for<'a> Observer<Return<'a> = &'a T>,
+    O: for<'a> Observer<'a, Return = &'a T>,
     UO: UninitObserver<Observer = O>,
 {
     type Observer = Dereffed<O>;
@@ -170,10 +185,10 @@ where
 
 #[derive(Clone)]
 pub struct And<O1, O2>(O1, O2);
-impl<O1: Observer, O2: Observer> Observer for And<O1, O2> {
-    type Return<'a> = (O1::Return<'a>, O2::Return<'a>);
+impl<'a, O1: Observer<'a>, O2: Observer<'a>> Observer<'a> for And<O1, O2> {
+    type Return = (O1::Return, O2::Return);
 
-    fn get<'a>(&'a mut self, world: &'a World) -> (Self::Return<'a>, bool) {
+    fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
         let (v0, c0) = self.0.get(world);
         let (v1, c1) = self.1.get(world);
         ((v0, v1), c0 || c1)
@@ -198,13 +213,13 @@ impl<O1: UninitObserver, O2: UninitObserver> UninitObserver for And<O1, O2> {
 #[derive(Clone)]
 pub struct DedupTemplate<O>(O);
 
-pub struct Dedup<O: Observer>(Option<O::Return<'static>>, O);
+pub struct Dedup<O: for<'a> Observer<'a>>(Option<<O as Observer<'static>>::Return>, O);
 
 #[rustfmt::skip]
 impl<UO, O, T> UninitObserver for DedupTemplate<UO>
 where
     UO: UninitObserver<Observer = O>,
-    O: for<'a> Observer<Return<'a> = T>,
+    O: for<'a> Observer<'a, Return = T>,
     T: PartialEq + Send + Sync + 'static,
 {
     type Observer = Dedup<O>;
@@ -220,14 +235,14 @@ where
 }
 
 #[rustfmt::skip]
-impl<O, T> Observer for Dedup<O>
+impl<'a, O, T> Observer<'a> for Dedup<O>
 where
-    O: for<'a> Observer<Return<'a> = T>,
+    O: for<'x> Observer<'x, Return = T>,
     T: PartialEq + Send + Sync + 'static,
 {
-    type Return<'a> = &'a T;
+    type Return = &'a T;
 
-    fn get<'a>(&'a mut self, world: &'a World) -> (Self::Return<'a>, bool) {
+    fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
         let (maybe_new, changed) = self.1.get(world);
         if self.0.is_none() {
             self.0 = Some(maybe_new);
@@ -245,7 +260,7 @@ where
 pub trait ObserverExt: UninitObserver + Sized {
     fn map<F>(self, f: F) -> Map<Self, F>
     where
-        F: for<'a> Fn<(<<Self as UninitObserver>::Observer as Observer>::Return<'a>,)>,
+        F: for<'a> FnHack<'a, <Self as UninitObserver>::Observer>,
         F: Send + Sync + 'static,
     {
         Map(self, f)
@@ -260,26 +275,23 @@ pub trait ObserverExt: UninitObserver + Sized {
         DedupTemplate(self)
     }
 
-    #[rustfmt::skip]
     fn copied<T: Copy>(self) -> CopiedTemplate<Self>
     where
-        <Self as UninitObserver>::Observer: for<'a> Observer<Return<'a> = &'a T>,
+        <Self as UninitObserver>::Observer: for<'a> Observer<'a, Return = &'a T>,
     {
         CopiedTemplate(self)
     }
 
-    #[rustfmt::skip]
     fn cloned<T: Clone>(self) -> ClonedTemplate<Self>
     where
-        <Self as UninitObserver>::Observer: for<'a> Observer<Return<'a> = &'a T>,
+        <Self as UninitObserver>::Observer: for<'a> Observer<'a, Return = &'a T>,
     {
         ClonedTemplate(self)
     }
 
-    #[rustfmt::skip]
     fn dereffed<T: Deref>(self) -> DereffedTemplate<Self>
     where
-        <Self as UninitObserver>::Observer: for<'a> Observer<Return<'a> = &'a T>,
+        <Self as UninitObserver>::Observer: for<'a> Observer<'a, Return = &'a T>,
     {
         DereffedTemplate(self)
     }
@@ -290,10 +302,10 @@ impl<T: UninitObserver> ObserverExt for T {}
 #[derive(Clone)]
 pub struct StaticObserver<T>(T);
 
-impl<T: Send + Sync + 'static> Observer for StaticObserver<T> {
-    type Return<'a> = &'a T;
+impl<'a, T: Send + Sync + 'static> Observer<'a> for StaticObserver<T> {
+    type Return = &'a T;
 
-    fn get<'a>(&'a mut self, _: &'a bevy::prelude::World) -> (Self::Return<'a>, bool) {
+    fn get(&'a mut self, _: &'a bevy::prelude::World) -> (Self::Return, bool) {
         (&self.0, false)
     }
 }
@@ -310,29 +322,45 @@ impl<T: Send + Sync + 'static> UninitObserver for StaticObserver<T> {
     }
 }
 
+pub trait ReturnSpec<'a, T> {
+    type R: Borrow<T>;
+}
+
 #[rustfmt::skip]
 pub trait IntoObserver<T, M>: Send + Sync + 'static {
     type UninitObserver: UninitObserver<Observer = Self::Observer>;
-    type Observer: for<'a> Observer<Return<'a> = Self::ObserverReturn<'a>>;
-    type ObserverReturn<'a>: Borrow<T>;
+    type Observer: for<'a> Observer<'a, Return = <Self::ReturnSpec as ReturnSpec<'a, T>>::R>;
+    type ReturnSpec: for<'a> ReturnSpec<'a, T>;
     fn into_observer(self) -> Self::UninitObserver;
 }
-
+pub struct RsStatic<T>(PhantomData<T>);
+impl<'a, T: 'static> ReturnSpec<'a, T> for RsStatic<T> {
+    type R = &'a T;
+}
 impl<T: Send + Sync + 'static, I: Into<T> + Send + Sync + 'static> IntoObserver<T, Static> for I {
     type UninitObserver = StaticObserver<T>;
     type Observer = StaticObserver<T>;
-    type ObserverReturn<'a> = &'a T;
+    type ReturnSpec = RsStatic<T>;
 
     fn into_observer(self) -> Self::Observer {
         StaticObserver(self.into())
     }
 }
 
-#[rustfmt::skip]
-impl<T, O: for<'a> Observer<Return<'a> = T>, UO: UninitObserver<Observer = O>> IntoObserver<T, Dynamic> for UO {
+pub struct RsDynamic<O, T>(PhantomData<(O, T)>);
+impl<'a, O: for<'x> Observer<'x>, T: 'static> ReturnSpec<'a, T> for RsDynamic<O, T>
+where
+    <O as Observer<'a>>::Return: Borrow<T>,
+{
+    type R = <O as Observer<'a>>::Return;
+}
+
+impl<T: 'static, O: for<'a> Observer<'a, Return = T>, UO: UninitObserver<Observer = O>>
+    IntoObserver<T, Dynamic> for UO
+{
     type UninitObserver = Self;
     type Observer = O;
-    type ObserverReturn<'a> = O::Return<'a>;
+    type ReturnSpec = RsDynamic<O, T>;
 
     fn into_observer(self) -> Self::UninitObserver {
         self

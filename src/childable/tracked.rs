@@ -29,7 +29,7 @@ pub trait TrackedObserverExt: Sized {
 impl<O, UO, T, Tt> TrackedObserverExt for UO
 where
     UO: UninitObserver<Observer = O>,
-    O: for<'a> Observer<Return<'a> = &'a Tt>,
+    O: for<'a> Observer<'a, Return = &'a Tt>,
     T: Send + Sync + 'static,
     Tt: Tracked<Item = T>,
 {
@@ -76,10 +76,10 @@ impl<T: Send + Sync + 'static> UninitObserver for TrackedItemObserver<T> {
     }
 }
 
-impl<T: Send + Sync + 'static> Observer for TrackedItemObserver<T> {
-    type Return<'a> = (&'a T, usize);
+impl<'a, T: Send + Sync + 'static> Observer<'a> for TrackedItemObserver<T> {
+    type Return = (&'a T, usize);
 
-    fn get<'a>(&'a mut self, world: &'a World) -> (Self::Return<'a>, bool) {
+    fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
         let element = world.get::<Element<T>>(self.entity).unwrap();
         ((&element.element, element.index), true)
     }
@@ -119,7 +119,7 @@ type Paramset<T> = SystemState<(
 impl<O, UO, T, F, C, Tt, M> Childable<(TrackedMarker, Tt, C, M)> for TrackedForeach<UO, F>
 where
     UO: UninitObserver<Observer = O>,
-    O: for<'a> Observer<Return<'a> = &'a Tt>,
+    O: for<'a> Observer<'a, Return = &'a Tt>,
     F: Fn(TrackedItemObserver<T>) -> C + Send + Sync + 'static,
     C: Childable<M>,
     T: Send + Sync + 'static,

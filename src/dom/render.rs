@@ -24,11 +24,12 @@ fn create_shapes_system(
         let pos = Pos2::new(node.pos.x, node.pos.y);
         let color = color.map(|x| {
             let [r, g, b, a] = x.as_rgba_u8();
-            Color32::from_rgba_premultiplied(r, g, b, a)
+            Color32::from_rgba_unmultiplied(r, g, b, a)
         });
         vec.push(ClippedShape(
             clip,
             if let Some(text) = text {
+                fonts.layout_job(LayoutJob::default());
                 let galley = fonts.layout_delayed_color(text.text.clone(), text.style, node.size.x);
                 Shape::Text(TextShape {
                     pos,
