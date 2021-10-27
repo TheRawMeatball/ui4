@@ -28,6 +28,8 @@ pub mod prelude {
     pub use observer::{res, single, IntoObserver, ObserverExt};
     pub use plugin::{Ui4Plugin, Ui4Root};
     pub use textbox::{Focusable, Focused, TextBox, TextBoxFunc};
+
+    pub use ui4_macros::Lens;
 }
 
 pub struct Static;

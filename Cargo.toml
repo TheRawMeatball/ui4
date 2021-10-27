@@ -10,6 +10,7 @@ license = "MIT OR Apache-2.0"
 # lockfree = { git = "https://gitlab.com/sals3r0/lockfree.git" } # maybe reenable once it compiles
 crossbeam-channel = "0.5.1"
 slotmap = "1.0"
+ui4-macros = { path = "./ui4-macros" }
 
 [dependencies.bevy]
 git = "https://github.com/bevyengine/bevy"
