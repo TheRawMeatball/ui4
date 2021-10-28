@@ -85,7 +85,7 @@ fn root(ctx: Ctx) -> Ctx {
                         })
                         .child(|ctx: Ctx| {
                             button("Add")(ctx)
-                                .with(ClickFunc::new(|world: &mut World| {
+                                .with(OnClick::new(|world: &mut World| {
                                     let text = std::mem::take(
                                         &mut world.get_resource_mut::<EditedText>().unwrap().0,
                                     );
@@ -155,7 +155,7 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(Ctx) -> Ctx {
                                             })
                                             .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
                                                 |&i: &usize| {
-                                                    ClickFunc::new(move |world| {
+                                                    OnClick::new(move |world| {
                                                         let mut list = world
                                                             .get_resource_mut::<TodoList>()
                                                             .unwrap();
@@ -175,7 +175,7 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(Ctx) -> Ctx {
                                             })
                                             .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
                                                 |&i: &usize| {
-                                                    ClickFunc::new(move |world| {
+                                                    OnClick::new(move |world| {
                                                         let mut list = world
                                                             .get_resource_mut::<TodoList>()
                                                             .unwrap();
@@ -197,7 +197,7 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(Ctx) -> Ctx {
                                     })
                                     .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
                                         |&i: &usize| {
-                                            ClickFunc::new(move |world| {
+                                            OnClick::new(move |world| {
                                                 let mut list =
                                                     world.get_resource_mut::<TodoList>().unwrap();
                                                 let text = list[i].text.clone();

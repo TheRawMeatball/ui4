@@ -47,8 +47,7 @@ fn root(ctx: Ctx) -> Ctx {
         .with(Slider(0.42))
         .children(|ctx: &mut McCtx| {
             ctx.c(labelled_widget("Button", |ctx| {
-                button("Click me!")(ctx)
-                    .with(ClickFunc::new(|_| println!("you clicked the button!")))
+                button("Click me!")(ctx).with(OnClick::new(|_| println!("you clicked the button!")))
             }))
             .c(labelled_widget(
                 "Textbox",

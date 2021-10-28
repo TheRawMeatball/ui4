@@ -24,7 +24,7 @@ pub mod prelude {
     pub use morphorm::Units;
     pub use observer::{res, single, IntoObserver, ObserverExt};
     pub use plugin::{Ui4Plugin, Ui4Root};
-    pub use widgets::button::{ClickFunc, HoverFunc, ReleaseFunc, UnhoverFunc};
+    pub use widgets::button::{OnClick, OnHover, OnRelease, OnUnhover};
     pub type ObsReturn<'a, T, M, O> =
         <<O as IntoObserver<T, M>>::ReturnSpec as observer::ReturnSpec<'a, T>>::R;
 

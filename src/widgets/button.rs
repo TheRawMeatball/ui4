@@ -14,29 +14,29 @@ impl ButtonFunc {
 }
 
 #[derive(Component)]
-pub struct ClickFunc(pub ButtonFunc);
-impl ClickFunc {
+pub struct OnClick(pub ButtonFunc);
+impl OnClick {
     pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
         Self(ButtonFunc::new(f))
     }
 }
 #[derive(Component)]
-pub struct HoverFunc(pub ButtonFunc);
-impl HoverFunc {
+pub struct OnHover(pub ButtonFunc);
+impl OnHover {
     pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
         Self(ButtonFunc::new(f))
     }
 }
 #[derive(Component)]
-pub struct ReleaseFunc(pub ButtonFunc);
-impl ReleaseFunc {
+pub struct OnRelease(pub ButtonFunc);
+impl OnRelease {
     pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
         Self(ButtonFunc::new(f))
     }
 }
 #[derive(Component)]
-pub struct UnhoverFunc(pub ButtonFunc);
-impl UnhoverFunc {
+pub struct OnUnhover(pub ButtonFunc);
+impl OnUnhover {
     pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
         Self(ButtonFunc::new(f))
     }
@@ -48,20 +48,20 @@ pub struct FuncScratch(pub(crate) Interaction);
 pub(crate) struct ButtonSystemState {
     pub query: QueryState<
         (
-            Option<&'static ClickFunc>,
-            Option<&'static HoverFunc>,
-            Option<&'static ReleaseFunc>,
-            Option<&'static UnhoverFunc>,
+            Option<&'static OnClick>,
+            Option<&'static OnHover>,
+            Option<&'static OnRelease>,
+            Option<&'static OnUnhover>,
             &'static mut FuncScratch,
             &'static Interaction,
         ),
         (
             Changed<Interaction>,
             Or<(
-                With<ClickFunc>,
-                With<HoverFunc>,
-                With<ReleaseFunc>,
-                With<UnhoverFunc>,
+                With<OnClick>,
+                With<OnHover>,
+                With<OnRelease>,
+                With<OnUnhover>,
             )>,
         ),
     >,
