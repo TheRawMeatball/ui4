@@ -1,3 +1,4 @@
+pub mod button;
 pub mod slider;
 pub mod textbox;
 
@@ -11,6 +12,7 @@ use bevy::{ecs::prelude::*, input::Input};
 
 use crate::{dom::Interaction, prelude::*};
 
+use self::button::FuncScratch;
 use self::slider::EngagedSlider;
 use self::textbox::{TextBox, TextBoxFunc};
 
@@ -145,10 +147,10 @@ pub fn checkbox(checked: impl WorldLens<Out = bool>) -> impl FnOnce(Ctx) -> Ctx 
                 .map(|b: &bool| if *b { "x" } else { " " })
                 .map(|s: &'static str| s.to_string()),
         )(ctx)
-        .with(ClickFunc(ButtonFunc::new(move |w| {
+        .with(ClickFunc::new(move |w| {
             let val = checked.get_mut(w);
             *val = !*val;
-        })))
+        }))
     }
 }
 
@@ -164,10 +166,10 @@ where
                 .map(move |t: &T| if t == &this1 { "x" } else { " " })
                 .map(|s: &'static str| s.to_string()),
         )(ctx)
-        .with(ClickFunc(ButtonFunc::new(move |w| {
+        .with(ClickFunc::new(move |w| {
             let val = item.get_mut(w);
             *val = this.clone();
-        })))
+        }))
     }
 }
 
@@ -200,12 +202,10 @@ where
                                         let display: &'static str = display;
                                         let item = item.clone();
                                         ctx.c(|ctx| {
-                                            button(display)(ctx).with(ClickFunc(ButtonFunc::new(
-                                                move |w| {
-                                                    let m_item = wl.get_mut(w);
-                                                    *m_item = item.clone();
-                                                },
-                                            )))
+                                            button(display)(ctx).with(ClickFunc::new(move |w| {
+                                                let m_item = wl.get_mut(w);
+                                                *m_item = item.clone();
+                                            }))
                                         });
                                     }
                                 })
@@ -261,7 +261,7 @@ pub fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
                                 }),
                             )
                             .with(FuncScratch::default())
-                            .with(ClickFunc(ButtonFunc::new(move |w| {
+                            .with(ClickFunc::new(move |w| {
                                 if let Some(cursor_pos) = (|| {
                                     w.get_resource::<Windows>()?
                                         .get_primary()?
@@ -279,10 +279,10 @@ pub fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
                                         get_percent: Arc::new(move |w| percent.get_mut(w)),
                                     });
                                 }
-                            })))
-                            .with(ReleaseFunc(ButtonFunc::new(move |w| {
+                            }))
+                            .with(ReleaseFunc::new(move |w| {
                                 w.entity_mut(cursor_entity).remove::<EngagedSlider>();
-                            })))
+                            }))
                     })
             })
     }

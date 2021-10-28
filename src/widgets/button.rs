@@ -15,12 +15,32 @@ impl ButtonFunc {
 
 #[derive(Component)]
 pub struct ClickFunc(pub ButtonFunc);
+impl ClickFunc {
+    pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
+        Self(ButtonFunc::new(f))
+    }
+}
 #[derive(Component)]
 pub struct HoverFunc(pub ButtonFunc);
+impl HoverFunc {
+    pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
+        Self(ButtonFunc::new(f))
+    }
+}
 #[derive(Component)]
 pub struct ReleaseFunc(pub ButtonFunc);
+impl ReleaseFunc {
+    pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
+        Self(ButtonFunc::new(f))
+    }
+}
 #[derive(Component)]
 pub struct UnhoverFunc(pub ButtonFunc);
+impl UnhoverFunc {
+    pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
+        Self(ButtonFunc::new(f))
+    }
+}
 /// Needed for *Func components to work
 #[derive(Component, Default)]
 pub struct FuncScratch(pub(crate) Interaction);
@@ -59,6 +79,7 @@ impl FromWorld for ButtonSystemState {
 
 impl ButtonSystemState {
     pub(crate) fn run(&mut self, world: &mut World) {
+        // TODO: also work out interactions!
         self.button_list
             .extend(self.query.iter_mut(world).filter_map(
                 |(c, h, dc, dh, mut scratch, interaction)| {
