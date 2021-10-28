@@ -85,7 +85,7 @@ pub fn textbox(text: impl WorldLens<Out = String>) -> impl FnOnce(Ctx) -> Ctx wh
             .with(TextBoxFunc::new(move |w| text.get_mut(w)))
             .with(UiColor(Color::DARK_GRAY))
             .child(|ctx: Ctx| {
-                ctx.with_modified(
+                ctx.with_modified::<_, crate::observer::Map<_, _>>(
                     Text("".to_string()),
                     text.map(move |text: &String| {
                         let text = text.clone();

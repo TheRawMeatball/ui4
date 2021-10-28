@@ -49,12 +49,12 @@ impl Ctx<'_> {
         self
     }
 
-    pub fn with_modified<T, O, F>(mut self, initial: T, observer: O) -> Self
+    pub fn with_modified<T, O>(mut self, initial: T, observer: O) -> Self
     where
         T: Component,
         O: UninitObserver,
-        for<'a> O::Observer: Observer<'a, Return = F>,
-        F: FnOnce(T) -> T,
+        for<'a> O::Observer: Observer<'a>,
+        for<'a> <O::Observer as Observer<'a>>::Return: FnOnce(T) -> T,
     {
         initial.insert_ui_val(&mut self);
         let entity = self.current_entity;
