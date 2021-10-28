@@ -114,7 +114,7 @@ where
     }
 }
 
-pub struct Identity<T>(PhantomData<fn(T) -> T>);
+pub struct Identity<T>(pub(crate) PhantomData<fn(T) -> T>);
 impl<T> Copy for Identity<T> {}
 impl<T> Clone for Identity<T> {
     fn clone(&self) -> Self {

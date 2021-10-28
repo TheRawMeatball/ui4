@@ -49,12 +49,13 @@ impl Ctx<'_> {
         self
     }
 
-    pub fn with_modified<T, O>(mut self, initial: T, observer: O) -> Self
+    pub fn with_modified<T, O, F>(mut self, initial: T, observer: O, mutator: F) -> Self
     where
         T: Component,
         O: UninitObserver,
         for<'a> O::Observer: Observer<'a>,
-        for<'a> <O::Observer as Observer<'a>>::Return: FnOnce(T) -> T,
+        F: for<'a> Fn(<O::Observer as Observer<'a>>::Return, T) -> T,
+        F: Send + Sync + 'static,
     {
         initial.insert_ui_val(&mut self);
         let entity = self.current_entity;
@@ -63,12 +64,12 @@ impl Ctx<'_> {
             let (uf, marker) = UpdateFunc::new::<T, _>(move |world| {
                 world.resource_scope(|world, mut ctx: Mut<UiScratchSpace>| {
                     let t = world.entity_mut(entity).remove::<T>().unwrap();
-                    let (f, changed) = observer.get(world);
+                    let (val, changed) = observer.get(world);
                     if !changed && !first {
                         return;
                     }
                     first = false;
-                    let t = f(t);
+                    let t = mutator(val, t);
                     let mut e = world.entity_mut(entity);
                     e.get_mut::<UfMarker<T>>().unwrap().trigger(&mut ctx);
                     e.insert(t);

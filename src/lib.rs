@@ -19,7 +19,7 @@ pub mod prelude {
     };
     pub use ctx::{Ctx, McCtx};
     pub use dom::layout::layout_components::*;
-    pub use dom::{Color as UiColor, Text};
+    pub use dom::{Color as UiColor, Text, TextFont, TextSize};
     pub use lens::WorldLens;
     pub use morphorm::Units;
     pub use observer::{res, single, IntoObserver, ObserverExt};

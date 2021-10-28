@@ -34,7 +34,10 @@ pub(crate) struct NodeBundle {
 pub struct Text(pub String);
 
 #[derive(Component)]
-pub struct TextFont(epaint::TextStyle);
+pub struct TextSize(pub f32);
+
+#[derive(Component)]
+pub struct TextFont(pub epaint::TextStyle);
 
 #[derive(Component)]
 pub struct Color(pub bevy::prelude::Color);

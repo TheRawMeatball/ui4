@@ -76,7 +76,7 @@ pub fn button<O: IntoObserver<String, M>, M>(t: O) -> impl FnOnce(Ctx) -> Ctx {
     }
 }
 
-pub fn textbox(text: impl WorldLens<Out = String>) -> impl FnOnce(Ctx) -> Ctx where {
+pub fn textbox<L: WorldLens<Out = String>>(text: L) -> impl FnOnce(Ctx) -> Ctx where {
     move |ctx: Ctx| {
         ctx.with(Width(Units::Pixels(250.)))
             .with(Height(Units::Pixels(30.)))
@@ -85,16 +85,11 @@ pub fn textbox(text: impl WorldLens<Out = String>) -> impl FnOnce(Ctx) -> Ctx wh
             .with(TextBoxFunc::new(move |w| text.get_mut(w)))
             .with(UiColor(Color::DARK_GRAY))
             .child(|ctx: Ctx| {
-                ctx.with_modified::<_, crate::observer::Map<_, _>>(
-                    Text("".to_string()),
-                    text.map(move |text: &String| {
-                        |Text(old)| {
-                            old.clear();
-                            old.push_str(text);
-                            Text(old)
-                        }
-                    }),
-                )
+                ctx.with_modified::<_, L, _>(Text("".to_string()), text, |text, Text(mut old)| {
+                    old.clear();
+                    old.push_str(text);
+                    Text(old)
+                })
             })
     }
 }
