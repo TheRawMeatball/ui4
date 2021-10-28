@@ -88,10 +88,10 @@ pub fn textbox(text: impl WorldLens<Out = String>) -> impl FnOnce(Ctx) -> Ctx wh
                 ctx.with_modified::<_, crate::observer::Map<_, _>>(
                     Text("".to_string()),
                     text.map(move |text: &String| {
-                        let text = text.clone();
-                        |Text(_old)| {
-                            // TODO: loosen with_modified up so this closure can carry borrows and avoid the clone when rustc doesn't freak out
-                            Text(text)
+                        |Text(old)| {
+                            old.clear();
+                            old.push_str(text);
+                            Text(old)
                         }
                     }),
                 )
