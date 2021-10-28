@@ -3,6 +3,8 @@ use bevy::prelude::*;
 use std::sync::Arc;
 use std::time::Duration;
 
+use super::Focused;
+
 #[derive(Component)]
 pub struct TextBox(pub usize);
 #[derive(Component, Clone)]
