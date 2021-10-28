@@ -8,7 +8,7 @@ use std::{
 
 use bevy::{ecs::prelude::*, utils::HashSet};
 
-use crate::{button::ButtonSystemState, textbox::TextBoxSystemState};
+use crate::{button::ButtonSystemState, widgets::textbox::TextBoxSystemState};
 
 #[derive(Default)]
 pub(crate) struct UiScratchSpace {

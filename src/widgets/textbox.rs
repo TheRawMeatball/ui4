@@ -4,8 +4,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[derive(Component)]
-pub struct Focusable;
-#[derive(Component)]
 pub struct TextBox(pub usize);
 #[derive(Component, Clone)]
 pub struct TextBoxFunc(Arc<dyn Fn(&mut World) -> &mut String + Send + Sync>);
@@ -19,9 +17,6 @@ impl TextBoxFunc {
         (self.0)(world)
     }
 }
-
-#[derive(Component)]
-pub struct Focused;
 
 pub(crate) struct TextBoxSystemState {
     state: SystemState<(
@@ -130,26 +125,6 @@ fn move_right(string: &mut String, index: &mut usize) {
         *index += 1;
         if string.is_char_boundary(*index) {
             break;
-        }
-    }
-}
-
-pub(crate) fn focus_system(
-    mut commands: Commands,
-    input: Res<Input<MouseButton>>,
-    q: Query<(Entity, &Interaction, Option<&Focused>), With<Focusable>>,
-) {
-    if input.just_pressed(MouseButton::Left) {
-        for (entity, interaction, has_focused) in q.iter() {
-            match (interaction, has_focused.is_some()) {
-                (Interaction::Clicked, false) => {
-                    commands.entity(entity).insert(Focused);
-                }
-                (Interaction::None, true) => {
-                    commands.entity(entity).remove::<Focused>();
-                }
-                _ => {}
-            }
         }
     }
 }

@@ -19,8 +19,8 @@ pub(crate) struct ControlBundle {
 
 #[derive(Component, Default)]
 pub(crate) struct Node {
-    pos: Vec2,
-    size: Vec2,
+    pub pos: Vec2,
+    pub size: Vec2,
 }
 
 #[derive(Bundle, Default)]
@@ -49,4 +49,11 @@ impl Color {
             (a * u8::MAX as f32) as u8,
         ]
     }
+}
+
+#[derive(Component)]
+pub enum Interaction {
+    Clicked,
+    Hovered,
+    None,
 }

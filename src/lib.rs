@@ -9,7 +9,7 @@ pub mod ctx;
 pub mod lens;
 pub mod observer;
 pub mod plugin;
-pub mod textbox;
+pub mod widgets;
 
 pub mod prelude {
     use super::*;
@@ -26,9 +26,14 @@ pub mod prelude {
     pub use morphorm::Units;
     pub use observer::{res, single, IntoObserver, ObserverExt};
     pub use plugin::{Ui4Plugin, Ui4Root};
-    pub use textbox::{Focusable, Focused, TextBox, TextBoxFunc};
     pub type ObsReturn<'a, T, M, O> =
         <<O as IntoObserver<T, M>>::ReturnSpec as observer::ReturnSpec<'a, T>>::R;
+
+    pub use widgets::{
+        button, checkbox, dropdown, progressbar, radio_button, slider, text, text_fade, textbox,
+    };
+
+    pub use std::borrow::Borrow;
 
     pub use ui4_macros::Lens;
 }

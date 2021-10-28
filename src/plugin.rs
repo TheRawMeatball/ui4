@@ -8,7 +8,7 @@ use crate::ctx::Ctx;
 use crate::dom::layout::LayoutScratchpad;
 use crate::dom::NodeBundle;
 use crate::runtime::{primary_ui_system, UiManagedSystems, UiScratchSpace};
-use crate::textbox::TextBoxSystemState;
+use crate::widgets::{slider::SliderSystemState, textbox::TextBoxSystemState};
 
 #[derive(SystemLabel, Clone, Copy, Hash, PartialEq, Eq, Debug)]
 struct LayoutSystemLabel;
@@ -21,9 +21,11 @@ impl Plugin for Ui4Plugin {
             .init_resource::<TextBoxSystemState>()
             .init_resource::<RunningTweens>()
             .init_resource::<LayoutScratchpad>()
+            .init_resource::<SliderSystemState>()
             .insert_resource(UiManagedSystems(SystemStage::parallel()))
+            .add_system(SliderSystemState::system.exclusive_system())
             .add_system(primary_ui_system.exclusive_system().at_end())
-            .add_system(crate::textbox::focus_system)
+            .add_system(crate::widgets::focus_system)
             .add_system(crate::animation::tween_system)
             .add_system_to_stage(
                 CoreStage::PostUpdate,

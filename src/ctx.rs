@@ -3,8 +3,12 @@ use std::marker::PhantomData;
 use bevy::ecs::prelude::*;
 
 use crate::{
-    childable::Childable, dom::ControlBundle, insertable::Insertable, lens::ComponentLens,
-    observer::ComponentExistsObserver,
+    childable::Childable,
+    dom::ControlBundle,
+    insertable::Insertable,
+    lens::ComponentLens,
+    observer::{ComponentExistsObserver, Observer, UninitObserver},
+    runtime::{UfMarker, UiScratchSpace, UpdateFunc},
 };
 
 /// Entry point for creating entities. Having a `Ctx` means you control all components on this entity, and all
@@ -42,6 +46,36 @@ impl Ctx<'_> {
     #[track_caller]
     pub fn with<T: Component, M>(mut self, item: impl Insertable<T, M>) -> Self {
         item.insert_ui_val(&mut self);
+        self
+    }
+
+    pub fn with_modified<T, O, F>(mut self, initial: T, observer: O) -> Self
+    where
+        T: Component,
+        O: UninitObserver,
+        for<'a> O::Observer: Observer<'a, Return = F>,
+        F: FnOnce(&mut T) + 'static,
+    {
+        initial.insert_ui_val(&mut self);
+        let entity = self.current_entity;
+        let uf = observer.register_self(self.world, |mut observer, world| {
+            let mut first = true;
+            let (uf, marker) = UpdateFunc::new::<T, _>(move |world| {
+                let (f, changed) = observer.get(world);
+                if !changed && !first {
+                    return;
+                }
+                first = false;
+                world.resource_scope(|world, mut ctx: Mut<UiScratchSpace>| {
+                    let mut e = world.entity_mut(entity);
+                    e.get_mut::<UfMarker<T>>().unwrap().trigger(&mut ctx);
+                    f(e.get_mut::<T>().unwrap().into_inner());
+                })
+            });
+            world.entity_mut(entity).insert(marker);
+            uf
+        });
+        uf.run(&mut self.world);
         self
     }
 
