@@ -54,22 +54,24 @@ impl Ctx<'_> {
         T: Component,
         O: UninitObserver,
         for<'a> O::Observer: Observer<'a, Return = F>,
-        F: FnOnce(&mut T) + 'static,
+        F: FnOnce(T) -> T,
     {
         initial.insert_ui_val(&mut self);
         let entity = self.current_entity;
         let uf = observer.register_self(self.world, |mut observer, world| {
             let mut first = true;
             let (uf, marker) = UpdateFunc::new::<T, _>(move |world| {
-                let (f, changed) = observer.get(world);
-                if !changed && !first {
-                    return;
-                }
-                first = false;
                 world.resource_scope(|world, mut ctx: Mut<UiScratchSpace>| {
+                    let t = world.entity_mut(entity).remove::<T>().unwrap();
+                    let (f, changed) = observer.get(world);
+                    if !changed && !first {
+                        return;
+                    }
+                    first = false;
+                    let t = f(t);
                     let mut e = world.entity_mut(entity);
                     e.get_mut::<UfMarker<T>>().unwrap().trigger(&mut ctx);
-                    f(e.get_mut::<T>().unwrap().into_inner());
+                    e.insert(t);
                 })
             });
             world.entity_mut(entity).insert(marker);

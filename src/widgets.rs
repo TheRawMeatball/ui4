@@ -78,9 +78,6 @@ pub fn button<O: IntoObserver<String, M>, M>(t: O) -> impl FnOnce(Ctx) -> Ctx {
 
 pub fn textbox(text: impl WorldLens<Out = String>) -> impl FnOnce(Ctx) -> Ctx where {
     move |ctx: Ctx| {
-        let has_focused = ctx.has_component::<Focused>();
-        let cursor = ctx.component();
-
         ctx.with(Width(Units::Pixels(250.)))
             .with(Height(Units::Pixels(30.)))
             .with(TextBox(0))
@@ -88,50 +85,14 @@ pub fn textbox(text: impl WorldLens<Out = String>) -> impl FnOnce(Ctx) -> Ctx wh
             .with(TextBoxFunc::new(move |w| text.get_mut(w)))
             .with(UiColor(Color::DARK_GRAY))
             .child(|ctx: Ctx| {
-                ctx.with(
-                    text.and(
-                        has_focused
-                            .and(cursor)
-                            .map(|(focused, cursor): (bool, &TextBox)| focused.then(|| cursor.0)),
-                    )
-                    .map(move |(text, _cursor): (&String, Option<usize>)| {
-                        let text: &str = &text.borrow();
-                        // if let Some(cursor) = cursor {
-                        //     Text {
-                        //         sections: vec![
-                        //             TextSection {
-                        //                 value: text.get(..cursor).unwrap_or("").to_owned(),
-                        //                 style: assets.text_style.clone(),
-                        //             },
-                        //             TextSection {
-                        //                 value: text
-                        //                     .get(cursor..cursor + 1)
-                        //                     .map(|c| if c == " " { "_" } else { c })
-                        //                     .unwrap_or("_")
-                        //                     .to_string(),
-                        //                 style: TextStyle {
-                        //                     color: Color::BLACK,
-                        //                     ..assets.text_style.clone()
-                        //                 },
-                        //             },
-                        //             TextSection {
-                        //                 value: text
-                        //                     .get(cursor + 1..)
-                        //                     .unwrap_or("")
-                        //                     .to_owned(),
-                        //                 style: assets.text_style.clone(),
-                        //             },
-                        //         ],
-                        //         alignment: Default::default(),
-                        //     }
-                        // } else {
-                        //     Text::with_section(
-                        //         text.borrow(),
-                        //         assets.text_style.clone(),
-                        //         Default::default(),
-                        //     )
-                        // }
-                        Text(text.to_owned())
+                ctx.with_modified(
+                    Text("".to_string()),
+                    text.map(move |text: &String| {
+                        let text = text.clone();
+                        |Text(_old)| {
+                            // TODO: loosen with_modified up so this closure can carry borrows and avoid the clone when rustc doesn't freak out
+                            Text(text)
+                        }
                     }),
                 )
             })
