@@ -1,6 +1,7 @@
 use bevy::{
     ecs::prelude::*,
     ecs::system::SystemParam,
+    math::Vec2,
     prelude::{Children, Parent},
     utils::HashMap,
 };
@@ -47,7 +48,7 @@ macro_rules! derive_all {
             #[derive(Debug, Clone, Copy, PartialEq, Component, Deref, DerefMut, Inspectable)]
             pub struct $name(pub $unit_type);
         )*
-
+        #[allow(unused)]
         pub(crate) fn register_all(app: &mut bevy::app::App) {
             $(
                 app.register_inspectable::<$name>();
@@ -750,22 +751,26 @@ impl<'borrow, 'aorld, 'state> Cache for DataCache<'borrow, 'aorld, 'state> {
 
 pub(crate) fn root_node_system(
     windows: Res<bevy::window::Windows>,
-    root_node_query: Query<Entity, (With<UiNode>, Without<Parent>)>,
-    mut style_query: Query<(
-        &mut layout_components::Width,
-        &mut layout_components::Height,
-    )>,
+    mut root_query: Query<
+        (
+            &mut layout_components::Width,
+            &mut layout_components::Height,
+            &mut UiNode,
+        ),
+        Without<Parent>,
+    >,
 ) {
     let window = windows.get_primary().unwrap();
 
     let window_width = window.physical_width() as f32;
     let window_height = window.physical_height() as f32;
 
-    for root_node in root_node_query.iter() {
-        if let Ok((mut width, mut height)) = style_query.get_mut(root_node) {
-            **width = Units::Pixels(window_width);
-            **height = Units::Pixels(window_height);
-        }
+    for (mut width, mut height, mut node) in root_query.iter_mut() {
+        **width = Units::Pixels(window_width);
+        **height = Units::Pixels(window_height);
+
+        node.pos = Vec2::ZERO;
+        node.size = Vec2::new(window_width, window_height);
     }
 }
 
