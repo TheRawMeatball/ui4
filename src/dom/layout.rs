@@ -1,6 +1,9 @@
 use bevy::{
     ecs::prelude::*,
-    ecs::system::SystemParam,
+    ecs::{
+        query,
+        system::{QueryComponentError, SystemParam, SystemState},
+    },
     math::Vec2,
     prelude::{Children, Parent},
     utils::HashMap,
@@ -70,7 +73,12 @@ macro_rules! func_all {
                     .map_err(|_e| {
                         $(
                             func_all!(void $debug);
-                            println!("getting {} for {:?} failed due to {:?}", stringify!($func), self.entity(), _e)
+                            println!(
+                                "getting {} for {:?} failed due to {:?}",
+                                std::any::type_name::<layout_components::$typ>(),
+                                self.entity(),
+                                _e,
+                            );
                         )?
                     })
                     .map(|x| x.0.clone())
@@ -79,7 +87,12 @@ macro_rules! func_all {
                     .map(|out| {
                         $(
                             func_all!(void $debug);
-                            println!("getting {} for {:?} as {:?}", stringify!($func), self.entity(), &out);
+                            println!(
+                                "getting {} for {:?} as {:?}",
+                                std::any::type_name::<layout_components::$typ>(),
+                                self.entity(),
+                                &out
+                            );
                         )?
                         out
                     })
@@ -179,76 +192,40 @@ pub mod layout_components {
     pub struct GridCols(pub Vec<Units>);
 }
 
-mod cached {
-    use super::*;
-
-    derive_all!(
-        Width(f32);
-        Height(f32);
-        PosX(f32);
-        PosY(f32);
-
-        SpaceLeft(f32);
-        SpaceRight(f32);
-        SpaceTop(f32);
-        SpaceBottom(f32);
-
-        NewWidth(f32);
-        NewHeight(f32);
-
-        ChildWidthMax(f32);
-        ChildHeightMax(f32);
-        ChildWidthSum(f32);
-        ChildHeightSum(f32);
-
-        GridRowMax(f32);
-        GridColMax(f32);
-
-        HorizontalFreeSpace(f32);
-        HorizontalStretchSum(f32);
-
-        VerticalFreeSpace(f32);
-        VerticalStretchSum(f32);
-
-        StackFirstChild(f32);
-        StackLastChild(f32);
-    );
-}
-
 type StyleQuery = query_all![
     Width,
     Height,
-    Left,
-    Right,
-    Top,
-    Bottom,
-    MinLeft,
-    MaxLeft,
-    MinRight,
-    MaxRight,
-    MinTop,
-    MaxTop,
-    MinBottom,
-    MaxBottom,
-    MinWidth,
-    MaxWidth,
-    MinHeight,
-    MaxHeight,
-    ChildLeft,
-    ChildRight,
-    ChildTop,
-    ChildBottom,
-    RowBetween,
-    ColBetween,
-    RowIndex,
-    ColIndex,
-    RowSpan,
-    ColSpan,
-    Border,
-    PositionType,
-    LayoutType,
-    GridRows,
-    GridCols,
+    // Left,
+    // Right,
+    // Top,
+    // Bottom,
+    // MinLeft,
+    // MaxLeft,
+    // MinRight,
+    // MaxRight,
+    // MinTop,
+    // MaxTop,
+    // MinBottom,
+    // MaxBottom,
+    // MinWidth,
+    // MaxWidth,
+    // MinHeight,
+    // MaxHeight,
+    // ChildLeft,
+    // ChildRight,
+    // ChildTop,
+    // ChildBottom,
+    // RowBetween,
+    // ColBetween,
+    // RowIndex,
+    // ColIndex,
+    // RowSpan,
+    // ColSpan,
+    // Border,
+    // PositionType,
+    // LayoutType,
+    // GridRows,
+    // GridCols,
 ];
 
 impl<'a> Node<'a> for NodeEntity {
@@ -795,7 +772,6 @@ pub(crate) fn layout_node_system(
 ) {
     for root_node in root_node_query.iter() {
         let tree = Tree::new(root_node, &queries);
-        dbg!(root_node);
 
         layout_cache.clear();
 
@@ -805,5 +781,71 @@ pub(crate) fn layout_node_system(
         };
         println!("layout!");
         morphorm::layout(&mut cache, &tree, &style_query);
+    }
+}
+
+mod repro {
+    use bevy::ecs::{
+        prelude::*,
+        system::{QueryComponentError, SystemState},
+    };
+
+    #[test]
+    fn repro() {
+        macro_rules! query_all {
+            ($last:ident,) => {
+                &'static $last
+            };
+            ($first:ident, $($rest:ident,)*) => {
+                (&'static $first, query_all!($($rest,)*))
+            };
+        }
+        macro_rules! tlist {
+            (
+                $tlist:ident,
+                [$($name:ident,)*]
+            ) => {
+                $(
+                    #[derive(Debug, Clone, Copy, PartialEq, Component)]
+                    pub struct $name(pub u8);
+                )*
+
+                type QueryAll = query_all!($($name,)*);
+            };
+        }
+
+        tlist![
+            QueryAll,
+            [
+                T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17,
+                T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32, T33,
+                T34, T35, T36, T37, T38, T39, T40, T41, T42, T43, T44, T45, T46, T47, T48, T49,
+                T50, T51, T52, T53, T54, T55, T56, T57, T58, T59, T60, T61, T62, T63, T64, T65,
+                T66, T67, T68, T69,
+            ]
+        ];
+
+        let mut world = World::new();
+
+        world.query::<QueryAll>();
+
+        type QuerySome = (
+            &'static T55,
+            query_all!(
+                T38, T39, T40, T41, T42, T43, T44, T45, T46, T47, T48, T49, T50, T51, T52, T53,
+                T54, T0, T56, T57, T58, T59, T60, T61, T62, T63, T64, T65, T66, T67, T68, T69,
+            ),
+        );
+
+        let entity = world.spawn().insert_bundle((T0(0), T7(0))).id();
+        let mut query = SystemState::<Query<QuerySome>>::new(&mut world);
+        let query = query.get(&world);
+
+        match query.get_component::<T0>(entity) {
+            Err(QueryComponentError::MissingReadAccess) => {}
+            e => {
+                panic!("{:?}", e);
+            }
+        }
     }
 }
