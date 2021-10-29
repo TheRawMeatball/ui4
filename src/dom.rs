@@ -40,6 +40,9 @@ pub struct TextSize(pub f32);
 #[derive(Component)]
 pub struct TextFont(pub epaint::TextStyle);
 
+#[derive(Component)]
+pub struct ShowOverflow;
+
 /// Overrides [`TextFont`] and [`TextFont`]
 #[derive(Component)]
 pub struct TextDetails(pub Vec<epaint::text::LayoutSection>);
@@ -54,7 +57,7 @@ impl Color {
             (r * u8::MAX as f32) as u8,
             (g * u8::MAX as f32) as u8,
             (b * u8::MAX as f32) as u8,
-            (a * (u8::MAX / 2) as f32) as u8,
+            (a * u8::MAX as f32) as u8,
         ]
     }
 }

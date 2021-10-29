@@ -64,6 +64,10 @@ pub fn button<O: IntoObserver<String, M>, M>(t: O) -> impl FnOnce(Ctx) -> Ctx {
         let component = ctx.component();
         ctx.with(Interaction::None)
             .with(Height(Units::Pixels(30.)))
+            .with(ChildLeft(Units::Stretch(1.)))
+            .with(ChildRight(Units::Stretch(1.)))
+            .with(ChildTop(Units::Stretch(1.)))
+            .with(ChildBottom(Units::Stretch(1.)))
             .with(
                 component.map(|interaction: &Interaction| match interaction {
                     Interaction::Clicked => UiColor(Color::SILVER),
@@ -178,12 +182,14 @@ pub fn progressbar<O: IntoObserver<f32, M>, M>(percent: O) -> impl FnOnce(Ctx) -
             .with(Height(Units::Pixels(30.)))
             .with(UiColor(Color::DARK_GRAY))
             .child(|ctx: Ctx| {
-                ctx.with(Height(Units::Auto)).with(
-                    percent
-                        .into_observer()
-                        .map(|f: ObsReturn<'_, _, _, O>| *f.borrow())
-                        .map(|f: f32| Width(Units::Percentage(f * 100.))),
-                )
+                ctx.with(Height(Units::Percentage(100.)))
+                    .with(UiColor(Color::WHITE))
+                    .with(
+                        percent
+                            .into_observer()
+                            .map(|f: ObsReturn<'_, _, _, O>| *f.borrow())
+                            .map(|f: f32| Width(Units::Percentage(f * 100.))),
+                    )
             })
     }
 }
@@ -194,21 +200,25 @@ pub fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
         ctx.with(Width(Units::Pixels(250.)))
             .with(Height(Units::Pixels(30.)))
             .with(UiColor(Color::DARK_GRAY))
+            // bar
             .child(|ctx: Ctx| {
-                ctx.with(Height(Units::Auto))
+                ctx.with(Height(Units::Percentage(100.)))
                     .with(
                         percent
                             .copied()
                             .map(|f: f32| Width(Units::Percentage(f * 100.))),
                     )
-                    .with(UiColor(Color::GRAY))
+                    .with(UiColor(Color::WHITE))
+                    .with(ChildLeft(Units::Stretch(1.)))
+                    .with(ShowOverflow)
+                    // handle
                     .child(|ctx: Ctx| {
                         let interaction = ctx.component();
                         let cursor_entity = ctx.current_entity();
                         ctx.with(Interaction::None)
-                            .with(Width(Units::Pixels(20.)))
-                            .with(Height(Units::Auto))
-                            .with(Right(Units::Pixels(-10.)))
+                            .with(Width(Units::Pixels(15.)))
+                            .with(Height(Units::Percentage(100.)))
+                            .with(Right(Units::Pixels(-7.5)))
                             .with(
                                 interaction.map(|interaction: &Interaction| match interaction {
                                     Interaction::Clicked => UiColor(Color::WHITE),

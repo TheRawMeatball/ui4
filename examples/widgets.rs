@@ -61,6 +61,8 @@ fn root(ctx: Ctx) -> Ctx {
             .c(labelled_widget("Radio buttons", |ctx| {
                 ctx.with(Width(Units::Pixels(250.)))
                     .with(Height(Units::Pixels(30.)))
+                    .with(LayoutType::Row)
+                    .with(ColBetween(Units::Stretch(1.)))
                     .children(|ctx: &mut McCtx| {
                         ctx.c(radio_button(RadioButtonSelect::A, radiobutton))
                             .c(text("A  "))
@@ -110,6 +112,7 @@ fn labelled_widget(
     move |ctx: Ctx| {
         ctx.with(Width(Units::Pixels(400.)))
             .with(Height(Units::Pixels(30.)))
+            .with(LayoutType::Row)
             .children(|ctx: &mut McCtx| {
                 ctx.c(|ctx| {
                     text(label)(ctx)

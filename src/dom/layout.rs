@@ -1,9 +1,6 @@
 use bevy::{
     ecs::prelude::*,
-    ecs::{
-        query,
-        system::{QueryComponentError, SystemParam, SystemState},
-    },
+    ecs::system::SystemParam,
     math::Vec2,
     prelude::{Children, Parent},
     utils::HashMap,
@@ -63,39 +60,14 @@ macro_rules! derive_all {
 macro_rules! func_all {
     (
         $ret:ty;
-        $(
-            [$func:ident, $typ:ident $(, $debug:ident)?],
-        )*
+        $([$func:ident, $typ:ident],)*
     ) => {
         $(
             fn $func(&self, store: &'_ Self::Data) -> Option<$ret> {
                 store.get_component::<layout_components::$typ>(self.0)
-                    .map_err(|_e| {
-                        $(
-                            func_all!(void $debug);
-                            println!(
-                                "getting {} for {:?} failed due to {:?}",
-                                std::any::type_name::<layout_components::$typ>(),
-                                self.entity(),
-                                _e,
-                            );
-                        )?
-                    })
                     .map(|x| x.0.clone())
                     .ok()
                     .map(|v| v.into())
-                    .map(|out| {
-                        $(
-                            func_all!(void $debug);
-                            println!(
-                                "getting {} for {:?} as {:?}",
-                                std::any::type_name::<layout_components::$typ>(),
-                                self.entity(),
-                                &out
-                            );
-                        )?
-                        out
-                    })
             }
         )*
     };
@@ -155,6 +127,7 @@ pub mod layout_components {
         /// Position child elements into specified rows and columns
         Grid,
     }
+
     derive_all!(
         Left(Units);
         Right(Units);
@@ -258,8 +231,8 @@ impl<'a> Node<'a> for NodeEntity {
 
     func_all!(
         morphorm::Units;
-        [width, Width, debug],
-        [height, Height, debug],
+        [width, Width],
+        [height, Height],
         [min_width, MinWidth],
         [min_height, MinHeight],
         [max_width, MaxWidth],

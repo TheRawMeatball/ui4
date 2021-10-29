@@ -1,6 +1,6 @@
 use crate::dom::TextFont;
 
-use super::{Color, Node, Text, TextDetails, TextSize};
+use super::{Color, Node, ShowOverflow, Text, TextDetails, TextSize};
 use bevy::{
     ecs::prelude::*,
     transform::prelude::*,
@@ -24,6 +24,7 @@ type ShapeQ<'w, 's> = Query<
         Option<&'static TextSize>,
         Option<&'static TextDetails>,
         Option<&'static Color>,
+        Option<&'static ShowOverflow>,
         Option<&'static Children>,
     ),
 >;
@@ -43,11 +44,12 @@ pub(crate) fn create_shapes_system(
         q: &ShapeQ,
         fonts: &Fonts,
     ) {
-        let (node, text, font, size, details, color, children) = if let Ok(r) = q.get(entity) {
-            r
-        } else {
-            return;
-        };
+        let (node, text, font, _size, details, color, show_overflow, children) =
+            if let Ok(r) = q.get(entity) {
+                r
+            } else {
+                return;
+            };
         let pos = Pos2::new(node.pos.x, node.pos.y);
         let color = color.map(|x| {
             let [r, g, b, a] = x.as_rgba_u8();
@@ -94,7 +96,17 @@ pub(crate) fn create_shapes_system(
         ));
 
         for &child in children.map(|x| &**x).unwrap_or(&[]) {
-            push_shapes(vec, child, this_rect, q, fonts);
+            push_shapes(
+                vec,
+                child,
+                if show_overflow.is_some() {
+                    clip
+                } else {
+                    this_rect
+                },
+                q,
+                fonts,
+            );
         }
     }
 
