@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, PipelinedDefaultPlugins};
 use derive_more::{Deref, DerefMut};
 use std::{ops::Deref, sync::Arc};
 use ui4::prelude::*;
@@ -17,10 +17,10 @@ struct Todo {
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins)
+    app.add_plugins(PipelinedDefaultPlugins)
+        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_plugin(Ui4Plugin)
         .add_plugin(Ui4Root(root))
-        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .init_resource::<EditedText>()
         .init_resource::<TodoList>();
 

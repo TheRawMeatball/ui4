@@ -1,6 +1,7 @@
 use bevy::app::Plugin;
 use bevy::ecs::prelude::*;
 use bevy::prelude::CoreStage;
+use bevy_inspector_egui::RegisterInspectable;
 
 use crate::animation::RunningTweens;
 use crate::ctx::Ctx;
@@ -23,6 +24,10 @@ impl Plugin for Ui4Plugin {
             .init_resource::<RunningTweens>()
             .init_resource::<LayoutScratchpad>()
             .init_resource::<SliderSystemState>()
+            .register_inspectable::<crate::dom::Node>()
+            .register_inspectable::<crate::dom::Text>()
+            .register_inspectable::<crate::dom::TextSize>()
+            .register_inspectable::<crate::dom::Color>()
             .insert_resource(UiManagedSystems(SystemStage::parallel()))
             .add_system(SliderSystemState::system.exclusive_system())
             .add_system(primary_ui_system.exclusive_system().at_end())
@@ -39,7 +44,15 @@ impl Plugin for Ui4Plugin {
             .add_system_to_stage(
                 CoreStage::PostUpdate,
                 crate::dom::layout::layout_node_system.label(LayoutSystemLabel),
+            )
+            .add_system_to_stage(
+                CoreStage::PostUpdate,
+                crate::dom::render::create_shapes_system
+                    .after(LayoutSystemLabel)
+                    .after(bevy_egui::EguiSystem::ProcessOutput),
             );
+
+        crate::dom::layout::layout_components::register_all(app);
     }
 }
 

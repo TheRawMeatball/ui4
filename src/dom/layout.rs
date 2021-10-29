@@ -4,9 +4,29 @@ use bevy::{
     prelude::{Children, Parent},
     utils::HashMap,
 };
+use bevy_inspector_egui::{Inspectable, RegisterInspectable};
 use concat_idents::concat_idents;
 use derive_more::{Deref, DerefMut};
-use morphorm::{Cache, Hierarchy, Node, Units};
+use morphorm::{Cache, Hierarchy, Node};
+
+#[derive(Debug, Clone, Copy, PartialEq, Inspectable)]
+pub enum Units {
+    Pixels(f32),
+    Percentage(f32),
+    Stretch(f32),
+    Auto,
+}
+
+impl From<Units> for morphorm::Units {
+    fn from(this: Units) -> Self {
+        match this {
+            Units::Pixels(v) => morphorm::Units::Pixels(v),
+            Units::Percentage(v) => morphorm::Units::Percentage(v),
+            Units::Stretch(v) => morphorm::Units::Stretch(v),
+            Units::Auto => morphorm::Units::Auto,
+        }
+    }
+}
 
 use super::{Control, Node as UiNode};
 
@@ -24,9 +44,15 @@ macro_rules! derive_all {
         $name:ident($unit_type:ty);
     )*) => {
         $(
-            #[derive(Debug, Clone, Copy, PartialEq, Component, Deref, DerefMut)]
+            #[derive(Debug, Clone, Copy, PartialEq, Component, Deref, DerefMut, Inspectable)]
             pub struct $name(pub $unit_type);
         )*
+
+        pub(crate) fn register_all(app: &mut bevy::app::App) {
+            $(
+                app.register_inspectable::<$name>();
+            )*
+        }
     };
 }
 
@@ -39,7 +65,7 @@ macro_rules! func_all {
     ) => {
         $(
             fn $func(&self, store: &'_ Self::Data) -> Option<$ret> {
-                store.get_component::<layout_components::$typ>(self.0).map(|x| x.0.clone()).ok()
+                store.get_component::<layout_components::$typ>(self.0).map(|x| x.0.clone()).ok().map(|v| v.into())
             }
         )*
     };
@@ -240,7 +266,7 @@ impl<'a> Node<'a> for NodeEntity {
     }
 
     func_all!(
-        Units;
+        morphorm::Units;
         [width, Width],
         [height, Height],
         [min_width, MinWidth],
@@ -271,11 +297,20 @@ impl<'a> Node<'a> for NodeEntity {
         [border_bottom, Border],
     );
 
-    func_all!(
-        Vec<Units>;
-        [grid_rows, GridRows],
-        [grid_cols, GridCols],
-    );
+    fn grid_rows(&self, store: &'_ Self::Data) -> Option<Vec<morphorm::Units>> {
+        store
+            .get_component::<layout_components::GridRows>(self.0)
+            .map(|x| x.0.clone())
+            .ok()
+            .map(|v| v.into_iter().map(|v| v.into()).collect())
+    }
+    fn grid_cols(&self, store: &'_ Self::Data) -> Option<Vec<morphorm::Units>> {
+        store
+            .get_component::<layout_components::GridCols>(self.0)
+            .map(|x| x.0.clone())
+            .ok()
+            .map(|v| v.into_iter().map(|v| v.into()).collect())
+    }
 
     func_all!(
         usize;

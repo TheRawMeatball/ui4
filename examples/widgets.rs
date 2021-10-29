@@ -7,9 +7,9 @@ use ui4::prelude::*;
 fn main() {
     let mut app = App::new();
     app.add_plugins(PipelinedDefaultPlugins)
+        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_plugin(Ui4Plugin)
-        .add_plugin(Ui4Root(root))
-        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default());
+        .add_plugin(Ui4Root(root));
 
     app.world
         .spawn()
@@ -45,6 +45,7 @@ fn root(ctx: Ctx) -> Ctx {
         .with(CheckboxData::default())
         .with(RadioButtonSelect::A)
         .with(Slider(0.42))
+        .with(UiColor(Color::BLACK))
         .children(|ctx: &mut McCtx| {
             ctx.c(labelled_widget("Button", |ctx| {
                 button("Click me!")(ctx).with(OnClick::new(|_| println!("you clicked the button!")))

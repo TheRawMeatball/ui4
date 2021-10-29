@@ -3,6 +3,7 @@ use bevy::{
     math::Vec2,
     prelude::{GlobalTransform, Transform},
 };
+use bevy_inspector_egui::Inspectable;
 
 pub mod layout;
 pub mod render;
@@ -17,7 +18,7 @@ pub(crate) struct ControlBundle {
     global_transform: GlobalTransform,
 }
 
-#[derive(Component, Default)]
+#[derive(Component, Default, Inspectable)]
 pub(crate) struct Node {
     pub pos: Vec2,
     pub size: Vec2,
@@ -30,16 +31,20 @@ pub(crate) struct NodeBundle {
     global_transform: GlobalTransform,
 }
 
-#[derive(Component)]
+#[derive(Component, Inspectable)]
 pub struct Text(pub String);
 
-#[derive(Component)]
+#[derive(Component, Inspectable)]
 pub struct TextSize(pub f32);
 
 #[derive(Component)]
 pub struct TextFont(pub epaint::TextStyle);
 
+/// Overrides [`TextFont`] and [`TextFont`]
 #[derive(Component)]
+pub struct TextDetails(pub Vec<epaint::text::LayoutSection>);
+
+#[derive(Component, Inspectable)]
 pub struct Color(pub bevy::prelude::Color);
 
 impl Color {
@@ -49,12 +54,12 @@ impl Color {
             (r * u8::MAX as f32) as u8,
             (g * u8::MAX as f32) as u8,
             (b * u8::MAX as f32) as u8,
-            (a * u8::MAX as f32) as u8,
+            (a * (u8::MAX / 2) as f32) as u8,
         ]
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Inspectable)]
 pub enum Interaction {
     Clicked,
     Hovered,

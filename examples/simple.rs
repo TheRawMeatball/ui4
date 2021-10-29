@@ -1,14 +1,14 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, PipelinedDefaultPlugins};
 use derive_more::{Deref, DerefMut};
 use std::ops::Deref;
 use ui4::prelude::*;
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins)
+    app.add_plugins(PipelinedDefaultPlugins)
+        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_plugin(Ui4Plugin)
-        .add_plugin(Ui4Root(root))
-        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default());
+        .add_plugin(Ui4Root(root));
 
     app.world.spawn().insert_bundle(UiCameraBundle::default());
 

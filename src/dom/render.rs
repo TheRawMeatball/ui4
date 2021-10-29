@@ -1,12 +1,17 @@
 use crate::dom::TextFont;
 
-use super::{Color, Node, Text};
-use bevy::{ecs::prelude::*, transform::prelude::*, window::Windows};
+use super::{Color, Node, Text, TextDetails, TextSize};
+use bevy::{
+    ecs::prelude::*,
+    transform::prelude::*,
+    utils::HashMap,
+    window::{WindowId, Windows},
+};
+use bevy_egui::{EguiContext, EguiShapes};
 use epaint::{
     emath::*,
-    tessellator::tessellate_shapes,
-    text::{Fonts, LayoutJob},
-    ClippedShape, Color32, RectShape, Shape, Stroke, TessellationOptions, TextShape,
+    text::{Fonts, LayoutJob, LayoutSection, TextFormat},
+    ClippedShape, Color32, RectShape, Shape, Stroke, TextShape, TextStyle,
 };
 
 type ShapeQ<'w, 's> = Query<
@@ -16,17 +21,21 @@ type ShapeQ<'w, 's> = Query<
         &'static Node,
         Option<&'static Text>,
         Option<&'static TextFont>,
+        Option<&'static TextSize>,
+        Option<&'static TextDetails>,
         Option<&'static Color>,
         Option<&'static Children>,
     ),
 >;
 
-fn create_shapes_system(
+pub(crate) fn create_shapes_system(
     roots: Query<Entity, (With<Node>, Without<Parent>)>,
     shapes_q: ShapeQ,
-    fonts: Res<Fonts>,
+    ctx: Res<EguiContext>,
     windows: Res<Windows>,
+    mut shapes: ResMut<HashMap<WindowId, EguiShapes>>,
 ) {
+    let fonts = ctx.ctx().fonts();
     fn push_shapes(
         vec: &mut Vec<ClippedShape>,
         entity: Entity,
@@ -34,46 +43,62 @@ fn create_shapes_system(
         q: &ShapeQ,
         fonts: &Fonts,
     ) {
-        let (node, text, font, color, children) = q.get(entity).unwrap();
+        let (node, text, font, size, details, color, children) = if let Ok(r) = q.get(entity) {
+            r
+        } else {
+            return;
+        };
         let pos = Pos2::new(node.pos.x, node.pos.y);
         let color = color.map(|x| {
             let [r, g, b, a] = x.as_rgba_u8();
             Color32::from_rgba_unmultiplied(r, g, b, a)
         });
+        let this_rect = Rect {
+            min: pos,
+            max: pos + Vec2::new(node.size.x, node.size.y),
+        };
         vec.push(ClippedShape(
             clip,
             if let Some(text) = text {
-                fonts.layout_job(LayoutJob::default());
-                let galley = fonts.layout_delayed_color(
-                    text.0.clone(),
-                    font.map(|f| f.0).unwrap_or(epaint::TextStyle::Body),
-                    node.size.x,
-                );
+                let galley = fonts.layout_job(LayoutJob {
+                    text: text.0.clone(),
+                    wrap_width: node.size.x,
+                    sections: details.map(|details| details.0.clone()).unwrap_or_else(|| {
+                        vec![LayoutSection {
+                            byte_range: 0..text.0.len(),
+                            format: TextFormat {
+                                style: font.map(|f| f.0).unwrap_or(TextStyle::Body),
+                                color: color.unwrap_or(Color32::WHITE),
+                                ..Default::default()
+                            },
+                            leading_space: 0.,
+                        }]
+                    }),
+                    ..Default::default()
+                });
                 Shape::Text(TextShape {
                     pos,
                     galley,
-                    override_text_color: color,
+                    override_text_color: None,
                     angle: 0.,
                     underline: Stroke::none(),
                 })
             } else {
                 Shape::Rect(RectShape {
-                    rect: clip,
+                    rect: this_rect,
                     corner_radius: 0.,
                     fill: color.unwrap_or(Color32::TRANSPARENT),
                     stroke: Default::default(),
                 })
             },
         ));
-        let clip = Rect {
-            min: pos,
-            max: pos + Vec2::new(node.size.x, node.size.y),
-        };
+
         for &child in children.map(|x| &**x).unwrap_or(&[]) {
-            push_shapes(vec, child, clip, q, fonts);
+            push_shapes(vec, child, this_rect, q, fonts);
         }
     }
 
+    let old = &mut shapes.get_mut(&WindowId::primary()).unwrap().shapes;
     let mut shapes = vec![];
     let window = windows.get_primary().unwrap();
     let window_width = window.width();
@@ -90,9 +115,6 @@ fn create_shapes_system(
             &fonts,
         )
     }
-    let meshes = tessellate_shapes(
-        shapes,
-        TessellationOptions::default(),
-        fonts.texture().size(),
-    );
+    let old_owned = std::mem::replace(old, shapes);
+    old.extend(old_owned);
 }
