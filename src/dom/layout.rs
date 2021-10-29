@@ -61,15 +61,32 @@ macro_rules! func_all {
     (
         $ret:ty;
         $(
-            [$func:ident, $typ:ident],
+            [$func:ident, $typ:ident $(, $debug:ident)?],
         )*
     ) => {
         $(
             fn $func(&self, store: &'_ Self::Data) -> Option<$ret> {
-                store.get_component::<layout_components::$typ>(self.0).map(|x| x.0.clone()).ok().map(|v| v.into())
+                store.get_component::<layout_components::$typ>(self.0)
+                    .map_err(|_e| {
+                        $(
+                            func_all!(void $debug);
+                            println!("getting {} for {:?} failed due to {:?}", stringify!($func), self.entity(), _e)
+                        )?
+                    })
+                    .map(|x| x.0.clone())
+                    .ok()
+                    .map(|v| v.into())
+                    .map(|out| {
+                        $(
+                            func_all!(void $debug);
+                            println!("getting {} for {:?} as {:?}", stringify!($func), self.entity(), &out);
+                        )?
+                        out
+                    })
             }
         )*
     };
+    (void $($tt:tt)*) => {}
 }
 
 macro_rules! get_func_all {
@@ -198,48 +215,44 @@ mod cached {
     );
 }
 
-type StyleQuery<'w, 's> = Query<
-    'w,
-    's,
-    query_all![
-        Left,
-        Right,
-        Top,
-        Bottom,
-        MinLeft,
-        MaxLeft,
-        MinRight,
-        MaxRight,
-        MinTop,
-        MaxTop,
-        MinBottom,
-        MaxBottom,
-        Width,
-        Height,
-        MinWidth,
-        MaxWidth,
-        MinHeight,
-        MaxHeight,
-        ChildLeft,
-        ChildRight,
-        ChildTop,
-        ChildBottom,
-        RowBetween,
-        ColBetween,
-        RowIndex,
-        ColIndex,
-        RowSpan,
-        ColSpan,
-        Border,
-        PositionType,
-        LayoutType,
-        GridRows,
-        GridCols,
-    ],
->;
+type StyleQuery = query_all![
+    Width,
+    Height,
+    Left,
+    Right,
+    Top,
+    Bottom,
+    MinLeft,
+    MaxLeft,
+    MinRight,
+    MaxRight,
+    MinTop,
+    MaxTop,
+    MinBottom,
+    MaxBottom,
+    MinWidth,
+    MaxWidth,
+    MinHeight,
+    MaxHeight,
+    ChildLeft,
+    ChildRight,
+    ChildTop,
+    ChildBottom,
+    RowBetween,
+    ColBetween,
+    RowIndex,
+    ColIndex,
+    RowSpan,
+    ColSpan,
+    Border,
+    PositionType,
+    LayoutType,
+    GridRows,
+    GridCols,
+];
 
 impl<'a> Node<'a> for NodeEntity {
-    type Data = StyleQuery<'a, 'a>;
+    type Data = Query<'a, 'a, StyleQuery>;
 
     fn layout_type(&self, store: &'_ Self::Data) -> Option<morphorm::LayoutType> {
         store
@@ -268,8 +281,8 @@ impl<'a> Node<'a> for NodeEntity {
 
     func_all!(
         morphorm::Units;
-        [width, Width],
-        [height, Height],
+        [width, Width, debug],
+        [height, Height, debug],
         [min_width, MinWidth],
         [min_height, MinHeight],
         [max_width, MaxWidth],
@@ -373,7 +386,6 @@ impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
         }
         vec.push(NodeEntity(self.root));
         push_all_children(*self, &mut vec);
-        dbg!(&vec);
         vec
     }
 
@@ -450,14 +462,14 @@ impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'stat
     }
 }
 
-pub struct ChildIterator<'borrow, 'aorld, 'state> {
+pub struct ChildIterator<'borrow, 'world, 'state> {
     // TODO: make this a smallvec
     inners: Vec<std::slice::Iter<'borrow, Entity>>,
-    children_query: &'borrow Query<'aorld, 'state, &'static Children>,
-    control_node_query: &'borrow Query<'aorld, 'state, &'static Control>,
+    children_query: &'borrow Query<'world, 'state, &'static Children>,
+    control_node_query: &'borrow Query<'world, 'state, &'static Control>,
 }
 
-impl<'borrow, 'aorld, 'state> Iterator for ChildIterator<'borrow, 'aorld, 'state> {
+impl<'borrow, 'world, 'state> Iterator for ChildIterator<'borrow, 'world, 'state> {
     type Item = NodeEntity;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -488,8 +500,8 @@ impl<'borrow, 'aorld, 'state> Iterator for ChildIterator<'borrow, 'aorld, 'state
     }
 }
 
-struct DataCache<'borrow, 'aorld, 'state> {
-    query: &'borrow mut Query<'aorld, 'state, &'static mut UiNode>,
+struct DataCache<'borrow, 'world, 'state> {
+    query: &'borrow mut Query<'world, 'state, &'static mut UiNode>,
     cache: &'borrow mut LayoutScratchpad,
 }
 
@@ -549,7 +561,7 @@ impl LayoutScratchpad {
     }
 }
 
-impl<'borrow, 'aorld, 'state> Cache for DataCache<'borrow, 'aorld, 'state> {
+impl<'borrow, 'world, 'state> Cache for DataCache<'borrow, 'world, 'state> {
     type Item = NodeEntity;
 
     fn visible(&self, _: Self::Item) -> bool {
@@ -603,14 +615,11 @@ impl<'borrow, 'aorld, 'state> Cache for DataCache<'borrow, 'aorld, 'state> {
     }
 
     fn height(&self, node: Self::Item) -> f32 {
-        let val = self
-            .query
+        self.query
             .get_component::<UiNode>(node.entity())
             .unwrap()
             .size
-            .y;
-        println!("gettin h for {:?} as {:?}", node.entity(), val);
-        val
+            .y
     }
 
     fn posx(&self, node: Self::Item) -> f32 {
@@ -693,7 +702,6 @@ impl<'borrow, 'aorld, 'state> Cache for DataCache<'borrow, 'aorld, 'state> {
             .x = value;
     }
     fn set_height(&mut self, node: Self::Item, value: f32) {
-        println!("setting h for {:?} as {:?}", node.entity(), value);
         self.query
             .get_component_mut::<UiNode>(node.entity())
             .unwrap()
@@ -781,7 +789,7 @@ pub(crate) fn root_node_system(
 pub(crate) fn layout_node_system(
     mut layout_cache: ResMut<LayoutScratchpad>,
     queries: TreeQueries,
-    style_query: StyleQuery,
+    style_query: Query<StyleQuery>,
     mut cache_query: Query<&'static mut UiNode>,
     root_node_query: Query<Entity, (With<UiNode>, Without<Parent>)>,
 ) {
