@@ -330,15 +330,15 @@ pub(crate) struct TreeQueries<'w, 's> {
 }
 
 #[derive(Clone, Copy)]
-pub struct Tree<'borrow, 'aorld, 'state> {
+pub struct Tree<'borrow, 'world, 'state> {
     root: Entity,
-    parent_query: &'borrow Query<'aorld, 'state, &'static Parent>,
-    children_query: &'borrow Query<'aorld, 'state, &'static Children>,
-    control_node_query: &'borrow Query<'aorld, 'state, &'static Control>,
+    parent_query: &'borrow Query<'world, 'state, &'static Parent>,
+    children_query: &'borrow Query<'world, 'state, &'static Children>,
+    control_node_query: &'borrow Query<'world, 'state, &'static Control>,
 }
 
-impl<'borrow, 'aorld, 'state> Tree<'borrow, 'aorld, 'state> {
-    fn new(root: Entity, queries: &'borrow TreeQueries<'aorld, 'state>) -> Self {
+impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
+    fn new(root: Entity, queries: &'borrow TreeQueries<'world, 'state>) -> Self {
         Self {
             root,
             parent_query: &queries.parent_query,
@@ -348,7 +348,7 @@ impl<'borrow, 'aorld, 'state> Tree<'borrow, 'aorld, 'state> {
     }
 }
 
-impl<'borrow, 'aorld, 'state> Tree<'borrow, 'aorld, 'state> {
+impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
     pub fn flatten(&self) -> Vec<NodeEntity> {
         let mut vec = vec![];
 
@@ -373,7 +373,7 @@ impl<'borrow, 'aorld, 'state> Tree<'borrow, 'aorld, 'state> {
         }
         vec.push(NodeEntity(self.root));
         push_all_children(*self, &mut vec);
-
+        dbg!(&vec);
         vec
     }
 
@@ -382,11 +382,11 @@ impl<'borrow, 'aorld, 'state> Tree<'borrow, 'aorld, 'state> {
     }
 }
 
-impl<'borrow, 'aorld, 'state> Hierarchy<'borrow> for Tree<'borrow, 'aorld, 'state> {
+impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'state> {
     type Item = NodeEntity;
     type DownIter = std::vec::IntoIter<NodeEntity>;
     type UpIter = std::iter::Rev<std::vec::IntoIter<NodeEntity>>;
-    type ChildIter = ChildIterator<'borrow, 'aorld, 'state>;
+    type ChildIter = ChildIterator<'borrow, 'world, 'state>;
 
     fn up_iter(&self) -> Self::UpIter {
         self.flatten().into_iter().rev()
@@ -402,7 +402,7 @@ impl<'borrow, 'aorld, 'state> Hierarchy<'borrow> for Tree<'borrow, 'aorld, 'stat
                 self.control_node_query
                     .get(candidate)
                     .is_ok()
-                    .then(|| self.parent_unfiltered(candidate))
+                    .then(|| self.parent(NodeEntity(candidate)).map(|e| e.entity()))
                     .unwrap_or(Some(candidate))
             })
             .map(NodeEntity)
@@ -429,8 +429,8 @@ impl<'borrow, 'aorld, 'state> Hierarchy<'borrow> for Tree<'borrow, 'aorld, 'stat
             })
             .unwrap_or(false)
             && self
-                .parent(node)
-                .and_then(|parent| self.children_query.get(parent.entity()).ok())
+                .parent_unfiltered(node.entity())
+                .and_then(|parent| self.children_query.get(parent).ok())
                 .and_then(|x| x.first().copied())
                 == Some(node.entity())
     }
@@ -443,8 +443,8 @@ impl<'borrow, 'aorld, 'state> Hierarchy<'borrow> for Tree<'borrow, 'aorld, 'stat
             })
             .unwrap_or(false)
             && self
-                .parent(node)
-                .and_then(|parent| self.children_query.get(parent.entity()).ok())
+                .parent_unfiltered(node.entity())
+                .and_then(|parent| self.children_query.get(parent).ok())
                 .and_then(|x| x.last().copied())
                 == Some(node.entity())
     }
@@ -603,11 +603,14 @@ impl<'borrow, 'aorld, 'state> Cache for DataCache<'borrow, 'aorld, 'state> {
     }
 
     fn height(&self, node: Self::Item) -> f32 {
-        self.query
+        let val = self
+            .query
             .get_component::<UiNode>(node.entity())
             .unwrap()
             .size
-            .y
+            .y;
+        println!("gettin h for {:?} as {:?}", node.entity(), val);
+        val
     }
 
     fn posx(&self, node: Self::Item) -> f32 {
@@ -690,6 +693,7 @@ impl<'borrow, 'aorld, 'state> Cache for DataCache<'borrow, 'aorld, 'state> {
             .x = value;
     }
     fn set_height(&mut self, node: Self::Item, value: f32) {
+        println!("setting h for {:?} as {:?}", node.entity(), value);
         self.query
             .get_component_mut::<UiNode>(node.entity())
             .unwrap()
@@ -783,6 +787,7 @@ pub(crate) fn layout_node_system(
 ) {
     for root_node in root_node_query.iter() {
         let tree = Tree::new(root_node, &queries);
+        dbg!(root_node);
 
         layout_cache.clear();
 
@@ -790,7 +795,7 @@ pub(crate) fn layout_node_system(
             cache: &mut *layout_cache,
             query: &mut cache_query,
         };
-
+        println!("layout!");
         morphorm::layout(&mut cache, &tree, &style_query);
     }
 }
