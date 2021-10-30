@@ -32,7 +32,7 @@ impl UiScratchSpace {
             if !flagged {
                 self.register_update_func(uf.clone());
             }
-            flagged
+            !flagged
         });
     }
 

@@ -2,6 +2,7 @@ use bevy::{
     core::FloatOrd,
     ecs::prelude::*,
     input::Input,
+    math::Vec2,
     prelude::{GlobalTransform, MouseButton, Touches},
     window::Windows,
 };
@@ -46,10 +47,13 @@ pub(crate) fn interaction_system(
         Option<&FocusPolicy>,
     )>,
 ) {
-    let cursor_position = if let Some(cursor_position) = windows
-        .get_primary()
-        .and_then(|window| window.cursor_position())
-    {
+    let tb = || {
+        let window = windows.get_primary()?;
+        let cursor_pos = window.cursor_position()?;
+        let height = window.height();
+        Some(Vec2::new(cursor_pos.x, height - cursor_pos.y))
+    };
+    let cursor_position = if let Some(cursor_position) = tb() {
         cursor_position
     } else {
         return;
@@ -97,7 +101,7 @@ pub(crate) fn interaction_system(
         })
         .collect::<Vec<_>>();
 
-    moused_over_z_sorted_nodes.sort_by_key(|(_, _, _, z)| -(*z as i32));
+    moused_over_z_sorted_nodes.sort_unstable_by_key(|(_, _, _, z)| -(*z as i32));
 
     let mut moused_over_z_sorted_nodes = moused_over_z_sorted_nodes.into_iter();
     // set Clicked or Hovered on top nodes

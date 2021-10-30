@@ -5,7 +5,6 @@ use bevy_inspector_egui::RegisterInspectable;
 
 use crate::animation::RunningTweens;
 use crate::ctx::Ctx;
-use crate::dom::layout::LayoutScratchpad;
 use crate::dom::NodeBundle;
 use crate::runtime::{primary_ui_system, UiManagedSystems, UiScratchSpace};
 use crate::widgets::{
@@ -27,9 +26,11 @@ impl Plugin for Ui4Plugin {
             .init_resource::<RunningTweens>()
             .init_resource::<SliderSystemState>()
             .register_inspectable::<crate::dom::Node>()
+            .register_inspectable::<crate::dom::ClippedNode>()
             .register_inspectable::<crate::dom::Text>()
             .register_inspectable::<crate::dom::TextSize>()
             .register_inspectable::<crate::dom::Color>()
+            .register_inspectable::<crate::dom::Interaction>()
             .insert_resource(UiManagedSystems(SystemStage::parallel()))
             .add_system(SliderSystemState::system.exclusive_system())
             .add_system(primary_ui_system.exclusive_system().at_end())
@@ -54,11 +55,11 @@ impl Plugin for Ui4Plugin {
                     .after(bevy_egui::EguiSystem::ProcessOutput)
                     .label(Ui4SystemLabels::Shaping),
             )
-            // .add_system_to_stage(
-            //     CoreStage::PostUpdate,
-            //     crate::input::interaction_system.after(Ui4SystemLabels::Shaping),
-            // )
-            ;
+            .add_system(
+                crate::input::interaction_system
+                    .exclusive_system()
+                    .at_start(),
+            );
 
         crate::dom::layout::layout_components::register_all(app);
     }

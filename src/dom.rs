@@ -35,8 +35,6 @@ pub(crate) struct ClippedNode {
 pub(crate) struct NodeBundle {
     node: Node,
     clipped: ClippedNode,
-    transform: Transform,
-    global: GlobalTransform,
 }
 
 #[derive(Component, Inspectable)]
@@ -70,7 +68,7 @@ impl Color {
     }
 }
 
-#[derive(Component, PartialEq, Eq, Inspectable)]
+#[derive(Component, PartialEq, Eq, Inspectable, Debug)]
 pub enum Interaction {
     Clicked,
     Hovered,

@@ -62,6 +62,7 @@ fn component_change_track_system<T: Component>(
     mut update_funcs: ResMut<ComponentUpdateFuncs<T>>,
     detector: Query<ChangeTrackers<T>>,
 ) {
+    dbg!(update_funcs.0.len());
     update_funcs.0.retain(|entity, list| {
         if let Some(ticks) = detector.get(*entity).ok() {
             if ticks.is_changed() {
