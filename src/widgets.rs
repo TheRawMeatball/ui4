@@ -5,41 +5,16 @@ pub mod textbox;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use bevy::prelude::{Color, GlobalTransform, MouseButton};
+use bevy::prelude::{Color, GlobalTransform};
 use bevy::utils::HashMap;
 use bevy::window::Windows;
-use bevy::{ecs::prelude::*, input::Input};
 
+use crate::dom::Focusable;
 use crate::{dom::Interaction, prelude::*};
 
 use self::button::FuncScratch;
 use self::slider::EngagedSlider;
 use self::textbox::{TextBox, TextBoxFunc};
-
-#[derive(Component)]
-pub struct Focused;
-#[derive(Component)]
-pub struct Focusable;
-
-pub(crate) fn focus_system(
-    mut commands: Commands,
-    input: Res<Input<MouseButton>>,
-    q: Query<(Entity, &Interaction, Option<&Focused>), With<Focusable>>,
-) {
-    if input.just_pressed(MouseButton::Left) {
-        for (entity, interaction, has_focused) in q.iter() {
-            match (interaction, has_focused.is_some()) {
-                (Interaction::Clicked, false) => {
-                    commands.entity(entity).insert(Focused);
-                }
-                (Interaction::None, true) => {
-                    commands.entity(entity).remove::<Focused>();
-                }
-                _ => {}
-            }
-        }
-    }
-}
 
 pub fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {

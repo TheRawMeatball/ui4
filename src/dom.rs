@@ -68,3 +68,8 @@ pub enum Interaction {
     Hovered,
     None,
 }
+
+#[derive(Component)]
+pub struct Focused(pub(crate) ());
+#[derive(Component)]
+pub struct Focusable;

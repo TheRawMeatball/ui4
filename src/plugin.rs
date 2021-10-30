@@ -22,7 +22,6 @@ impl Plugin for Ui4Plugin {
             .init_resource::<ButtonSystemState>()
             .init_resource::<TextBoxSystemState>()
             .init_resource::<RunningTweens>()
-            .init_resource::<LayoutScratchpad>()
             .init_resource::<SliderSystemState>()
             .register_inspectable::<crate::dom::Node>()
             .register_inspectable::<crate::dom::Text>()
@@ -31,7 +30,7 @@ impl Plugin for Ui4Plugin {
             .insert_resource(UiManagedSystems(SystemStage::parallel()))
             .add_system(SliderSystemState::system.exclusive_system())
             .add_system(primary_ui_system.exclusive_system().at_end())
-            .add_system(crate::widgets::focus_system)
+            .add_system(crate::input::focus_system)
             .add_system(crate::animation::tween_system)
             .add_system_to_stage(
                 CoreStage::PostUpdate,

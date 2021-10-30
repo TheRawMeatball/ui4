@@ -109,6 +109,37 @@ macro_rules! query_all {
     };
 }
 
+macro_rules! cd_all {
+    ($last:ident,) => {
+        Option<ChangeTrackers<layout_components::$last>>
+    };
+    ($first:ident, $($rest:ident,)*) => {
+        (Option<ChangeTrackers<layout_components::$first>>, cd_all!($($rest,)*))
+    };
+}
+
+macro_rules! tuple_expand {
+    ($last:ident,) => {
+        $last
+    };
+    ($first:ident, $($rest:ident,)*) => {
+        ($first, tuple_expand!($($rest,)*))
+    };
+}
+
+macro_rules! generate {
+    ($($list:ident,)*) => {
+        type StyleQuery = query_all![$($list,)*];
+        type CdQuery = cd_all![$($list,)*];
+
+        fn check_cd(entity: Entity, query: &Query<CdQuery>) -> bool {
+            #[allow(non_snake_case)]
+            let tuple_expand!($($list,)*) = query.get(entity).unwrap();
+            false $(|| $list.map(|q| q.is_changed()).unwrap_or(false) )*
+        }
+    };
+}
+
 pub mod layout_components {
     use super::*;
     #[derive(Debug, Clone, Copy, PartialEq, Component)]
@@ -165,7 +196,7 @@ pub mod layout_components {
     pub struct GridCols(pub Vec<Units>);
 }
 
-type StyleQuery = query_all![
+generate![
     Width,
     Height,
     Left,
@@ -294,74 +325,68 @@ pub(crate) struct TreeQueries<'w, 's> {
 
 #[derive(Clone, Copy)]
 pub struct Tree<'borrow, 'world, 'state> {
+    list: &'borrow [NodeEntity],
+    queries: &'borrow TreeQueries<'world, 'state>,
+}
+
+impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
+    fn new(list: &'borrow [NodeEntity], queries: &'borrow TreeQueries<'world, 'state>) -> Self {
+        Self { list, queries }
+    }
+}
+
+fn push_all_children(
     root: Entity,
-    parent_query: &'borrow Query<'world, 'state, &'static Parent>,
-    children_query: &'borrow Query<'world, 'state, &'static Children>,
-    control_node_query: &'borrow Query<'world, 'state, &'static Control>,
-}
+    queries: &TreeQueries,
+    vec: &mut Vec<NodeEntity>,
+    // Set to true if you detect a change
+    cf: &mut bool,
+    cd_query: &Query<CdQuery>,
+) {
+    let children = queries
+        .children_query
+        .get(root)
+        .map(|x| &**x)
+        .unwrap_or(&[]);
 
-impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
-    fn new(root: Entity, queries: &'borrow TreeQueries<'world, 'state>) -> Self {
-        Self {
-            root,
-            parent_query: &queries.parent_query,
-            children_query: &queries.children_query,
-            control_node_query: &queries.control_node_query,
+    for &child in children {
+        if !queries.control_node_query.get(child).is_ok() {
+            *cf = *cf || check_cd(child, cd_query);
+            vec.push(NodeEntity(child));
         }
+        push_all_children(child, queries, vec, cf, cd_query);
     }
 }
 
 impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
-    pub fn flatten(&self) -> Vec<NodeEntity> {
-        let mut vec = vec![];
-
-        fn push_all_children(tree: Tree, vec: &mut Vec<NodeEntity>) {
-            let children = tree
-                .children_query
-                .get(tree.root)
-                .map(|x| &**x)
-                .unwrap_or(&[]);
-            for &child in children {
-                if !tree.control_node_query.get(child).is_ok() {
-                    vec.push(NodeEntity(child));
-                }
-                push_all_children(
-                    Tree {
-                        root: child,
-                        ..tree
-                    },
-                    vec,
-                )
-            }
-        }
-        vec.push(NodeEntity(self.root));
-        push_all_children(*self, &mut vec);
-        vec
-    }
-
     fn parent_unfiltered(&self, entity: Entity) -> Option<Entity> {
-        self.parent_query.get(entity).ok().map(|parent| parent.0)
+        self.queries
+            .parent_query
+            .get(entity)
+            .ok()
+            .map(|parent| parent.0)
     }
 }
 
 impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'state> {
     type Item = NodeEntity;
-    type DownIter = std::vec::IntoIter<NodeEntity>;
-    type UpIter = std::iter::Rev<std::vec::IntoIter<NodeEntity>>;
+    type DownIter = std::iter::Copied<std::slice::Iter<'borrow, NodeEntity>>;
+    type UpIter = std::iter::Rev<std::iter::Copied<std::slice::Iter<'borrow, NodeEntity>>>;
     type ChildIter = ChildIterator<'borrow, 'world, 'state>;
 
     fn up_iter(&self) -> Self::UpIter {
-        self.flatten().into_iter().rev()
+        self.list.iter().copied().rev()
     }
 
     fn down_iter(&self) -> Self::DownIter {
-        self.flatten().into_iter()
+        self.list.iter().copied()
     }
 
     fn parent(&self, node: Self::Item) -> Option<Self::Item> {
         self.parent_unfiltered(node.entity())
             .and_then(|candidate| {
-                self.control_node_query
+                self.queries
+                    .control_node_query
                     .get(candidate)
                     .is_ok()
                     .then(|| self.parent(NodeEntity(candidate)).map(|e| e.entity()))
@@ -373,40 +398,41 @@ impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'stat
     fn child_iter(&'borrow self, node: Self::Item) -> Self::ChildIter {
         ChildIterator {
             inners: vec![self
+                .queries
                 .children_query
                 .get(node.entity())
                 .map(|x| &**x)
                 .unwrap_or(&[])
                 .iter()],
-            control_node_query: self.control_node_query,
-            children_query: self.children_query,
+            control_node_query: &self.queries.control_node_query,
+            children_query: &self.queries.children_query,
         }
     }
 
     fn is_first_child(&self, node: Self::Item) -> bool {
         self.parent_unfiltered(node.entity())
-            .map(|parent| (self.control_node_query.get(parent).is_ok(), parent))
+            .map(|parent| (self.queries.control_node_query.get(parent).is_ok(), parent))
             .map(|(parent_is_cnode, parent)| {
                 !parent_is_cnode || self.is_first_child(NodeEntity(parent))
             })
             .unwrap_or(false)
             && self
                 .parent_unfiltered(node.entity())
-                .and_then(|parent| self.children_query.get(parent).ok())
+                .and_then(|parent| self.queries.children_query.get(parent).ok())
                 .and_then(|x| x.first().copied())
                 == Some(node.entity())
     }
 
     fn is_last_child(&self, node: Self::Item) -> bool {
         self.parent_unfiltered(node.entity())
-            .map(|parent| (self.control_node_query.get(parent).is_ok(), parent))
+            .map(|parent| (self.queries.control_node_query.get(parent).is_ok(), parent))
             .map(|(parent_is_cnode, parent)| {
                 !parent_is_cnode || self.is_last_child(NodeEntity(parent))
             })
             .unwrap_or(false)
             && self
                 .parent_unfiltered(node.entity())
-                .and_then(|parent| self.children_query.get(parent).ok())
+                .and_then(|parent| self.queries.children_query.get(parent).ok())
                 .and_then(|x| x.last().copied())
                 == Some(node.entity())
     }
@@ -737,22 +763,28 @@ pub(crate) fn root_node_system(
 }
 
 pub(crate) fn layout_node_system(
-    mut layout_cache: ResMut<LayoutScratchpad>,
+    mut list: Local<Vec<NodeEntity>>,
+    mut layout_cache: Local<LayoutScratchpad>,
     queries: TreeQueries,
     style_query: Query<StyleQuery>,
+    cd_query: Query<CdQuery>,
     mut cache_query: Query<&'static mut UiNode>,
     root_node_query: Query<Entity, (With<UiNode>, Without<Parent>)>,
 ) {
     for root_node in root_node_query.iter() {
-        let tree = Tree::new(root_node, &queries);
-
+        list.clear();
         layout_cache.clear();
+        let mut any_changes = false;
+        push_all_children(root_node, &queries, &mut list, &mut any_changes, &cd_query);
 
-        let mut cache = DataCache {
-            cache: &mut *layout_cache,
-            query: &mut cache_query,
-        };
-        println!("layout!");
-        morphorm::layout(&mut cache, &tree, &style_query);
+        if any_changes {
+            let tree = Tree::new(&list, &queries);
+            let mut cache = DataCache {
+                cache: &mut *layout_cache,
+                query: &mut cache_query,
+            };
+
+            morphorm::layout(&mut cache, &tree, &style_query);
+        }
     }
 }

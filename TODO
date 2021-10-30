@@ -2,10 +2,6 @@ tracked range
 use change detection in component observer s for change hint
 query::get type observer
 portals
-lenses
-
 transition support in lists
-
-[HARD] switch to morphorm + epaint and ditch bevy_ui
-
 docs
+get clicking working again

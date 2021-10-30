@@ -11,8 +11,8 @@ use crate::{
     runtime::{UfMarker, UiScratchSpace, UpdateFunc},
 };
 
-/// Entry point for creating entities. Having a `Ctx` means you control all components on this entity, and all
-/// its children.
+/// Entry point for creating entities. Having a `Ctx` means you control all components on this entity, and
+/// can add children
 pub struct Ctx<'a> {
     pub(crate) world: &'a mut World,
     pub(crate) current_entity: Entity,

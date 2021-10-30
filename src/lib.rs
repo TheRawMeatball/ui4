@@ -1,4 +1,5 @@
 mod dom;
+mod input;
 mod insertable;
 mod runtime;
 
@@ -19,7 +20,7 @@ pub mod prelude {
     };
     pub use ctx::{Ctx, McCtx};
     pub use dom::layout::{layout_components::*, Units};
-    pub use dom::{Color as UiColor, ShowOverflow, Text, TextFont, TextSize};
+    pub use dom::{Color as UiColor, Focused, ShowOverflow, Text, TextFont, TextSize};
     pub use lens::WorldLens;
     pub use observer::{res, single, IntoObserver, ObserverExt};
     pub use plugin::{Ui4Plugin, Ui4Root};
