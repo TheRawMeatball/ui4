@@ -1,6 +1,6 @@
 use crate::dom::TextFont;
 
-use super::{Color, Node, ShowOverflow, Text, TextDetails, TextSize};
+use super::{ClippedNode, Color, Node, ShowOverflow, Text, TextDetails, TextSize};
 use bevy::{
     ecs::prelude::*,
     transform::prelude::*,
@@ -32,6 +32,7 @@ type ShapeQ<'w, 's> = Query<
 pub(crate) fn create_shapes_system(
     roots: Query<Entity, (With<Node>, Without<Parent>)>,
     shapes_q: ShapeQ,
+    mut cn_query: Query<&mut ClippedNode>,
     ctx: Res<EguiContext>,
     windows: Res<Windows>,
     mut shapes: ResMut<HashMap<WindowId, EguiShapes>>,
@@ -42,7 +43,9 @@ pub(crate) fn create_shapes_system(
         entity: Entity,
         clip: Rect,
         q: &ShapeQ,
+        cn_query: &mut Query<&mut ClippedNode>,
         fonts: &Fonts,
+        z: u32,
     ) {
         let (node, text, font, _size, details, color, show_overflow, children) =
             if let Ok(r) = q.get(entity) {
@@ -50,6 +53,8 @@ pub(crate) fn create_shapes_system(
             } else {
                 return;
             };
+        let mut clipped = cn_query.get_mut(entity).unwrap();
+        clipped.z_layer = z;
         let pos = Pos2::new(node.pos.x, node.pos.y);
         let color = color.map(|x| {
             let [r, g, b, a] = x.as_rgba_u8();
@@ -59,6 +64,8 @@ pub(crate) fn create_shapes_system(
             min: pos,
             max: pos + Vec2::new(node.size.x, node.size.y),
         };
+        clipped.min = bevy::math::Vec2::from(<[f32; 2]>::from(clip.clamp(this_rect.min).to_vec2()));
+        clipped.max = bevy::math::Vec2::from(<[f32; 2]>::from(clip.clamp(this_rect.max).to_vec2()));
         vec.push(ClippedShape(
             clip,
             if let Some(text) = text {
@@ -105,7 +112,9 @@ pub(crate) fn create_shapes_system(
                     this_rect
                 },
                 q,
+                cn_query,
                 fonts,
+                z + 1,
             );
         }
     }
@@ -124,7 +133,9 @@ pub(crate) fn create_shapes_system(
                 max: Pos2::new(window_width, window_height),
             },
             &shapes_q,
+            &mut cn_query,
             &fonts,
+            0,
         )
     }
     let old_owned = std::mem::replace(old, shapes);

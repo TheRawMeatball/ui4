@@ -777,14 +777,12 @@ pub(crate) fn layout_node_system(
         let mut any_changes = false;
         push_all_children(root_node, &queries, &mut list, &mut any_changes, &cd_query);
 
-        if any_changes {
-            let tree = Tree::new(&list, &queries);
-            let mut cache = DataCache {
-                cache: &mut *layout_cache,
-                query: &mut cache_query,
-            };
+        let tree = Tree::new(&list, &queries);
+        let mut cache = DataCache {
+            cache: &mut *layout_cache,
+            query: &mut cache_query,
+        };
 
-            morphorm::layout(&mut cache, &tree, &style_query);
-        }
+        morphorm::layout(&mut cache, &tree, &style_query);
     }
 }

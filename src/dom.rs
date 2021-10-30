@@ -24,11 +24,19 @@ pub(crate) struct Node {
     pub size: Vec2,
 }
 
+#[derive(Component, Default, Inspectable)]
+pub(crate) struct ClippedNode {
+    pub min: Vec2,
+    pub max: Vec2,
+    pub z_layer: u32,
+}
+
 #[derive(Bundle, Default)]
 pub(crate) struct NodeBundle {
     node: Node,
+    clipped: ClippedNode,
     transform: Transform,
-    global_transform: GlobalTransform,
+    global: GlobalTransform,
 }
 
 #[derive(Component, Inspectable)]
@@ -62,11 +70,17 @@ impl Color {
     }
 }
 
-#[derive(Component, Inspectable)]
+#[derive(Component, PartialEq, Eq, Inspectable)]
 pub enum Interaction {
     Clicked,
     Hovered,
     None,
+}
+
+#[derive(Component, Clone, Inspectable)]
+pub enum FocusPolicy {
+    Block,
+    Pass,
 }
 
 #[derive(Component)]
