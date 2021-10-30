@@ -770,11 +770,13 @@ pub(crate) fn layout_node_system(
     cd_query: Query<CdQuery>,
     mut cache_query: Query<&'static mut UiNode>,
     root_node_query: Query<Entity, (With<UiNode>, Without<Parent>)>,
+    removed: RemovedComponents<UiNode>,
 ) {
     for root_node in root_node_query.iter() {
         list.clear();
         layout_cache.clear();
-        let mut any_changes = false;
+        let mut any_changes = removed.iter().next().is_some() || check_cd(root_node, &cd_query);
+        list.push(NodeEntity(root_node));
         push_all_children(root_node, &queries, &mut list, &mut any_changes, &cd_query);
 
         let tree = Tree::new(&list, &queries);
