@@ -44,7 +44,7 @@ pub fn button<O: IntoObserver<String, M>, M>(t: O) -> impl FnOnce(Ctx) -> Ctx {
             .with(ChildTop(Units::Stretch(1.)))
             .with(ChildBottom(Units::Stretch(1.)))
             .with(
-                component.map(|interaction: &Interaction| match dbg!(interaction) {
+                component.map(|interaction: &Interaction| match interaction {
                     Interaction::Clicked => UiColor(Color::SILVER),
                     Interaction::Hovered => UiColor(Color::GRAY),
                     Interaction::None => UiColor(Color::DARK_GRAY),
