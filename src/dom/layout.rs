@@ -695,6 +695,8 @@ impl<'borrow, 'world, 'state> Cache for DataCache<'borrow, 'world, 'state> {
         child_height_max,
         child_width_sum,
         child_height_sum,
+        grid_row_max,
+        grid_col_max,
         horizontal_free_space,
         horizontal_stretch_sum,
         vertical_free_space,

@@ -127,7 +127,6 @@ where
         let is_open = ctx.has_component::<Focused>();
 
         button(item.map(move |s: &T| options_map[s].to_string()))(ctx)
-            .with(Height(Units::Pixels(30.)))
             .with(Focusable)
             .children(is_open.map_child(move |b: bool| {
                 let options = Arc::clone(&options);
@@ -135,8 +134,9 @@ where
                     if b {
                         ctx.c(move |ctx| {
                             ctx.with(PositionType::SelfDirected)
-                                .with(ChildBottom(Units::Percentage(100.)))
-                                .with(ChildTop(Units::Auto))
+                                .with(Height(Units::Auto))
+                                .with(Bottom(Units::Percentage(100.)))
+                                .with(Top(Units::Auto))
                                 .children(move |ctx: &mut McCtx| {
                                     let wl = item;
                                     for (item, display) in &*options {
@@ -189,6 +189,7 @@ pub fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
                             .copied()
                             .map(|f: f32| Width(Units::Percentage(f * 100.))),
                     )
+                    .with(MinWidth(Units::Pixels(0.)))
                     .with(UiColor(Color::WHITE))
                     .with(ChildLeft(Units::Stretch(1.)))
                     // handle

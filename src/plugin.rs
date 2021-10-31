@@ -77,7 +77,7 @@ impl<F: Fn(Ctx) -> Ctx + Clone + Send + Sync + 'static> Plugin for Ui4Root<F> {
 }
 
 fn init_ui(world: &mut World, root: impl Fn(Ctx) -> Ctx) {
-    root(Ctx {
+    (Ctx {
         current_entity: world
             .spawn()
             .insert_bundle(NodeBundle::default())
@@ -85,5 +85,6 @@ fn init_ui(world: &mut World, root: impl Fn(Ctx) -> Ctx) {
             .insert(crate::prelude::Height(crate::prelude::Units::Auto))
             .id(),
         world,
-    });
+    })
+    .child(root);
 }

@@ -57,7 +57,7 @@ impl Color {
             (r * u8::MAX as f32) as u8,
             (g * u8::MAX as f32) as u8,
             (b * u8::MAX as f32) as u8,
-            (a * u8::MAX as f32) as u8,
+            ((a * u8::MAX as f32) * 0.75) as u8,
         ]
     }
 }

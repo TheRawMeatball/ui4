@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 # lockfree = { git = "https://gitlab.com/sals3r0/lockfree.git" } # maybe reenable once it compiles
 crossbeam-channel = "0.5.1"
 slotmap = "1.0"
-morphorm = "0.2"
+morphorm = { git = "https://github.com/geom3trik/morphorm" }
 derive_more = "0.99.16"
 concat-idents = "1.1.3"
 epaint = "0.15.0"
