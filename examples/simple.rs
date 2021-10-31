@@ -10,8 +10,6 @@ fn main() {
         .add_plugin(Ui4Plugin)
         .add_plugin(Ui4Root(root));
 
-    app.world.spawn().insert_bundle(UiCameraBundle::default());
-
     app.run()
 }
 
@@ -30,21 +28,12 @@ fn root(ctx: Ctx) -> Ctx {
     let edited_text = ctx.component();
     let this = ctx.current_entity();
 
-    ctx.with_bundle(NodeBundle::default())
-        .with(Style {
-            size: Size {
-                width: Val::Percent(100.),
-                height: Val::Percent(100.),
-            },
-            flex_direction: FlexDirection::ColumnReverse,
-            ..Default::default()
-        })
-        .with(State(0))
+    ctx.with(State(0))
         .with(List::default())
         .with(EditedText("".to_string()))
         .children(|ctx: &mut McCtx| {
-            ctx.c(text("Hello!"))
-                .c(text("How are you doing?"))
+            ctx.c(|ctx| text("Hello!")(ctx).with(Height(Units::Pixels(30.))))
+                .c(|ctx| text("How are you doing?")(ctx).with(Height(Units::Pixels(30.))))
                 .c(|ctx| {
                     button("Increment")(ctx).with(OnClick::new(move |world| {
                         world.get_mut::<State>(this).unwrap().0 += 1;
@@ -55,13 +44,17 @@ fn root(ctx: Ctx) -> Ctx {
                         world.get_mut::<State>(this).unwrap().0 -= 1;
                     }))
                 })
-                .c(text(
-                    state.map(|s: &State| format!("The number is {}", s.0)),
-                ))
-                .c(textbox(edited_text.lens(EditedText::F0)));
+                .c(|ctx| {
+                    text(state.map(|s: &State| format!("The number is {}", s.0)))(ctx)
+                        .with(Height(Units::Pixels(30.)))
+                })
+                .c(|ctx| {
+                    textbox(edited_text.lens(EditedText::F0))(ctx).with(Height(Units::Pixels(30.)))
+                });
         })
         .child(|ctx: Ctx| {
-            ctx.with_bundle(NodeBundle::default())
+            ctx.with(LayoutType::Row)
+                .with(Height(Units::Pixels(30.)))
                 .child(|ctx| {
                     button("Add Hello".to_string())(ctx).with(OnClick::new(move |w| {
                         w.get_mut::<List>(this).unwrap().push("Hello".to_string());
@@ -97,7 +90,10 @@ fn root(ctx: Ctx) -> Ctx {
                 .map_child(|b| {
                     move |ctx: &mut McCtx| {
                         if b {
-                            ctx.c(text("Now you see me".to_string()));
+                            ctx.c(|ctx| {
+                                text("Now you see me".to_string())(ctx)
+                                    .with(Height(Units::Pixels(30.)))
+                            });
                         }
                     }
                 }),
@@ -111,37 +107,31 @@ fn counter<M>(label: impl IntoObserver<String, M>) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         let component = ctx.component();
         let entity = ctx.current_entity();
-        ctx.with_bundle(NodeBundle::default())
-            .with(Style {
-                align_self: AlignSelf::FlexStart,
-                ..Default::default()
-            })
+        ctx.with(LayoutType::Row)
             .with(State(0))
+            .with(Height(Units::Pixels(30.)))
             .children(move |ctx: &mut McCtx| {
                 ctx.c(text(label))
                     .c(|ctx| {
-                        button("+".to_string())(ctx).with(OnClick::new(move |w| {
-                            w.get_mut::<State>(entity).unwrap().0 += 1;
-                        }))
+                        button("+".to_string())(ctx)
+                            .with(Width(Units::Pixels(50.)))
+                            .with(Height(Units::Pixels(30.)))
+                            .with(OnClick::new(move |w| {
+                                w.get_mut::<State>(entity).unwrap().0 += 1;
+                            }))
                     })
                     .c(|ctx| {
-                        text(component.map(|x: &State| x.0.to_string()))(ctx).with(Style {
-                            align_self: AlignSelf::FlexStart,
-                            min_size: Size {
-                                width: Val::Px(50.0),
-                                height: Val::Undefined,
-                            },
-                            max_size: Size {
-                                width: Val::Undefined,
-                                height: Val::Px(30.),
-                            },
-                            ..Default::default()
-                        })
+                        text(component.map(|x: &State| x.0.to_string()))(ctx)
+                            .with(Width(Units::Pixels(50.)))
+                            .with(Height(Units::Pixels(30.)))
                     })
                     .c(|ctx| {
-                        button("-".to_string())(ctx).with(OnClick::new(move |w| {
-                            w.get_mut::<State>(entity).unwrap().0 -= 1;
-                        }))
+                        button("-".to_string())(ctx)
+                            .with(Width(Units::Pixels(50.)))
+                            .with(Height(Units::Pixels(30.)))
+                            .with(OnClick::new(move |w| {
+                                w.get_mut::<State>(entity).unwrap().0 -= 1;
+                            }))
                     });
             })
     }

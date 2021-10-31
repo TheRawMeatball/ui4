@@ -28,9 +28,7 @@ fn main() {
 }
 
 fn root(ctx: Ctx) -> Ctx {
-    ctx.with(Width(Units::Percentage(100.)))
-        .with(Height(Units::Percentage(100.)))
-        .with(UiColor(Color::BLACK))
+    ctx.with(UiColor(Color::BLACK))
         .child(|ctx: Ctx| {
             ctx.with(ChildRight(Units::Stretch(1.)))
                 .with(ChildLeft(Units::Stretch(1.)))
