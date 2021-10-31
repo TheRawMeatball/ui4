@@ -11,10 +11,6 @@ fn main() {
         .add_plugin(Ui4Plugin)
         .add_plugin(Ui4Root(root));
 
-    app.world
-        .spawn()
-        .insert_bundle(bevy::render2::camera::OrthographicCameraBundle::new_2d());
-
     app.run()
 }
 

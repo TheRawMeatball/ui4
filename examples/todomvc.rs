@@ -24,64 +24,29 @@ fn main() {
         .init_resource::<EditedText>()
         .init_resource::<TodoList>();
 
-    app.world.spawn().insert_bundle(UiCameraBundle::default());
-
     app.run()
 }
 
 fn root(ctx: Ctx) -> Ctx {
-    ctx.with_bundle(NodeBundle::default())
-        .with(Style {
-            size: Size {
-                width: Val::Percent(100.),
-                height: Val::Percent(100.),
-            },
-            flex_direction: FlexDirection::ColumnReverse,
-            ..Default::default()
-        })
+    ctx.with(Width(Units::Percentage(100.)))
+        .with(Height(Units::Percentage(100.)))
         .with(UiColor(Color::BLACK))
         .child(|ctx: Ctx| {
-            ctx.with_bundle(NodeBundle::default())
-                .with(Style {
-                    size: Size {
-                        width: Val::Auto,
-                        height: Val::Undefined,
-                    },
-                    flex_direction: FlexDirection::ColumnReverse,
-                    align_self: AlignSelf::Center,
-                    ..Default::default()
-                })
+            ctx.with(ChildRight(Units::Stretch(1.)))
+                .with(ChildLeft(Units::Stretch(1.)))
                 .child(|ctx| text("Todos")(ctx).with(TextSize(80.)))
         })
         .child(|ctx: Ctx| {
-            ctx.with_bundle(NodeBundle::default())
-                .with(Style {
-                    size: Size {
-                        width: Val::Percent(60.),
-                        height: Val::Auto,
-                    },
-                    flex_direction: FlexDirection::ColumnReverse,
-                    align_self: AlignSelf::Center,
-                    ..Default::default()
-                })
-                // .with(res().map(|assets: &UiAssets| assets.list_background.clone()))
+            ctx.with(Right(Units::Stretch(1.)))
+                .with(Left(Units::Stretch(1.)))
+                .with(Width(Units::Percentage(60.)))
                 .child(|ctx: Ctx| {
-                    ctx.with_bundle(NodeBundle::default())
-                        .with(Style {
-                            size: Size {
-                                width: Val::Percent(100.),
-                                height: Val::Auto,
-                            },
-                            flex_direction: FlexDirection::Row,
-                            ..Default::default()
-                        })
+                    ctx.with(Height(Units::Auto))
+                        .with(LayoutType::Row)
                         .child(|ctx: Ctx| {
-                            textbox(res().lens(EditedText::F0))(ctx).with(Style {
-                                size: Size::new(Val::Percent(90.), Val::Px(30.0)),
-                                justify_content: JustifyContent::FlexStart,
-                                align_items: AlignItems::Center,
-                                ..Default::default()
-                            })
+                            textbox(res().lens(EditedText::F0))(ctx)
+                                .with(Width(Units::Percentage(90.)))
+                                .with(Height(Units::Pixels(30.)))
                         })
                         .child(|ctx: Ctx| {
                             button("Add")(ctx)
@@ -94,12 +59,8 @@ fn root(ctx: Ctx) -> Ctx {
                                         done: false,
                                     });
                                 }))
-                                .with(Style {
-                                    size: Size::new(Val::Percent(10.), Val::Px(30.0)),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    ..Default::default()
-                                })
+                                .with(Width(Units::Percentage(10.)))
+                                .with(Height(Units::Pixels(30.)))
                         })
                 })
                 .children(res::<TodoList>().map(Deref::deref).each(
@@ -114,16 +75,10 @@ fn root(ctx: Ctx) -> Ctx {
 
 fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
-        ctx.with_bundle(NodeBundle::default())
-            .with(Style {
-                size: Size {
-                    width: Val::Percent(100.),
-                    height: Val::Auto,
-                },
-                flex_direction: FlexDirection::Row,
-                justify_content: JustifyContent::SpaceBetween,
-                ..Default::default()
-            })
+        ctx.with(Width(Units::Percentage(100.)))
+            .with(Height(Units::Pixels(30.)))
+            .with(LayoutType::Row)
+            .with(ColBetween(Units::Stretch(1.)))
             .with(
                 item.map(|t: (&Todo, usize)| t.0.done)
                     .dedup()
@@ -138,21 +93,13 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(Ctx) -> Ctx {
                     move |ctx: &mut McCtx| {
                         if done {
                             ctx.c(|ctx: Ctx| {
-                                ctx.with_bundle(NodeBundle::default())
-                                    .with(Style {
-                                        size: Size::new(Val::Px(250.), Val::Px(30.0)),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..Default::default()
-                                    })
+                                ctx.with(Width(Units::Pixels(250.)))
+                                    .with(Height(Units::Pixels(30.)))
+                                    .with(LayoutType::Row)
                                     .child(|ctx: Ctx| {
                                         button("Unmark")(ctx)
-                                            .with(Style {
-                                                size: Size::new(Val::Percent(50.), Val::Px(30.0)),
-                                                justify_content: JustifyContent::Center,
-                                                align_items: AlignItems::Center,
-                                                ..Default::default()
-                                            })
+                                            .with(Width(Units::Percentage(50.)))
+                                            .with(Height(Units::Pixels(30.)))
                                             .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
                                                 |&i: &usize| {
                                                     OnClick::new(move |world| {
@@ -167,12 +114,8 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(Ctx) -> Ctx {
                                     })
                                     .child(|ctx: Ctx| {
                                         button("Remove")(ctx)
-                                            .with(Style {
-                                                size: Size::new(Val::Percent(50.), Val::Px(30.0)),
-                                                justify_content: JustifyContent::Center,
-                                                align_items: AlignItems::Center,
-                                                ..Default::default()
-                                            })
+                                            .with(Width(Units::Percentage(50.)))
+                                            .with(Height(Units::Pixels(30.)))
                                             .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
                                                 |&i: &usize| {
                                                     OnClick::new(move |world| {
@@ -188,13 +131,8 @@ fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(Ctx) -> Ctx {
                         } else {
                             ctx.c(|ctx: Ctx| {
                                 button("Mark Complete")(ctx)
-                                    .with(Style {
-                                        size: Size::new(Val::Px(250.), Val::Px(30.0)),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-
-                                        ..Default::default()
-                                    })
+                                    .with(Width(Units::Pixels(250.)))
+                                    .with(Height(Units::Pixels(30.)))
                                     .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
                                         |&i: &usize| {
                                             OnClick::new(move |world| {

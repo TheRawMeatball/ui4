@@ -57,7 +57,7 @@ impl Ctx<'_> {
         F: for<'a> Fn(<O::Observer as Observer<'a>>::Return, T) -> T,
         F: Send + Sync + 'static,
     {
-        initial.insert_ui_val(&mut self);
+        self.world.entity_mut(self.current_entity).insert(initial);
         let entity = self.current_entity;
         let uf = observer.register_self(self.world, |mut observer, world| {
             let mut first = true;
@@ -66,6 +66,9 @@ impl Ctx<'_> {
                     let t = world.entity_mut(entity).remove::<T>().unwrap();
                     let (val, changed) = observer.get(world);
                     if !changed && !first {
+                        drop(val);
+                        let mut e = world.entity_mut(entity);
+                        e.insert(t);
                         return;
                     }
                     first = false;

@@ -39,10 +39,6 @@ pub fn button<O: IntoObserver<String, M>, M>(t: O) -> impl FnOnce(Ctx) -> Ctx {
         let component = ctx.component();
         ctx.with(Interaction::None)
             .with(Height(Units::Pixels(30.)))
-            .with(ChildLeft(Units::Stretch(1.)))
-            .with(ChildRight(Units::Stretch(1.)))
-            .with(ChildTop(Units::Stretch(1.)))
-            .with(ChildBottom(Units::Stretch(1.)))
             .with(
                 component.map(|interaction: &Interaction| match interaction {
                     Interaction::Clicked => UiColor(Color::SILVER),
