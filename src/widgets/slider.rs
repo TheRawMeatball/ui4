@@ -3,7 +3,6 @@ use std::sync::Arc;
 use bevy::{
     ecs::{prelude::*, system::SystemState},
     math::*,
-    prelude::GlobalTransform,
     window::Windows,
 };
 
@@ -19,7 +18,7 @@ pub struct EngagedSlider {
 pub(crate) struct SliderSystemState {
     state: SystemState<(
         Query<'static, 'static, &'static EngagedSlider>,
-        Query<'static, 'static, (&'static Node, &'static GlobalTransform)>,
+        Query<'static, 'static, &'static Node>,
         Res<'static, Windows>,
     )>,
 }
@@ -39,11 +38,11 @@ impl SliderSystemState {
             .get_primary()
             .and_then(|window| window.cursor_position());
         if let (Ok(engaged), Some(cursor_pos)) = (engaged.get_single(), cursor_pos) {
-            let (node, pos) = slider.get(engaged.slider_entity).unwrap();
+            let node = slider.get(engaged.slider_entity).unwrap();
             let len = node.size.x;
-            let start = pos.translation.x - len / 2.;
+            let start = node.pos.x;
             let current = cursor_pos.x - engaged.initial_offset.x;
-            let percent = (current - start) / len;
+            let percent = ((current - start) / len).clamp(0., 1.);
             let gp = engaged.get_percent.clone();
             let p = gp(world);
             *p = percent;

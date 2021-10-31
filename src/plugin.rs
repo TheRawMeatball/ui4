@@ -15,6 +15,7 @@ use crate::widgets::{
 enum Ui4SystemLabels {
     Layout,
     Shaping,
+    Interaction,
 }
 
 pub struct Ui4Plugin;
@@ -31,11 +32,14 @@ impl Plugin for Ui4Plugin {
             .register_inspectable::<crate::dom::TextSize>()
             .register_inspectable::<crate::dom::Color>()
             .register_inspectable::<crate::dom::Interaction>()
+            .register_inspectable::<crate::dom::layout::layout_components::PositionType>()
+            .register_inspectable::<crate::dom::layout::layout_components::LayoutType>()
             .insert_resource(UiManagedSystems(SystemStage::parallel()))
-            .add_system(SliderSystemState::system.exclusive_system())
-            .add_system(primary_ui_system.exclusive_system().at_end())
-            .add_system(crate::input::focus_system)
+            .add_system(crate::input::interaction_system.label(Ui4SystemLabels::Interaction))
+            .add_system(crate::input::focus_system.after(Ui4SystemLabels::Interaction))
             .add_system(crate::animation::tween_system)
+            .add_system(SliderSystemState::system.exclusive_system().at_end())
+            .add_system(primary_ui_system.exclusive_system().at_end())
             .add_system_to_stage(
                 CoreStage::PostUpdate,
                 crate::animation::transition_system.before(Ui4SystemLabels::Layout),
@@ -54,11 +58,6 @@ impl Plugin for Ui4Plugin {
                     .after(Ui4SystemLabels::Layout)
                     .after(bevy_egui::EguiSystem::ProcessOutput)
                     .label(Ui4SystemLabels::Shaping),
-            )
-            .add_system(
-                crate::input::interaction_system
-                    .exclusive_system()
-                    .at_start(),
             );
 
         crate::dom::layout::layout_components::register_all(app);

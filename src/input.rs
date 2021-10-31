@@ -1,21 +1,20 @@
 use bevy::{
-    core::FloatOrd,
     ecs::prelude::*,
     input::Input,
     math::Vec2,
-    prelude::{GlobalTransform, MouseButton, Touches},
+    prelude::{MouseButton, Touches},
     window::Windows,
 };
 use smallvec::SmallVec;
 
-use crate::dom::{ClippedNode, FocusPolicy, Focusable, Focused, Interaction, Node};
+use crate::dom::{ClippedNode, FocusPolicy, Focusable, Focused, Interaction};
 
 pub(crate) fn focus_system(
     mut commands: Commands,
     input: Res<Input<MouseButton>>,
     q: Query<(Entity, &Interaction, Option<&Focused>), With<Focusable>>,
 ) {
-    if input.just_pressed(MouseButton::Left) {
+    if input.just_pressed(MouseButton::Left) && !input.pressed(MouseButton::Right) {
         for (entity, interaction, has_focused) in q.iter() {
             match (interaction, has_focused.is_some()) {
                 (Interaction::Clicked, false) => {

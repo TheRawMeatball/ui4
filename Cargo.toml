@@ -23,6 +23,7 @@ ui4-macros = { path = "./ui4-macros" }
 [dependencies.bevy]
 git = "https://github.com/TheRawMeatball/bevy"
 branch = "merge-in-main"
+default-features = false
 # default-features = false
 # features = ["render"]
 

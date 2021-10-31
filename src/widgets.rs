@@ -5,11 +5,11 @@ pub mod textbox;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use bevy::prelude::{Color, GlobalTransform};
+use bevy::render2::color::Color;
 use bevy::utils::HashMap;
 use bevy::window::Windows;
 
-use crate::dom::Focusable;
+use crate::dom::{FocusPolicy, Focusable, Node};
 use crate::{dom::Interaction, prelude::*};
 
 use self::button::FuncScratch;
@@ -18,7 +18,7 @@ use self::textbox::{TextBox, TextBoxFunc};
 
 pub fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
-        ctx.with(
+        ctx.with(FocusPolicy::Pass).with(
             text.into_observer()
                 .map(|text: ObsReturn<'_, _, _, O>| Text(text.borrow().clone())),
         )
@@ -61,14 +61,19 @@ pub fn textbox<L: WorldLens<Out = String>>(text: L) -> impl FnOnce(Ctx) -> Ctx w
             .with(Height(Units::Pixels(30.)))
             .with(TextBox(0))
             .with(Focusable)
+            .with(Interaction::None)
             .with(TextBoxFunc::new(move |w| text.get_mut(w)))
             .with(UiColor(Color::DARK_GRAY))
             .child(|ctx: Ctx| {
-                ctx.with_modified::<_, L, _>(Text("".to_string()), text, |text, Text(mut old)| {
-                    old.clear();
-                    old.push_str(text);
-                    Text(old)
-                })
+                ctx.with(FocusPolicy::Pass).with_modified::<_, L, _>(
+                    Text("".to_string()),
+                    text,
+                    |text, Text(mut old)| {
+                        old.clear();
+                        old.push_str(text);
+                        Text(old)
+                    },
+                )
             })
     }
 }
@@ -129,8 +134,10 @@ where
                 move |ctx: &mut McCtx| {
                     if b {
                         ctx.c(move |ctx| {
-                            ctx.with(PositionType::SelfDirected)
-                                .with(Top(Units::Percentage(100.)))
+                            ctx.with(PositionType::ParentDirected)
+                                .with(Width(Units::Pixels(100.)))
+                                .with(Height(Units::Pixels(100.)))
+                                // .with(Top(Units::Percentage(100.)))
                                 .children(move |ctx: &mut McCtx| {
                                     let wl = item;
                                     for (item, display) in &*options {
@@ -185,7 +192,6 @@ pub fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
                     )
                     .with(UiColor(Color::WHITE))
                     .with(ChildLeft(Units::Stretch(1.)))
-                    .with(ShowOverflow)
                     // handle
                     .child(|ctx: Ctx| {
                         let interaction = ctx.component();
@@ -209,11 +215,8 @@ pub fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
                                         .cursor_position()
                                 })() {
                                     let mut cursor = w.entity_mut(cursor_entity);
-                                    let pos = cursor
-                                        .get::<GlobalTransform>()
-                                        .unwrap()
-                                        .translation
-                                        .truncate();
+                                    let cursor_node = cursor.get::<Node>().unwrap();
+                                    let pos = cursor_node.pos + cursor_node.size / 2.;
                                     cursor.insert(EngagedSlider {
                                         initial_offset: cursor_pos - pos,
                                         slider_entity,

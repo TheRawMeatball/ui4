@@ -1,6 +1,7 @@
+use bevy::prelude::*;
 use std::sync::Arc;
 
-use bevy::prelude::*;
+use crate::dom::Interaction;
 
 #[derive(Clone)]
 pub struct ButtonFunc(Arc<dyn Fn(&mut World) + Send + Sync>);

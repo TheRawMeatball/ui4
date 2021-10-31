@@ -7,6 +7,7 @@ use bevy::ecs::system::SystemState;
 use bevy::prelude::{Children, DespawnRecursiveExt};
 use slotmap::{DefaultKey, SlotMap};
 
+use crate::dom::Control;
 use crate::observer::{Observer, UninitObserver};
 use crate::runtime::{UiScratchSpace, UpdateFunc};
 
@@ -155,7 +156,7 @@ pub(crate) fn tween_system(
 pub(crate) type TriggerCallState = SystemState<(
     Commands<'static, 'static>,
     Query<'static, 'static, &'static Children>,
-    Query<'static, 'static, &'static bevy::ui::ControlNode>,
+    Query<'static, 'static, &'static Control>,
     Query<
         'static,
         'static,
@@ -333,7 +334,7 @@ pub(crate) fn trigger_transition_out_cn(
     parent_cn: Option<Entity>,
     commands: &mut Commands,
     children_q: &Query<&Children>,
-    control_node: &Query<&bevy::ui::ControlNode>,
+    control_node: &Query<&Control>,
     transition_q: &mut Query<(
         &Transition,
         &mut TransitionProgress,
@@ -394,7 +395,7 @@ fn trigger_transition_out_n(
     acc: &mut usize,
     commands: &mut Commands,
     children_q: &Query<&Children>,
-    control_node: &Query<&bevy::ui::ControlNode>,
+    control_node: &Query<&Control>,
     transition_q: &mut Query<(
         &Transition,
         &mut TransitionProgress,

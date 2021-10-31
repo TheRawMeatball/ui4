@@ -14,8 +14,6 @@ pub(crate) struct Control;
 #[derive(Bundle, Default)]
 pub(crate) struct ControlBundle {
     control: Control,
-    transform: Transform,
-    global_transform: GlobalTransform,
 }
 
 #[derive(Component, Default, Inspectable)]
@@ -47,14 +45,14 @@ pub struct TextSize(pub f32);
 pub struct TextFont(pub epaint::TextStyle);
 
 #[derive(Component)]
-pub struct ShowOverflow;
+pub struct HideOverflow;
 
 /// Overrides [`TextFont`] and [`TextFont`]
 #[derive(Component)]
 pub struct TextDetails(pub Vec<epaint::text::LayoutSection>);
 
 #[derive(Component, Inspectable)]
-pub struct Color(pub bevy::prelude::Color);
+pub struct Color(pub bevy::render2::color::Color);
 
 impl Color {
     fn as_rgba_u8(&self) -> [u8; 4] {
@@ -68,11 +66,17 @@ impl Color {
     }
 }
 
-#[derive(Component, PartialEq, Eq, Inspectable, Debug)]
+#[derive(Component, PartialEq, Eq, Inspectable, Debug, Clone, Copy)]
 pub enum Interaction {
     Clicked,
     Hovered,
     None,
+}
+
+impl Default for Interaction {
+    fn default() -> Self {
+        Self::None
+    }
 }
 
 #[derive(Component, Clone, Inspectable)]

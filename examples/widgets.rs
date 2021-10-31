@@ -131,8 +131,7 @@ fn toggle<F: FnOnce(Ctx) -> Ctx>(
     struct Toggle(bool);
     |ctx: Ctx| {
         let checked = ctx.component::<Toggle>();
-        ctx.with_bundle(NodeBundle::default())
-            .with(Toggle(false))
+        ctx.with(Toggle(false))
             .child(checkbox(checked.lens(Toggle::F0)))
             .children(checked.dereffed().copied().map_child(move |b| {
                 let child = child();

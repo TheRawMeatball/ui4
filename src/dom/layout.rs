@@ -1,6 +1,6 @@
 use bevy::{
     ecs::prelude::*,
-    ecs::system::SystemParam,
+    ecs::{entity, system::SystemParam},
     math::Vec2,
     prelude::{Children, Parent},
     utils::HashMap,
@@ -142,14 +142,14 @@ macro_rules! generate {
 
 pub mod layout_components {
     use super::*;
-    #[derive(Debug, Clone, Copy, PartialEq, Component)]
+    #[derive(Debug, Clone, Copy, PartialEq, Component, Inspectable)]
     pub enum PositionType {
         /// Node is positioned relative to parent but ignores its siblings
         SelfDirected,
         /// Node is positioned relative to parent and in-line with siblings
         ParentDirected,
     }
-    #[derive(Debug, Clone, Copy, PartialEq, Component)]
+    #[derive(Debug, Clone, Copy, PartialEq, Component, Inspectable)]
     pub enum LayoutType {
         /// Stack child elements horizontally
         Row,
@@ -333,6 +333,22 @@ impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
     fn new(list: &'borrow [NodeEntity], queries: &'borrow TreeQueries<'world, 'state>) -> Self {
         Self { list, queries }
     }
+
+    fn parent_unfiltered(&self, entity: Entity) -> Option<Entity> {
+        self.queries
+            .parent_query
+            .get(entity)
+            .ok()
+            .map(|parent| parent.0)
+    }
+
+    fn children(&self, entity: Entity) -> &[Entity] {
+        self.queries
+            .children_query
+            .get(entity)
+            .map(|x| &**x)
+            .unwrap_or(&[])
+    }
 }
 
 fn push_all_children(
@@ -358,16 +374,6 @@ fn push_all_children(
     }
 }
 
-impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
-    fn parent_unfiltered(&self, entity: Entity) -> Option<Entity> {
-        self.queries
-            .parent_query
-            .get(entity)
-            .ok()
-            .map(|parent| parent.0)
-    }
-}
-
 impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'state> {
     type Item = NodeEntity;
     type DownIter = std::iter::Copied<std::slice::Iter<'borrow, NodeEntity>>;
@@ -383,16 +389,15 @@ impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'stat
     }
 
     fn parent(&self, node: Self::Item) -> Option<Self::Item> {
-        self.parent_unfiltered(node.entity())
-            .and_then(|candidate| {
-                self.queries
-                    .control_node_query
-                    .get(candidate)
-                    .is_ok()
-                    .then(|| self.parent(NodeEntity(candidate)).map(|e| e.entity()))
-                    .unwrap_or(Some(candidate))
-            })
-            .map(NodeEntity)
+        let mut next_candidate = self.parent_unfiltered(node.entity());
+        while let Some(candidate) = next_candidate {
+            if self.queries.control_node_query.get(candidate).is_ok() {
+                next_candidate = self.parent_unfiltered(candidate);
+            } else {
+                return Some(NodeEntity(candidate));
+            }
+        }
+        None
     }
 
     fn child_iter(&'borrow self, node: Self::Item) -> Self::ChildIter {
@@ -410,31 +415,57 @@ impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'stat
     }
 
     fn is_first_child(&self, node: Self::Item) -> bool {
-        self.parent_unfiltered(node.entity())
-            .map(|parent| (self.queries.control_node_query.get(parent).is_ok(), parent))
-            .map(|(parent_is_cnode, parent)| {
-                !parent_is_cnode || self.is_first_child(NodeEntity(parent))
-            })
-            .unwrap_or(false)
-            && self
-                .parent_unfiltered(node.entity())
-                .and_then(|parent| self.queries.children_query.get(parent).ok())
-                .and_then(|x| x.first().copied())
-                == Some(node.entity())
+        let mut node = node.entity();
+        let mut parent = if let Some(p) = self.parent_unfiltered(node) {
+            p
+        } else {
+            return false;
+        };
+        loop {
+            if self.queries.control_node_query.get(parent).is_ok() {
+                // Root node never a control node, so unwrap never fails
+                let grandparent = self.parent_unfiltered(parent).unwrap();
+                let gp_children = self.children(grandparent);
+                if gp_children.first() == Some(&parent) {
+                    // check if grandparent is also a control node and if so, whether it's the first child
+                    node = parent;
+                    parent = grandparent;
+                } else {
+                    return false;
+                }
+            } else {
+                // parent isn't a control node, check if we're the first node.
+                let siblings = self.children(parent);
+                return siblings.first() == Some(&node);
+            }
+        }
     }
 
     fn is_last_child(&self, node: Self::Item) -> bool {
-        self.parent_unfiltered(node.entity())
-            .map(|parent| (self.queries.control_node_query.get(parent).is_ok(), parent))
-            .map(|(parent_is_cnode, parent)| {
-                !parent_is_cnode || self.is_last_child(NodeEntity(parent))
-            })
-            .unwrap_or(false)
-            && self
-                .parent_unfiltered(node.entity())
-                .and_then(|parent| self.queries.children_query.get(parent).ok())
-                .and_then(|x| x.last().copied())
-                == Some(node.entity())
+        let mut node = node.entity();
+        let mut parent = if let Some(p) = self.parent_unfiltered(node) {
+            p
+        } else {
+            return false;
+        };
+        loop {
+            if self.queries.control_node_query.get(parent).is_ok() {
+                // Root node never a control node, so unwrap never fails
+                let grandparent = self.parent_unfiltered(parent).unwrap();
+                let gp_children = self.children(grandparent);
+                if gp_children.last() == Some(&parent) {
+                    // check if grandparent is also a control node and if so, whether it's the last child
+                    node = parent;
+                    parent = grandparent;
+                } else {
+                    return false;
+                }
+            } else {
+                // parent isn't a control node, check if we're the last node.
+                let siblings = self.children(parent);
+                return siblings.last() == Some(&node);
+            }
+        }
     }
 }
 
