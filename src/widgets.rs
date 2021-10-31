@@ -134,10 +134,9 @@ where
                 move |ctx: &mut McCtx| {
                     if b {
                         ctx.c(move |ctx| {
-                            ctx.with(PositionType::ParentDirected)
-                                .with(Width(Units::Pixels(100.)))
-                                .with(Height(Units::Pixels(100.)))
-                                // .with(Top(Units::Percentage(100.)))
+                            ctx.with(PositionType::SelfDirected)
+                                .with(ChildBottom(Units::Percentage(100.)))
+                                .with(ChildTop(Units::Auto))
                                 .children(move |ctx: &mut McCtx| {
                                     let wl = item;
                                     for (item, display) in &*options {

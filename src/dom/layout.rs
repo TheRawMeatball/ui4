@@ -1,6 +1,6 @@
 use bevy::{
     ecs::prelude::*,
-    ecs::{entity, system::SystemParam},
+    ecs::system::SystemParam,
     math::Vec2,
     prelude::{Children, Parent},
     utils::HashMap,

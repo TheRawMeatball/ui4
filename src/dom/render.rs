@@ -50,6 +50,7 @@ pub(crate) fn create_shapes_system(
     ) {
         let (node, text, font, _size, details, color, hide_overflow, children) =
             q.get(entity).unwrap();
+
         let clip = if let Some(node) = node {
             let mut clipped = cn_query.get_mut(entity).unwrap();
             clipped.z_layer = z;

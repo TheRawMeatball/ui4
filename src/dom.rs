@@ -1,8 +1,4 @@
-use bevy::{
-    ecs::prelude::*,
-    math::Vec2,
-    prelude::{GlobalTransform, Transform},
-};
+use bevy::{ecs::prelude::*, math::Vec2};
 use bevy_inspector_egui::Inspectable;
 
 pub mod layout;
