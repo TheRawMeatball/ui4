@@ -21,6 +21,10 @@ enum Ui4SystemLabels {
 pub struct Ui4Plugin;
 impl Plugin for Ui4Plugin {
     fn build(&self, app: &mut bevy::prelude::App) {
+        if !app.world.contains_resource::<bevy_egui::EguiContext>() {
+            app.add_plugin(bevy_egui::EguiPlugin);
+        }
+
         app.init_resource::<UiScratchSpace>()
             .init_resource::<ButtonSystemState>()
             .init_resource::<TextBoxSystemState>()
