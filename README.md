@@ -14,7 +14,53 @@ More specifically, this lib offers a widget abstraction, reactivity, animations,
 
 ## Usage
 
-For how to use this lib, look at the [examples](examples) folder!
+```rs
+use bevy::{prelude::*, PipelinedDefaultPlugins};
+use ui4::prelude::*;
+
+fn main() {
+    let mut app = App::new();
+    app.add_plugins(PipelinedDefaultPlugins)
+        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
+        .add_plugin(Ui4Plugin)
+        .add_plugin(Ui4Root(root));
+
+    app.run()
+}
+
+fn root(ctx: Ctx) -> Ctx {
+    #[derive(Component)]
+    struct State(i32);
+
+    let state = ctx.component();
+    let this = ctx.current_entity();
+
+    ctx.with(State(0))
+        .with(Top(Units::Pixels(50.)))
+        .with(Left(Units::Pixels(50.)))
+        .child(|ctx| text("Hello!")(ctx).with(Height(Units::Pixels(30.))))
+        .child(|ctx| {
+            ctx.with(Width(Units::Pixels(300.)))
+                .with(Height(Units::Pixels(30.)))
+                .with(LayoutType::Row)
+                .child(|ctx| {
+                    button("Increment")(ctx).with(OnClick::new(move |world| {
+                        world.get_mut::<State>(this).unwrap().0 += 1;
+                    }))
+                })
+                .child(|ctx| {
+                    button("Decrement")(ctx).with(OnClick::new(move |world| {
+                        world.get_mut::<State>(this).unwrap().0 -= 1;
+                    }))
+                })
+                .child(text(
+                    state.map(|s: &State| format!("The number is {}", s.0)),
+                ))
+        })
+}
+```
+
+For more examples on how to use this library, look at the [examples](examples) folder!
 
 Important note: You'll need to use [a custom branch of bevy](https://github.com/TheRawMeatball/bevy/tree/runs-ui4-migrated), as there's still multiple PR s this library needs that haven't been merged into main yet.
 
