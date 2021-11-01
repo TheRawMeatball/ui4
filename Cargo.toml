@@ -14,25 +14,48 @@ morphorm = { git = "https://github.com/geom3trik/morphorm" }
 derive_more = "0.99.16"
 concat-idents = "1.1.3"
 epaint = "0.15.0"
-bevy_egui = { path = "../bevy_egui" }
-bevy-inspector-egui = { path = "../bevy-inspector-egui" }
 smallvec = "1"
 
 ui4-macros = { path = "./ui4-macros" }
 
 [dependencies.bevy]
 git = "https://github.com/TheRawMeatball/bevy"
-branch = "merge-in-main"
+branch = "runs-ui4-migrated"
 default-features = false
-# default-features = false
-# features = ["render"]
 
+[dependencies.bevy_egui]
+git = "https://github.com/TheRawMeatball/bevy_egui"
+branch = "updated-egui"
 
-[patch."https://github.com/bevyengine/bevy"]
-bevy = { path = "../bevy" }
+[dependencies.bevy-inspector-egui]
+git = "https://github.com/TheRawMeatball/bevy-inspector-egui"
+branch = "runs-ui4"
 
-[patch."https://github.com/TheRawMeatball/bevy"]
-bevy = { path = "../bevy" }
+# Testing patches
+[patch."https://github.com/bevyengine/bevy".bevy]
+git = "https://github.com/TheRawMeatball/bevy"
+branch = "runs-ui4-migrated"
 
-[patch."https://github.com/jakobhellermann/bevy_egui"]
-bevy_egui = { path = "../bevy_egui" }
+[patch."https://github.com/jakobhellermann/bevy_egui".bevy_egui]
+git = "https://github.com/TheRawMeatball/bevy_egui"
+branch = "updated-egui"
+
+# Local dev patches
+
+# [patch."https://github.com/bevyengine/bevy"]
+# bevy = { path = "../bevy" }
+
+# [patch."https://github.com/TheRawMeatball/bevy"]
+# bevy = { path = "../bevy" }
+
+# [patch."https://github.com/jakobhellermann/bevy_egui"]
+# bevy_egui = { path = "../bevy_egui" }
+
+# [patch."https://github.com/TheRawMeatball/bevy_egui"]
+# bevy_egui = { path = "../bevy_egui" }
+
+# [patch."https://github.com/jakobhellermann/bevy-inspector-egui"]
+# bevy-inspector-egui = { path = "../bevy-inspector-egui" }
+
+# [patch."https://github.com/TheRawMeatball/bevy-inspector-egui"]
+# bevy-inspector-egui = { path = "../bevy-inspector-egui" }
