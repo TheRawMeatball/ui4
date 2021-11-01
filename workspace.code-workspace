@@ -5,6 +5,12 @@
 		},
 		{
 			"path": "../bevy"
+		},
+		{
+			"path": "../bevy-inspector-egui"
+		},
+		{
+			"path": "../bevy_egui"
 		}
 	],
 	"settings": {}

@@ -3,12 +3,16 @@ use std::marker::PhantomData;
 use bevy::ecs::prelude::*;
 
 use crate::{
-    childable::Childable, dom::ControlBundle, insertable::Insertable, lens::ComponentLens,
-    observer::ComponentExistsObserver,
+    childable::Childable,
+    dom::ControlBundle,
+    insertable::Insertable,
+    lens::ComponentLens,
+    observer::{ComponentExistsObserver, Observer, UninitObserver},
+    runtime::{UfMarker, UiScratchSpace, UpdateFunc},
 };
 
-/// Entry point for creating entities. Having a `Ctx` means you control all components on this entity, and all
-/// its children.
+/// Entry point for creating entities. Having a `Ctx` means you control all components on this entity, and
+/// can add children
 pub struct Ctx<'a> {
     pub(crate) world: &'a mut World,
     pub(crate) current_entity: Entity,
@@ -42,6 +46,42 @@ impl Ctx<'_> {
     #[track_caller]
     pub fn with<T: Component, M>(mut self, item: impl Insertable<T, M>) -> Self {
         item.insert_ui_val(&mut self);
+        self
+    }
+
+    pub fn with_modified<T, O, F>(mut self, initial: T, observer: O, mutator: F) -> Self
+    where
+        T: Component,
+        O: UninitObserver,
+        for<'a> O::Observer: Observer<'a>,
+        F: for<'a> Fn(<O::Observer as Observer<'a>>::Return, T) -> T,
+        F: Send + Sync + 'static,
+    {
+        self.world.entity_mut(self.current_entity).insert(initial);
+        let entity = self.current_entity;
+        let uf = observer.register_self(self.world, |mut observer, world| {
+            let mut first = true;
+            let (uf, marker) = UpdateFunc::new::<T, _>(move |world| {
+                world.resource_scope(|world, mut ctx: Mut<UiScratchSpace>| {
+                    let t = world.entity_mut(entity).remove::<T>().unwrap();
+                    let (val, changed) = observer.get(world);
+                    if !changed && !first {
+                        drop(val);
+                        let mut e = world.entity_mut(entity);
+                        e.insert(t);
+                        return;
+                    }
+                    first = false;
+                    let t = mutator(val, t);
+                    let mut e = world.entity_mut(entity);
+                    e.get_mut::<UfMarker<T>>().unwrap().trigger(&mut ctx);
+                    e.insert(t);
+                })
+            });
+            world.entity_mut(entity).insert(marker);
+            uf
+        });
+        uf.run(&mut self.world);
         self
     }
 

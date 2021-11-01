@@ -1,12 +1,33 @@
 use bevy::{
     ecs::prelude::*,
     ecs::system::SystemParam,
+    math::Vec2,
     prelude::{Children, Parent},
     utils::HashMap,
 };
+use bevy_inspector_egui::{Inspectable, RegisterInspectable};
 use concat_idents::concat_idents;
 use derive_more::{Deref, DerefMut};
-use morphorm::{Cache, Hierarchy, Node, Units};
+use morphorm::{Cache, Hierarchy, Node};
+
+#[derive(Debug, Clone, Copy, PartialEq, Inspectable)]
+pub enum Units {
+    Pixels(f32),
+    Percentage(f32),
+    Stretch(f32),
+    Auto,
+}
+
+impl From<Units> for morphorm::Units {
+    fn from(this: Units) -> Self {
+        match this {
+            Units::Pixels(v) => morphorm::Units::Pixels(v),
+            Units::Percentage(v) => morphorm::Units::Percentage(v),
+            Units::Stretch(v) => morphorm::Units::Stretch(v),
+            Units::Auto => morphorm::Units::Auto,
+        }
+    }
+}
 
 use super::{Control, Node as UiNode};
 
@@ -24,25 +45,33 @@ macro_rules! derive_all {
         $name:ident($unit_type:ty);
     )*) => {
         $(
-            #[derive(Debug, Clone, Copy, PartialEq, Component, Deref, DerefMut)]
+            #[derive(Debug, Clone, Copy, PartialEq, Component, Deref, DerefMut, Inspectable)]
             pub struct $name(pub $unit_type);
         )*
+        #[allow(unused)]
+        pub(crate) fn register_all(app: &mut bevy::app::App) {
+            $(
+                app.register_inspectable::<$name>();
+            )*
+        }
     };
 }
 
 macro_rules! func_all {
     (
         $ret:ty;
-        $(
-            [$func:ident, $typ:ident],
-        )*
+        $([$func:ident, $typ:ident],)*
     ) => {
         $(
             fn $func(&self, store: &'_ Self::Data) -> Option<$ret> {
-                store.get_component::<layout_components::$typ>(self.0).map(|x| x.0.clone()).ok()
+                store.get_component::<layout_components::$typ>(self.0)
+                    .map(|x| x.0.clone())
+                    .ok()
+                    .map(|v| v.into())
             }
         )*
     };
+    (void $($tt:tt)*) => {}
 }
 
 macro_rules! get_func_all {
@@ -73,23 +102,54 @@ macro_rules! set_func_all {
 
 macro_rules! query_all {
     ($last:ident,) => {
-        &'static layout_components::$last
+        Option<&'static layout_components::$last>
     };
     ($first:ident, $($rest:ident,)*) => {
-        (&'static layout_components::$first, query_all!($($rest,)*))
+        (Option<&'static layout_components::$first>, query_all!($($rest,)*))
+    };
+}
+
+macro_rules! cd_all {
+    ($last:ident,) => {
+        Option<ChangeTrackers<layout_components::$last>>
+    };
+    ($first:ident, $($rest:ident,)*) => {
+        (Option<ChangeTrackers<layout_components::$first>>, cd_all!($($rest,)*))
+    };
+}
+
+macro_rules! tuple_expand {
+    ($last:ident,) => {
+        $last
+    };
+    ($first:ident, $($rest:ident,)*) => {
+        ($first, tuple_expand!($($rest,)*))
+    };
+}
+
+macro_rules! generate {
+    ($($list:ident,)*) => {
+        type StyleQuery = query_all![$($list,)*];
+        type CdQuery = cd_all![$($list,)*];
+
+        fn check_cd(entity: Entity, query: &Query<CdQuery>) -> bool {
+            #[allow(non_snake_case)]
+            let tuple_expand!($($list,)*) = query.get(entity).unwrap();
+            false $(|| $list.map(|q| q.is_changed()).unwrap_or(false) )*
+        }
     };
 }
 
 pub mod layout_components {
     use super::*;
-    #[derive(Debug, Clone, Copy, PartialEq, Component)]
+    #[derive(Debug, Clone, Copy, PartialEq, Component, Inspectable)]
     pub enum PositionType {
         /// Node is positioned relative to parent but ignores its siblings
         SelfDirected,
         /// Node is positioned relative to parent and in-line with siblings
         ParentDirected,
     }
-    #[derive(Debug, Clone, Copy, PartialEq, Component)]
+    #[derive(Debug, Clone, Copy, PartialEq, Component, Inspectable)]
     pub enum LayoutType {
         /// Stack child elements horizontally
         Row,
@@ -98,6 +158,7 @@ pub mod layout_components {
         /// Position child elements into specified rows and columns
         Grid,
     }
+
     derive_all!(
         Left(Units);
         Right(Units);
@@ -135,84 +196,44 @@ pub mod layout_components {
     pub struct GridCols(pub Vec<Units>);
 }
 
-mod cached {
-    use super::*;
-
-    derive_all!(
-        Width(f32);
-        Height(f32);
-        PosX(f32);
-        PosY(f32);
-
-        SpaceLeft(f32);
-        SpaceRight(f32);
-        SpaceTop(f32);
-        SpaceBottom(f32);
-
-        NewWidth(f32);
-        NewHeight(f32);
-
-        ChildWidthMax(f32);
-        ChildHeightMax(f32);
-        ChildWidthSum(f32);
-        ChildHeightSum(f32);
-
-        GridRowMax(f32);
-        GridColMax(f32);
-
-        HorizontalFreeSpace(f32);
-        HorizontalStretchSum(f32);
-
-        VerticalFreeSpace(f32);
-        VerticalStretchSum(f32);
-
-        StackFirstChild(f32);
-        StackLastChild(f32);
-    );
-}
-
-type StyleQuery<'w, 's> = Query<
-    'w,
-    's,
-    query_all![
-        Left,
-        Right,
-        Top,
-        Bottom,
-        MinLeft,
-        MaxLeft,
-        MinRight,
-        MaxRight,
-        MinTop,
-        MaxTop,
-        MinBottom,
-        MaxBottom,
-        Width,
-        Height,
-        MinWidth,
-        MaxWidth,
-        MinHeight,
-        MaxHeight,
-        ChildLeft,
-        ChildRight,
-        ChildTop,
-        ChildBottom,
-        RowBetween,
-        ColBetween,
-        RowIndex,
-        ColIndex,
-        RowSpan,
-        ColSpan,
-        Border,
-        PositionType,
-        LayoutType,
-        GridRows,
-        GridCols,
-    ],
->;
+generate![
+    Width,
+    Height,
+    Left,
+    Right,
+    Top,
+    Bottom,
+    MinLeft,
+    MaxLeft,
+    MinRight,
+    MaxRight,
+    MinTop,
+    MaxTop,
+    MinBottom,
+    MaxBottom,
+    MinWidth,
+    MaxWidth,
+    MinHeight,
+    MaxHeight,
+    ChildLeft,
+    ChildRight,
+    ChildTop,
+    ChildBottom,
+    RowBetween,
+    ColBetween,
+    RowIndex,
+    ColIndex,
+    RowSpan,
+    ColSpan,
+    Border,
+    PositionType,
+    LayoutType,
+    GridRows,
+    GridCols,
+];
 
 impl<'a> Node<'a> for NodeEntity {
-    type Data = StyleQuery<'a, 'a>;
+    type Data = Query<'a, 'a, StyleQuery>;
 
     fn layout_type(&self, store: &'_ Self::Data) -> Option<morphorm::LayoutType> {
         store
@@ -240,7 +261,7 @@ impl<'a> Node<'a> for NodeEntity {
     }
 
     func_all!(
-        Units;
+        morphorm::Units;
         [width, Width],
         [height, Height],
         [min_width, MinWidth],
@@ -271,11 +292,20 @@ impl<'a> Node<'a> for NodeEntity {
         [border_bottom, Border],
     );
 
-    func_all!(
-        Vec<Units>;
-        [grid_rows, GridRows],
-        [grid_cols, GridCols],
-    );
+    fn grid_rows(&self, store: &'_ Self::Data) -> Option<Vec<morphorm::Units>> {
+        store
+            .get_component::<layout_components::GridRows>(self.0)
+            .map(|x| x.0.clone())
+            .ok()
+            .map(|v| v.into_iter().map(|v| v.into()).collect())
+    }
+    fn grid_cols(&self, store: &'_ Self::Data) -> Option<Vec<morphorm::Units>> {
+        store
+            .get_component::<layout_components::GridCols>(self.0)
+            .map(|x| x.0.clone())
+            .ok()
+            .map(|v| v.into_iter().map(|v| v.into()).collect())
+    }
 
     func_all!(
         usize;
@@ -294,134 +324,159 @@ pub(crate) struct TreeQueries<'w, 's> {
 }
 
 #[derive(Clone, Copy)]
-pub struct Tree<'borrow, 'aorld, 'state> {
-    root: Entity,
-    parent_query: &'borrow Query<'aorld, 'state, &'static Parent>,
-    children_query: &'borrow Query<'aorld, 'state, &'static Children>,
-    control_node_query: &'borrow Query<'aorld, 'state, &'static Control>,
+pub struct Tree<'borrow, 'world, 'state> {
+    list: &'borrow [NodeEntity],
+    queries: &'borrow TreeQueries<'world, 'state>,
 }
 
-impl<'borrow, 'aorld, 'state> Tree<'borrow, 'aorld, 'state> {
-    fn new(root: Entity, queries: &'borrow TreeQueries<'aorld, 'state>) -> Self {
-        Self {
-            root,
-            parent_query: &queries.parent_query,
-            children_query: &queries.children_query,
-            control_node_query: &queries.control_node_query,
-        }
-    }
-}
-
-impl<'borrow, 'aorld, 'state> Tree<'borrow, 'aorld, 'state> {
-    pub fn flatten(&self) -> Vec<NodeEntity> {
-        let mut vec = vec![];
-
-        fn push_all_children(tree: Tree, vec: &mut Vec<NodeEntity>) {
-            let children = tree
-                .children_query
-                .get(tree.root)
-                .map(|x| &**x)
-                .unwrap_or(&[]);
-            for &child in children {
-                if !tree.control_node_query.get(child).is_ok() {
-                    vec.push(NodeEntity(child));
-                }
-                push_all_children(
-                    Tree {
-                        root: child,
-                        ..tree
-                    },
-                    vec,
-                )
-            }
-        }
-        vec.push(NodeEntity(self.root));
-        push_all_children(*self, &mut vec);
-
-        vec
+impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
+    fn new(list: &'borrow [NodeEntity], queries: &'borrow TreeQueries<'world, 'state>) -> Self {
+        Self { list, queries }
     }
 
     fn parent_unfiltered(&self, entity: Entity) -> Option<Entity> {
-        self.parent_query.get(entity).ok().map(|parent| parent.0)
+        self.queries
+            .parent_query
+            .get(entity)
+            .ok()
+            .map(|parent| parent.0)
+    }
+
+    fn children(&self, entity: Entity) -> &[Entity] {
+        self.queries
+            .children_query
+            .get(entity)
+            .map(|x| &**x)
+            .unwrap_or(&[])
     }
 }
 
-impl<'borrow, 'aorld, 'state> Hierarchy<'borrow> for Tree<'borrow, 'aorld, 'state> {
+fn push_all_children(
+    root: Entity,
+    queries: &TreeQueries,
+    vec: &mut Vec<NodeEntity>,
+    // Set to true if you detect a change
+    cf: &mut bool,
+    cd_query: &Query<CdQuery>,
+) {
+    let children = queries
+        .children_query
+        .get(root)
+        .map(|x| &**x)
+        .unwrap_or(&[]);
+
+    for &child in children {
+        if !queries.control_node_query.get(child).is_ok() {
+            *cf = *cf || check_cd(child, cd_query);
+            vec.push(NodeEntity(child));
+        }
+        push_all_children(child, queries, vec, cf, cd_query);
+    }
+}
+
+impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'state> {
     type Item = NodeEntity;
-    type DownIter = std::vec::IntoIter<NodeEntity>;
-    type UpIter = std::iter::Rev<std::vec::IntoIter<NodeEntity>>;
-    type ChildIter = ChildIterator<'borrow, 'aorld, 'state>;
+    type DownIter = std::iter::Copied<std::slice::Iter<'borrow, NodeEntity>>;
+    type UpIter = std::iter::Rev<std::iter::Copied<std::slice::Iter<'borrow, NodeEntity>>>;
+    type ChildIter = ChildIterator<'borrow, 'world, 'state>;
 
     fn up_iter(&self) -> Self::UpIter {
-        self.flatten().into_iter().rev()
+        self.list.iter().copied().rev()
     }
 
     fn down_iter(&self) -> Self::DownIter {
-        self.flatten().into_iter()
+        self.list.iter().copied()
     }
 
     fn parent(&self, node: Self::Item) -> Option<Self::Item> {
-        self.parent_unfiltered(node.entity())
-            .and_then(|candidate| {
-                self.control_node_query
-                    .get(candidate)
-                    .is_ok()
-                    .then(|| self.parent_unfiltered(candidate))
-                    .unwrap_or(Some(candidate))
-            })
-            .map(NodeEntity)
+        let mut next_candidate = self.parent_unfiltered(node.entity());
+        while let Some(candidate) = next_candidate {
+            if self.queries.control_node_query.get(candidate).is_ok() {
+                next_candidate = self.parent_unfiltered(candidate);
+            } else {
+                return Some(NodeEntity(candidate));
+            }
+        }
+        None
     }
 
     fn child_iter(&'borrow self, node: Self::Item) -> Self::ChildIter {
         ChildIterator {
             inners: vec![self
+                .queries
                 .children_query
                 .get(node.entity())
                 .map(|x| &**x)
                 .unwrap_or(&[])
                 .iter()],
-            control_node_query: self.control_node_query,
-            children_query: self.children_query,
+            control_node_query: &self.queries.control_node_query,
+            children_query: &self.queries.children_query,
         }
     }
 
     fn is_first_child(&self, node: Self::Item) -> bool {
-        self.parent_unfiltered(node.entity())
-            .map(|parent| (self.control_node_query.get(parent).is_ok(), parent))
-            .map(|(parent_is_cnode, parent)| {
-                !parent_is_cnode || self.is_first_child(NodeEntity(parent))
-            })
-            .unwrap_or(false)
-            && self
-                .parent(node)
-                .and_then(|parent| self.children_query.get(parent.entity()).ok())
-                .and_then(|x| x.first().copied())
-                == Some(node.entity())
+        let mut node = node.entity();
+        let mut parent = if let Some(p) = self.parent_unfiltered(node) {
+            p
+        } else {
+            return false;
+        };
+        loop {
+            if self.queries.control_node_query.get(parent).is_ok() {
+                // Root node never a control node, so unwrap never fails
+                let grandparent = self.parent_unfiltered(parent).unwrap();
+                let gp_children = self.children(grandparent);
+                if gp_children.first() == Some(&parent) {
+                    // check if grandparent is also a control node and if so, whether it's the first child
+                    node = parent;
+                    parent = grandparent;
+                } else {
+                    return false;
+                }
+            } else {
+                // parent isn't a control node, check if we're the first node.
+                let siblings = self.children(parent);
+                return siblings.first() == Some(&node);
+            }
+        }
     }
 
     fn is_last_child(&self, node: Self::Item) -> bool {
-        self.parent_unfiltered(node.entity())
-            .map(|parent| (self.control_node_query.get(parent).is_ok(), parent))
-            .map(|(parent_is_cnode, parent)| {
-                !parent_is_cnode || self.is_last_child(NodeEntity(parent))
-            })
-            .unwrap_or(false)
-            && self
-                .parent(node)
-                .and_then(|parent| self.children_query.get(parent.entity()).ok())
-                .and_then(|x| x.last().copied())
-                == Some(node.entity())
+        let mut node = node.entity();
+        let mut parent = if let Some(p) = self.parent_unfiltered(node) {
+            p
+        } else {
+            return false;
+        };
+        loop {
+            if self.queries.control_node_query.get(parent).is_ok() {
+                // Root node never a control node, so unwrap never fails
+                let grandparent = self.parent_unfiltered(parent).unwrap();
+                let gp_children = self.children(grandparent);
+                if gp_children.last() == Some(&parent) {
+                    // check if grandparent is also a control node and if so, whether it's the last child
+                    node = parent;
+                    parent = grandparent;
+                } else {
+                    return false;
+                }
+            } else {
+                // parent isn't a control node, check if we're the last node.
+                let siblings = self.children(parent);
+                return siblings.last() == Some(&node);
+            }
+        }
     }
 }
 
-pub struct ChildIterator<'borrow, 'aorld, 'state> {
+pub struct ChildIterator<'borrow, 'world, 'state> {
     // TODO: make this a smallvec
     inners: Vec<std::slice::Iter<'borrow, Entity>>,
-    children_query: &'borrow Query<'aorld, 'state, &'static Children>,
-    control_node_query: &'borrow Query<'aorld, 'state, &'static Control>,
+    children_query: &'borrow Query<'world, 'state, &'static Children>,
+    control_node_query: &'borrow Query<'world, 'state, &'static Control>,
 }
 
-impl<'borrow, 'aorld, 'state> Iterator for ChildIterator<'borrow, 'aorld, 'state> {
+impl<'borrow, 'world, 'state> Iterator for ChildIterator<'borrow, 'world, 'state> {
     type Item = NodeEntity;
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -452,8 +507,8 @@ impl<'borrow, 'aorld, 'state> Iterator for ChildIterator<'borrow, 'aorld, 'state
     }
 }
 
-struct DataCache<'borrow, 'aorld, 'state> {
-    query: &'borrow mut Query<'aorld, 'state, &'static mut UiNode>,
+struct DataCache<'borrow, 'world, 'state> {
+    query: &'borrow mut Query<'world, 'state, &'static mut UiNode>,
     cache: &'borrow mut LayoutScratchpad,
 }
 
@@ -513,7 +568,7 @@ impl LayoutScratchpad {
     }
 }
 
-impl<'borrow, 'aorld, 'state> Cache for DataCache<'borrow, 'aorld, 'state> {
+impl<'borrow, 'world, 'state> Cache for DataCache<'borrow, 'world, 'state> {
     type Item = NodeEntity;
 
     fn visible(&self, _: Self::Item) -> bool {
@@ -640,6 +695,8 @@ impl<'borrow, 'aorld, 'state> Cache for DataCache<'borrow, 'aorld, 'state> {
         child_height_max,
         child_width_sum,
         child_height_sum,
+        grid_row_max,
+        grid_col_max,
         horizontal_free_space,
         horizontal_stretch_sum,
         vertical_free_space,
@@ -715,37 +772,47 @@ impl<'borrow, 'aorld, 'state> Cache for DataCache<'borrow, 'aorld, 'state> {
 
 pub(crate) fn root_node_system(
     windows: Res<bevy::window::Windows>,
-    root_node_query: Query<Entity, (With<UiNode>, Without<Parent>)>,
-    mut style_query: Query<(
-        &mut layout_components::Width,
-        &mut layout_components::Height,
-    )>,
+    mut root_query: Query<
+        (
+            &mut layout_components::Width,
+            &mut layout_components::Height,
+            &mut UiNode,
+        ),
+        Without<Parent>,
+    >,
 ) {
     let window = windows.get_primary().unwrap();
 
     let window_width = window.physical_width() as f32;
     let window_height = window.physical_height() as f32;
 
-    for root_node in root_node_query.iter() {
-        if let Ok((mut width, mut height)) = style_query.get_mut(root_node) {
-            **width = Units::Pixels(window_width);
-            **height = Units::Pixels(window_height);
-        }
+    for (mut width, mut height, mut node) in root_query.iter_mut() {
+        **width = Units::Pixels(window_width);
+        **height = Units::Pixels(window_height);
+
+        node.pos = Vec2::ZERO;
+        node.size = Vec2::new(window_width, window_height);
     }
 }
 
 pub(crate) fn layout_node_system(
-    mut layout_cache: ResMut<LayoutScratchpad>,
+    mut list: Local<Vec<NodeEntity>>,
+    mut layout_cache: Local<LayoutScratchpad>,
     queries: TreeQueries,
-    style_query: StyleQuery,
+    style_query: Query<StyleQuery>,
+    cd_query: Query<CdQuery>,
     mut cache_query: Query<&'static mut UiNode>,
     root_node_query: Query<Entity, (With<UiNode>, Without<Parent>)>,
+    removed: RemovedComponents<UiNode>,
 ) {
     for root_node in root_node_query.iter() {
-        let tree = Tree::new(root_node, &queries);
-
+        list.clear();
         layout_cache.clear();
+        let mut any_changes = removed.iter().next().is_some() || check_cd(root_node, &cd_query);
+        list.push(NodeEntity(root_node));
+        push_all_children(root_node, &queries, &mut list, &mut any_changes, &cd_query);
 
+        let tree = Tree::new(&list, &queries);
         let mut cache = DataCache {
             cache: &mut *layout_cache,
             query: &mut cache_query,

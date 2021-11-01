@@ -300,7 +300,7 @@ pub trait ObserverExt: UninitObserver + Sized {
 impl<T: UninitObserver> ObserverExt for T {}
 
 #[derive(Clone)]
-pub struct StaticObserver<T>(T);
+pub struct StaticObserver<T>(pub(crate) T);
 
 impl<'a, T: Send + Sync + 'static> Observer<'a> for StaticObserver<T> {
     type Return = &'a T;

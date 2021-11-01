@@ -8,7 +8,7 @@ use std::{
 
 use bevy::{ecs::prelude::*, utils::HashSet};
 
-use crate::{button::ButtonSystemState, textbox::TextBoxSystemState};
+use crate::widgets::{button::ButtonSystemState, textbox::TextBoxSystemState};
 
 #[derive(Default)]
 pub(crate) struct UiScratchSpace {
@@ -32,7 +32,7 @@ impl UiScratchSpace {
             if !flagged {
                 self.register_update_func(uf.clone());
             }
-            flagged
+            !flagged
         });
     }
 
