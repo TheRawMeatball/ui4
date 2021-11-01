@@ -25,6 +25,13 @@ impl Plugin for Ui4Plugin {
             app.add_plugin(bevy_egui::EguiPlugin);
         }
 
+        if !app
+            .world
+            .contains_resource::<bevy_inspector_egui::InspectableRegistry>()
+        {
+            app.init_resource::<bevy_inspector_egui::InspectableRegistry>();
+        }
+
         app.init_resource::<UiScratchSpace>()
             .init_resource::<ButtonSystemState>()
             .init_resource::<TextBoxSystemState>()
