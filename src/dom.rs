@@ -41,6 +41,9 @@ pub struct TextSize(pub f32);
 pub struct TextFont(pub epaint::TextStyle);
 
 #[derive(Component)]
+pub struct TextBoxCursor(pub Option<usize>);
+
+#[derive(Component)]
 pub struct HideOverflow;
 
 /// Overrides [`TextFont`] and [`TextFont`]

@@ -1,6 +1,6 @@
 use crate::dom::TextFont;
 
-use super::{ClippedNode, Color, HideOverflow, Node, Text, TextDetails, TextSize};
+use super::{ClippedNode, Color, HideOverflow, Node, Text, TextBoxCursor, TextDetails, TextSize};
 use bevy::{
     ecs::prelude::*,
     transform::prelude::*,
@@ -20,6 +20,7 @@ type ShapeQ<'w, 's> = Query<
     (
         Option<&'static Node>,
         Option<&'static Text>,
+        Option<&'static TextBoxCursor>,
         Option<&'static TextFont>,
         Option<&'static TextSize>,
         Option<&'static TextDetails>,
@@ -48,7 +49,7 @@ pub(crate) fn create_shapes_system(
         fonts: &Fonts,
         mut z: u32,
     ) {
-        let (node, text, font, _size, details, color, hide_overflow, children) =
+        let (node, text, tb, font, _size, details, color, hide_overflow, children) =
             q.get(entity).unwrap();
 
         let clip = if let Some(node) = node {
@@ -67,41 +68,70 @@ pub(crate) fn create_shapes_system(
                 bevy::math::Vec2::from(<[f32; 2]>::from(clip.clamp(this_rect.min).to_vec2()));
             clipped.max =
                 bevy::math::Vec2::from(<[f32; 2]>::from(clip.clamp(this_rect.max).to_vec2()));
-            vec.push(ClippedShape(
-                clip,
-                if let Some(text) = text {
-                    let galley = fonts.layout_job(LayoutJob {
-                        text: text.0.clone(),
-                        wrap_width: node.size.x,
-                        sections: details.map(|details| details.0.clone()).unwrap_or_else(|| {
-                            vec![LayoutSection {
-                                byte_range: 0..text.0.len(),
-                                format: TextFormat {
-                                    style: font.map(|f| f.0).unwrap_or(TextStyle::Body),
-                                    color: color.unwrap_or(Color32::WHITE),
-                                    ..Default::default()
-                                },
-                                leading_space: 0.,
-                            }]
+            if let Some(text) = text {
+                let galley = fonts.layout_job(LayoutJob {
+                    text: text.0.clone(),
+                    wrap_width: node.size.x,
+                    sections: details.map(|details| details.0.clone()).unwrap_or_else(|| {
+                        vec![LayoutSection {
+                            byte_range: 0..text.0.len(),
+                            format: TextFormat {
+                                style: font.map(|f| f.0).unwrap_or(TextStyle::Body),
+                                color: color.unwrap_or(Color32::WHITE),
+                                ..Default::default()
+                            },
+                            leading_space: 0.,
+                        }]
+                    }),
+                    ..Default::default()
+                });
+                let shape = tb.and_then(|tb| tb.0).map(|cursor| {
+                    let offset = (cursor != 0)
+                        .then(|| {
+                            galley
+                                .rows
+                                .get(0)
+                                .map(|r| &r.glyphs[..])
+                                .and_then(|r| r.get(text.0[..cursor].chars().count() - 1))
+                                .map(|g| g.pos.x + g.size.x - 1.)
+                        })
+                        .flatten()
+                        .unwrap_or(0.);
+                    ClippedShape(
+                        clip,
+                        Shape::Rect(RectShape {
+                            rect: Rect {
+                                min: pos + Vec2::new(offset, 0.),
+                                max: pos + Vec2::new(offset + 2., 14.),
+                            },
+                            corner_radius: 0.,
+                            fill: color.unwrap_or(Color32::WHITE),
+                            stroke: Default::default(),
                         }),
-                        ..Default::default()
-                    });
+                    )
+                });
+                vec.push(ClippedShape(
+                    clip,
                     Shape::Text(TextShape {
                         pos,
                         galley,
                         override_text_color: None,
                         angle: 0.,
                         underline: Stroke::none(),
-                    })
-                } else {
+                    }),
+                ));
+                vec.extend(shape);
+            } else {
+                vec.push(ClippedShape(
+                    clip,
                     Shape::Rect(RectShape {
                         rect: this_rect,
                         corner_radius: 0.,
                         fill: color.unwrap_or(Color32::TRANSPARENT),
                         stroke: Default::default(),
-                    })
-                },
-            ));
+                    }),
+                ));
+            }
 
             z += 1;
             if hide_overflow.is_some() {

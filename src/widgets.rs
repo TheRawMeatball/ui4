@@ -9,7 +9,7 @@ use bevy::render2::color::Color;
 use bevy::utils::HashMap;
 use bevy::window::Windows;
 
-use crate::dom::{FocusPolicy, Focusable, Node};
+use crate::dom::{FocusPolicy, Focusable, Node, TextBoxCursor};
 use crate::{dom::Interaction, prelude::*};
 
 use self::button::FuncScratch;
@@ -53,6 +53,9 @@ pub fn button<O: IntoObserver<String, M>, M>(t: O) -> impl FnOnce(Ctx) -> Ctx {
 
 pub fn textbox<L: WorldLens<Out = String>>(text: L) -> impl FnOnce(Ctx) -> Ctx where {
     move |ctx: Ctx| {
+        let cursor = ctx.component::<TextBox>();
+        let focused = ctx.has_component::<Focused>();
+
         ctx.with(Width(Units::Pixels(250.)))
             .with(Height(Units::Pixels(30.)))
             .with(TextBox(0))
@@ -61,15 +64,17 @@ pub fn textbox<L: WorldLens<Out = String>>(text: L) -> impl FnOnce(Ctx) -> Ctx w
             .with(TextBoxFunc::new(move |w| text.get_mut(w)))
             .with(UiColor(Color::DARK_GRAY))
             .child(|ctx: Ctx| {
-                ctx.with(FocusPolicy::Pass).with_modified::<_, L, _>(
-                    Text("".to_string()),
-                    text,
-                    |text, Text(mut old)| {
+                ctx.with(FocusPolicy::Pass)
+                    .with_modified::<_, L, _>(Text("".to_string()), text, |text, Text(mut old)| {
                         old.clear();
                         old.push_str(text);
                         Text(old)
-                    },
-                )
+                    })
+                    .with(
+                        cursor
+                            .and(focused)
+                            .map(|(c, f): (&TextBox, bool)| TextBoxCursor(f.then(|| c.0))),
+                    )
             })
     }
 }
