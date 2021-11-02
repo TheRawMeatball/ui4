@@ -21,7 +21,6 @@ use ui4::prelude::*;
 fn main() {
     let mut app = App::new();
     app.add_plugins(PipelinedDefaultPlugins)
-        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_plugin(Ui4Plugin)
         .add_plugin(Ui4Root(root));
 
