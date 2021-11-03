@@ -1,0 +1,15 @@
+imports {
+    slider
+    fancy_thing
+}
+
+- {
+    Text "Hello"
+    Width "60px"
+    Height "30px"
+    -i fancy_thing
+    - {
+        -i slider
+    }
+}
+

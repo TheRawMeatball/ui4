@@ -4,6 +4,7 @@ mod insertable;
 mod runtime;
 
 pub mod animation;
+pub mod asset;
 pub mod childable;
 pub mod ctx;
 pub mod lens;
@@ -41,3 +42,22 @@ pub mod prelude {
 
 pub struct Static;
 pub struct Dynamic;
+
+#[test]
+fn kdltest() {
+    let kdl_string = r#"
+    imports {
+        slider
+    }
+    
+    - Text="Hello" {
+        Width "60px"
+        Height "30px"
+        - 
+    }
+    
+    - slider Marker1 Marker2
+"#;
+
+    dbg!(kdl::parse_document(kdl_string).unwrap());
+}
