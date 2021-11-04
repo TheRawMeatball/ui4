@@ -49,6 +49,11 @@ impl Ctx<'_> {
         self
     }
 
+    /// Inherit the configuration of a separate widget
+    pub fn inherit(self, widget: impl FnOnce(Ctx) -> Ctx) -> Self {
+        widget(self)
+    }
+
     pub fn with_modified<T, O, F>(mut self, initial: T, observer: O, mutator: F) -> Self
     where
         T: Component,
@@ -119,5 +124,54 @@ impl Ctx<'_> {
 
     pub fn current_entity(&self) -> Entity {
         self.current_entity
+    }
+}
+
+pub trait WidgetBuilderExt {
+    type WithOut<T, M, I>;
+    type WithModifiedOut<T, O, F>;
+    /// Statically inserts a component, or sets up reactive-ness if given a reactive template.
+    #[track_caller]
+    fn with<T: Component, M, I: Insertable<T, M>>(self, item: I) -> Self::WithOut<T, M, I>;
+
+    fn with_modified<T, O, F>(
+        self,
+        initial: T,
+        observer: O,
+        mutator: F,
+    ) -> Self::WithModifiedOut<T, O, F>
+    where
+        T: Component,
+        O: UninitObserver,
+        for<'a> O::Observer: Observer<'a>,
+        F: for<'a> Fn(<O::Observer as Observer<'a>>::Return, T) -> T,
+        F: Send + Sync + 'static;
+}
+
+impl<W> WidgetBuilderExt for W
+where
+    W: FnOnce(Ctx) -> Ctx,
+{
+    type WithOut<T, M, I> = impl FnOnce(Ctx) -> Ctx;
+    type WithModifiedOut<T, O, F> = impl FnOnce(Ctx) -> Ctx;
+
+    fn with<T: Component, M, I: Insertable<T, M>>(self, item: I) -> Self::WithOut<T, M, I> {
+        |ctx| (self)(ctx).with(item)
+    }
+
+    fn with_modified<T, O, F>(
+        self,
+        initial: T,
+        observer: O,
+        mutator: F,
+    ) -> Self::WithModifiedOut<T, O, F>
+    where
+        T: Component,
+        O: UninitObserver,
+        for<'a> O::Observer: Observer<'a>,
+        F: for<'a> Fn(<O::Observer as Observer<'a>>::Return, T) -> T,
+        F: Send + Sync + 'static,
+    {
+        |ctx| (self)(ctx).with_modified(initial, observer, mutator)
     }
 }

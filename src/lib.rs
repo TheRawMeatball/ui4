@@ -1,3 +1,6 @@
+#![feature(generic_associated_types)]
+#![feature(type_alias_impl_trait)]
+
 mod dom;
 mod input;
 mod insertable;
@@ -18,7 +21,7 @@ pub mod prelude {
         tracked::{TrackedItemObserver, TrackedMarker, TrackedObserverExt, TrackedVec},
         ChildMapExt, Childable,
     };
-    pub use ctx::{Ctx, McCtx};
+    pub use ctx::{Ctx, McCtx, WidgetBuilderExt};
     pub use dom::layout::{layout_components::*, Units};
     pub use dom::{Color as UiColor, Focused, HideOverflow, Text, TextDetails, TextFont, TextSize};
     pub use lens::WorldLens;

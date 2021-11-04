@@ -37,21 +37,17 @@ fn root(ctx: Ctx) -> Ctx {
     ctx.with(State(0))
         .with(Top(Units::Pixels(50.)))
         .with(Left(Units::Pixels(50.)))
-        .child(|ctx| text("Hello!")(ctx).with(Height(Units::Pixels(30.))))
+        .child(text("Hello!").with(Height(Units::Pixels(30.))))
         .child(|ctx| {
             ctx.with(Width(Units::Pixels(300.)))
                 .with(Height(Units::Pixels(30.)))
                 .with(LayoutType::Row)
-                .child(|ctx| {
-                    button("Increment")(ctx).with(OnClick::new(move |world| {
-                        world.get_mut::<State>(this).unwrap().0 += 1;
-                    }))
-                })
-                .child(|ctx| {
-                    button("Decrement")(ctx).with(OnClick::new(move |world| {
-                        world.get_mut::<State>(this).unwrap().0 -= 1;
-                    }))
-                })
+                .child(button("Increment").with(OnClick::new(move |world| {
+                    world.get_mut::<State>(this).unwrap().0 += 1;
+                })))
+                .child(button("Decrement").with(OnClick::new(move |world| {
+                    world.get_mut::<State>(this).unwrap().0 -= 1;
+                })))
                 .child(text(
                     state.map(|s: &State| format!("The number is {}", s.0)),
                 ))
@@ -61,7 +57,7 @@ fn root(ctx: Ctx) -> Ctx {
 
 For more examples on how to use this library, look at the [examples](examples) folder!
 
-Important note: You'll need to use [a custom branch of bevy](https://github.com/TheRawMeatball/bevy/tree/runs-ui4-migrated), as there's still multiple PR s this library needs that haven't been merged into main yet.
+Important note: You'll need to nightly rust and [a custom branch of bevy](https://github.com/TheRawMeatball/bevy/tree/runs-ui4-migrated), as there's still multiple PR s this library needs that haven't been merged into main yet.
 
 ## Help
 

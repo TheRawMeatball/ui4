@@ -43,9 +43,10 @@ fn root(ctx: Ctx) -> Ctx {
         .with(Slider(0.42))
         .with(UiColor(Color::BLACK))
         .children(|ctx: &mut McCtx| {
-            ctx.c(labelled_widget("Button", |ctx| {
-                button("Click me!")(ctx).with(OnClick::new(|_| println!("you clicked the button!")))
-            }))
+            ctx.c(labelled_widget(
+                "Button",
+                button("Click me!").with(OnClick::new(|_| println!("you clicked the button!"))),
+            ))
             .c(labelled_widget(
                 "Textbox",
                 textbox(textbox_text.lens(TextboxText::F0)),
@@ -110,12 +111,10 @@ fn labelled_widget(
             .with(Height(Units::Pixels(30.)))
             .with(LayoutType::Row)
             .children(|ctx: &mut McCtx| {
-                ctx.c(|ctx| {
-                    text(label)(ctx)
-                        .with(Width(Units::Pixels(150.)))
-                        .with(Height(Units::Pixels(30.)))
-                })
-                .c(widget);
+                ctx.c(text(label)
+                    .with(Width(Units::Pixels(150.)))
+                    .with(Height(Units::Pixels(30.))))
+                    .c(widget);
             })
     }
 }
