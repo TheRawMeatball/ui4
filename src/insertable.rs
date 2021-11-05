@@ -10,7 +10,6 @@ use crate::{
 pub trait Insertable<T, M>: Send + Sync + 'static {
     /// ### Internal method!
     #[doc(hidden)]
-    #[track_caller]
     fn insert_ui_val(self, ctx: &mut Ctx);
 }
 
@@ -26,7 +25,6 @@ where
     for<'a> O: Observer<'a, Return = T>,
     UO: UninitObserver<Observer = O>,
 {
-    #[track_caller]
     fn insert_ui_val(self, ctx: &mut Ctx<'_>) {
         let entity = ctx.current_entity;
         let uf = self.register_self(ctx.world, |mut observer, world| {

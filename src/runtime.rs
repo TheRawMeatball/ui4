@@ -1,8 +1,6 @@
 use std::{
-    fmt::Debug,
     hash::Hash,
     marker::PhantomData,
-    panic::Location,
     sync::{atomic::AtomicBool, Arc, Mutex},
 };
 
@@ -70,20 +68,11 @@ pub(crate) fn primary_ui_system(world: &mut World) {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct UpdateFunc(Arc<UfInner<dyn FnMut(&mut World) + Send + Sync>>);
 struct UfInner<F: ?Sized> {
     flag: AtomicBool,
-    created_at: &'static Location<'static>,
     func: Mutex<F>,
-}
-
-impl<F: ?Sized> Debug for UfInner<F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("UfInner")
-            .field("created_at", &self.created_at)
-            .finish()
-    }
 }
 
 #[derive(Component)]
@@ -112,13 +101,11 @@ impl<T> UfMarker<T> {
 }
 
 impl UpdateFunc {
-    #[track_caller]
     pub(crate) fn new<T, F: FnMut(&mut World) + Send + Sync + 'static>(
         func: F,
     ) -> (Self, UfMarker<T>) {
         let arc = Arc::new(UfInner {
             flag: AtomicBool::new(false),
-            created_at: std::panic::Location::caller(),
             func: Mutex::new(func),
         });
         (

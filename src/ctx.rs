@@ -43,7 +43,6 @@ impl McCtx<'_> {
 
 impl Ctx<'_> {
     /// Statically inserts a component, or sets up reactive-ness if given a reactive template.
-    #[track_caller]
     pub fn with<T: Component, M>(mut self, item: impl Insertable<T, M>) -> Self {
         item.insert_ui_val(&mut self);
         self
@@ -131,7 +130,6 @@ pub trait WidgetBuilderExt {
     type WithOut<T, M, I>;
     type WithModifiedOut<T, O, F>;
     /// Statically inserts a component, or sets up reactive-ness if given a reactive template.
-    #[track_caller]
     fn with<T: Component, M, I: Insertable<T, M>>(self, item: I) -> Self::WithOut<T, M, I>;
 
     fn with_modified<T, O, F>(
