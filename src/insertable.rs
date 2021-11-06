@@ -19,7 +19,6 @@ impl<T: Component> Insertable<T, Static> for T {
     }
 }
 
-#[rustfmt::skip]
 impl<T: Component, O, UO> Insertable<T, Dynamic> for UO
 where
     for<'a> O: Observer<'a, Return = T>,

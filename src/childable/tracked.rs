@@ -25,7 +25,6 @@ pub trait TrackedObserverExt: Sized {
     fn each<F>(self, f: F) -> TrackedForeach<Self, F>;
 }
 
-#[rustfmt::skip]
 impl<O, UO, T, Tt> TrackedObserverExt for UO
 where
     UO: UninitObserver<Observer = O>,
@@ -115,7 +114,6 @@ type Paramset<T> = SystemState<(
     ResMut<'static, UiScratchSpace>,
 )>;
 
-#[rustfmt::skip]
 impl<O, UO, T, F, C, Tt, M> Childable<(TrackedMarker, Tt, C, M)> for TrackedForeach<UO, F>
 where
     UO: UninitObserver<Observer = O>,

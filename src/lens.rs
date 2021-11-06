@@ -9,7 +9,7 @@ use crate::{
 
 pub trait WorldLens: Copy + Send + Sync + 'static {
     type UninitObserver: UninitObserver<Observer = Self::Observer>;
-    #[rustfmt::skip]
+
     type Observer: for<'a> Observer<'a, Return = &'a Self::LensIn>;
     type LensIn;
     type Lens: Lens<In = Self::LensIn, Out = Self::Out>;

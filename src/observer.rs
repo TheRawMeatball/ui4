@@ -165,7 +165,7 @@ where
         (val.deref(), change)
     }
 }
-#[rustfmt::skip]
+
 impl<UO, O, T: Deref + 'static> UninitObserver for DereffedTemplate<UO>
 where
     O: for<'a> Observer<'a, Return = &'a T>,
@@ -215,7 +215,6 @@ pub struct DedupTemplate<O>(O);
 
 pub struct Dedup<O: for<'a> Observer<'a>>(Option<<O as Observer<'static>>::Return>, O);
 
-#[rustfmt::skip]
 impl<UO, O, T> UninitObserver for DedupTemplate<UO>
 where
     UO: UninitObserver<Observer = O>,
@@ -234,7 +233,6 @@ where
     }
 }
 
-#[rustfmt::skip]
 impl<'a, O, T> Observer<'a> for Dedup<O>
 where
     O: for<'x> Observer<'x, Return = T>,
@@ -326,7 +324,6 @@ pub trait ReturnSpec<'a, T> {
     type R: Borrow<T>;
 }
 
-#[rustfmt::skip]
 pub trait IntoObserver<T, M>: Send + Sync + 'static {
     type UninitObserver: UninitObserver<Observer = Self::Observer>;
     type Observer: for<'a> Observer<'a, Return = <Self::ReturnSpec as ReturnSpec<'a, T>>::R>;

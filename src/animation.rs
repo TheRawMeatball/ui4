@@ -48,7 +48,6 @@ pub trait TweenExt: Sized {
     }
 }
 
-#[rustfmt::skip]
 impl<UO, O> TweenExt for UO
 where
     UO: UninitObserver<Observer = O>,
@@ -68,7 +67,6 @@ impl TweenObserver {
     }
 }
 
-#[rustfmt::skip]
 impl<UO, O> UninitObserver for UninitTweenObserver<UO>
 where
     UO: UninitObserver<Observer = O>,
@@ -98,17 +96,21 @@ where
                     return;
                 }
                 first = false;
-                let old = f32::from_bits(arc.load( std::sync::atomic::Ordering::SeqCst));
+                let old = f32::from_bits(arc.load(std::sync::atomic::Ordering::SeqCst));
                 arc.store(f32::to_bits(val), std::sync::atomic::Ordering::SeqCst);
-                let running_tweens = world.get_resource_mut::<RunningTweens>().unwrap().into_inner();
+                let running_tweens = world
+                    .get_resource_mut::<RunningTweens>()
+                    .unwrap()
+                    .into_inner();
                 if let Some(ct) = current {
                     if let Some(current) = running_tweens.arena.get_mut(ct) {
                         let intp = current.time_left / current.duration;
-                        current.start = current.end + (current.start - current.end) * intp.clamp(0., 1.);
+                        current.start =
+                            current.end + (current.start - current.end) * intp.clamp(0., 1.);
                         current.end = val;
                         current.time_left = current.duration;
                         return;
-                    } 
+                    }
                 }
                 current = Some(running_tweens.arena.insert(ActiveTween {
                     duration: self.settings.duration,

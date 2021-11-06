@@ -48,7 +48,6 @@ impl<UO> ChildMapExt for UO where UO: UninitObserver {}
 
 pub struct ChildMap<UO, F>(UO, F);
 
-#[rustfmt::skip]
 impl<UO, F, MF, T> Childable<Dynamic> for ChildMap<UO, MF>
 where
     UO: UninitObserver,
@@ -74,7 +73,7 @@ where
                 let (ret, changed) = observer.get(world);
 
                 parents.retain(|_, entity| world.entities().contains(*entity));
-                
+
                 if !changed || Some(&ret) == last.as_ref() {
                     return;
                 }
