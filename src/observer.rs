@@ -131,7 +131,7 @@ where
 
     fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
         let (val, change) = self.0.get(world);
-        (val.clone(), change)
+        (*val, change)
     }
 }
 

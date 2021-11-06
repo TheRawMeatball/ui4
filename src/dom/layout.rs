@@ -366,7 +366,7 @@ fn push_all_children(
         .unwrap_or(&[]);
 
     for &child in children {
-        if !queries.control_node_query.get(child).is_ok() {
+        if queries.control_node_query.get(child).is_err() {
             *cf = *cf || check_cd(child, cd_query);
             vec.push(NodeEntity(child));
         }

@@ -32,7 +32,7 @@ where
             nc
         };
         (self)(&mut McCtx {
-            world: &mut ctx.world,
+            world: ctx.world,
             get_new_child: &mut new_child,
         });
     }
@@ -122,6 +122,6 @@ where
             world.entity_mut(main_c_parent).insert(marker);
             uf
         });
-        uf.run(&mut ctx.world);
+        uf.run(ctx.world);
     }
 }

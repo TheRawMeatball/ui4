@@ -1,5 +1,7 @@
 #![feature(generic_associated_types)]
 #![feature(type_alias_impl_trait)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
 
 pub mod animation;
 pub mod ctx;
@@ -20,7 +22,7 @@ pub mod prelude {
     use super::*;
     pub use animation::{TransitionBundle, TransitionProgress, TweenExt};
     pub use childable::{
-        tracked::{TrackedItemObserver, TrackedMarker, TrackedObserverExt, TrackedVec},
+        tracked::{TrackedItemObserver, TrackedMap, TrackedMarker, TrackedObserverExt, TrackedVec},
         ChildMapExt, Childable,
     };
     pub use ctx::{Ctx, McCtx, WidgetBuilderExt};

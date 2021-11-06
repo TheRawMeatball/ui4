@@ -53,7 +53,7 @@ impl Ctx<'_> {
         widget(self)
     }
 
-    pub fn with_modified<T, O, F>(mut self, initial: T, observer: O, mutator: F) -> Self
+    pub fn with_modified<T, O, F>(self, initial: T, observer: O, mutator: F) -> Self
     where
         T: Component,
         O: UninitObserver,
@@ -85,7 +85,7 @@ impl Ctx<'_> {
             world.entity_mut(entity).insert(marker);
             uf
         });
-        uf.run(&mut self.world);
+        uf.run(self.world);
         self
     }
 

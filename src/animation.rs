@@ -79,7 +79,7 @@ where
         world: &mut World,
         uf: F,
     ) -> UpdateFunc {
-        let uf = self.observer.register_self(world, |mut observer, world| {
+        self.observer.register_self(world, |mut observer, world| {
             let (obs, arc) = TweenObserver::new();
             let uf = uf(obs, world);
             let ufm = Arc::new(Mutex::new(None));
@@ -123,9 +123,7 @@ where
             });
             *ufm.lock().unwrap() = Some(marker);
             uf
-        });
-
-        uf
+        })
     }
 }
 
@@ -306,21 +304,19 @@ pub(crate) fn cancel_transition_out(
         Option<&mut ActiveTransition>,
     )>,
 ) {
-    if let Some((transition, mut progress, running)) = transition_q.get_mut(entity).ok() {
-        if let Some(mut running) = running {
-            if progress.direction.unwrap() == TransitionDirection::Out {
-                match transition {
-                    Transition::In { .. }
-                    | Transition::Bidirectional { .. }
-                    | Transition::InAndOut { .. } => {
-                        progress.direction = Some(TransitionDirection::In);
-                        running.0 = None;
-                    }
-                    _ => {
-                        progress.direction = None;
-                        progress.progress = 1.;
-                        commands.entity(entity).remove::<ActiveTransition>();
-                    }
+    if let Ok((transition, mut progress, Some(mut running))) = transition_q.get_mut(entity) {
+        if progress.direction.unwrap() == TransitionDirection::Out {
+            match transition {
+                Transition::In { .. }
+                | Transition::Bidirectional { .. }
+                | Transition::InAndOut { .. } => {
+                    progress.direction = Some(TransitionDirection::In);
+                    running.0 = None;
+                }
+                _ => {
+                    progress.direction = None;
+                    progress.progress = 1.;
+                    commands.entity(entity).remove::<ActiveTransition>();
                 }
             }
         }
@@ -405,7 +401,7 @@ fn trigger_transition_out_n(
     )>,
     btc_q: &mut Query<&mut BlockingTransitionCount>,
 ) {
-    if let Some((transition, mut progress, running)) = transition_q.get_mut(e).ok() {
+    if let Ok((transition, mut progress, running)) = transition_q.get_mut(e) {
         if let Some(mut running) = running {
             if progress.direction.unwrap() == TransitionDirection::In {
                 match transition {

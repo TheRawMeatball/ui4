@@ -43,6 +43,6 @@ where
             world.entity_mut(entity).insert(marker);
             uf
         });
-        uf.run(&mut ctx.world);
+        uf.run(ctx.world);
     }
 }

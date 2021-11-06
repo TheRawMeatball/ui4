@@ -45,7 +45,7 @@ impl TextBoxSystemState {
     pub(crate) fn run(&mut self, world: &mut World) {
         let (mut reader, mut q, inp, time) = self.state.get_mut(world);
         self.tmp_chars.extend(reader.iter().map(|rc| rc.char));
-        if let Some((tbf, cursor)) = q.get_single_mut().ok() {
+        if let Ok((tbf, cursor)) = q.get_single_mut() {
             let pl = inp.pressed(KeyCode::Left);
             let pr = inp.pressed(KeyCode::Right);
             let jpl = inp.just_pressed(KeyCode::Left);

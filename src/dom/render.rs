@@ -161,7 +161,7 @@ pub(crate) fn create_shapes_system(
             },
             &shapes_q,
             &mut cn_query,
-            &fonts,
+            fonts,
             0,
         )
     }
