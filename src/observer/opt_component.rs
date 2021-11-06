@@ -5,35 +5,35 @@ use bevy::{
     utils::HashMap,
 };
 
-use crate::runtime::{UiManagedSystems, UiScratchSpace, UpdateFunc};
+use crate::runtime::{UfMarker, UiManagedSystems, UiScratchSpace, UpdateFunc};
 
 use super::{Observer, UninitObserver};
 
-struct ComponentExistsUpdateFuncs<T>(HashMap<Entity, Vec<UpdateFunc>>, PhantomData<T>);
+struct OptComponentUpdateFuncs<T>(HashMap<Entity, Vec<UpdateFunc>>, PhantomData<T>);
 
-pub struct ComponentExistsObserver<T: Send + Sync + 'static>(
+pub struct OptComponentObserver<T: Send + Sync + 'static>(
     pub(crate) Entity,
     pub(crate) PhantomData<T>,
 );
 
-impl<T: Send + Sync + 'static> Clone for ComponentExistsObserver<T> {
+impl<T: Send + Sync + 'static> Clone for OptComponentObserver<T> {
     fn clone(&self) -> Self {
         Self(self.0, PhantomData)
     }
 }
 
-impl<T: Send + Sync + 'static> Copy for ComponentExistsObserver<T> {}
+impl<T: Send + Sync + 'static> Copy for OptComponentObserver<T> {}
 
-impl<'a, T: Component> Observer<'a> for ComponentExistsObserver<T> {
-    type Return = bool;
+impl<'a, T: Component> Observer<'a> for OptComponentObserver<T> {
+    type Return = Option<&'a T>;
 
     fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
         // TODO: use change detection
-        (world.get::<T>(self.0).is_some(), true)
+        (world.get::<T>(self.0), true)
     }
 }
 
-impl<T: Component> UninitObserver for ComponentExistsObserver<T> {
+impl<T: Component> UninitObserver for OptComponentObserver<T> {
     type Observer = Self;
 
     fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
@@ -44,11 +44,13 @@ impl<T: Component> UninitObserver for ComponentExistsObserver<T> {
         let uf = (uf)(self, world);
         let ufc = uf.clone();
         world.resource_scope(|world, mut systems: Mut<UiManagedSystems>| {
-            if let Some(mut lists) = world.get_resource_mut::<ComponentExistsUpdateFuncs<T>>() {
+            if let Some(mut marker) = world.get_mut::<UfMarker<T>>(self.0) {
+                marker.add_dependent(uf);
+            } else if let Some(mut lists) = world.get_resource_mut::<OptComponentUpdateFuncs<T>>() {
                 lists.0.entry(self.0).or_default().push(uf);
             } else {
-                systems.0.add_system(component_exist_track_system::<T>);
-                world.insert_resource(ComponentExistsUpdateFuncs::<T>(
+                systems.0.add_system(opt_component_change_track_system::<T>);
+                world.insert_resource(OptComponentUpdateFuncs::<T>(
                     [(self.0, vec![uf])].into_iter().collect(),
                     PhantomData,
                 ));
@@ -58,16 +60,16 @@ impl<T: Component> UninitObserver for ComponentExistsObserver<T> {
     }
 }
 
-fn component_exist_track_system<T: Component>(
+fn opt_component_change_track_system<T: Component>(
     mut ui: ResMut<UiScratchSpace>,
-    mut update_funcs: ResMut<ComponentExistsUpdateFuncs<T>>,
+    mut update_funcs: ResMut<OptComponentUpdateFuncs<T>>,
     detector: Query<ChangeTrackers<T>>,
 ) {
     update_funcs
         .0
         .retain(|entity, list| match detector.get(*entity) {
             Ok(ticks) => {
-                if ticks.is_added() {
+                if ticks.is_changed() {
                     ui.process_list(list);
                 }
                 !list.is_empty()

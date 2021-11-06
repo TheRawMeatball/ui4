@@ -9,11 +9,13 @@ use crate::{Dynamic, Static};
 
 mod component;
 mod has_component;
+mod opt_component;
 mod res;
 mod single;
 
 pub use {
-    component::ComponentObserver, has_component::ComponentExistsObserver, res::res, single::single,
+    component::ComponentObserver, has_component::ComponentExistsObserver,
+    opt_component::OptComponentObserver, res::res, single::single,
 };
 
 /// Types implementing this trait represent a mapping from world and internal state to a certain output.

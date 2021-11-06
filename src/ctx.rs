@@ -7,7 +7,7 @@ use crate::{
     dom::ControlBundle,
     insertable::Insertable,
     lens::ComponentLens,
-    observer::{ComponentExistsObserver, Observer, UninitObserver},
+    observer::{ComponentExistsObserver, Observer, OptComponentObserver, UninitObserver},
     runtime::{UfMarker, UiScratchSpace, UpdateFunc},
 };
 
@@ -113,6 +113,11 @@ impl Ctx<'_> {
     /// and the lens is still in-use.
     pub fn component<T: Component>(&self) -> ComponentLens<T> {
         ComponentLens(self.current_entity, PhantomData)
+    }
+
+    /// Gets an observer for a component on the entity being built.
+    pub fn opt_component<T: Component>(&self) -> OptComponentObserver<T> {
+        OptComponentObserver(self.current_entity, PhantomData)
     }
 
     /// Gets an observer for whether the current entity has a particular component. Most useful with marker
