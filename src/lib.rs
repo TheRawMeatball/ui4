@@ -1,18 +1,20 @@
 #![feature(generic_associated_types)]
 #![feature(type_alias_impl_trait)]
 
-mod dom;
-mod input;
-mod insertable;
-mod runtime;
-
 pub mod animation;
-pub mod childable;
 pub mod ctx;
-pub mod lens;
-pub mod observer;
+pub mod dom;
 pub mod plugin;
 pub mod widgets;
+
+mod childable;
+mod input;
+mod insertable;
+mod observer;
+mod runtime;
+
+#[doc(hidden)]
+pub mod lens;
 
 pub mod prelude {
     use super::*;
@@ -42,5 +44,7 @@ pub mod prelude {
     pub use ui4_macros::Lens;
 }
 
+#[doc(hidden)]
 pub struct Static;
+#[doc(hidden)]
 pub struct Dynamic;

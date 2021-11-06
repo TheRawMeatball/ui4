@@ -1,6 +1,6 @@
-pub mod button;
-pub mod slider;
-pub mod textbox;
+pub(crate) mod button;
+pub(crate) mod slider;
+pub(crate) mod textbox;
 
 use std::hash::Hash;
 use std::sync::Arc;
