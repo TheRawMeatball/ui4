@@ -50,3 +50,5 @@ pub mod prelude {
 pub struct Static;
 #[doc(hidden)]
 pub struct Dynamic;
+#[doc(hidden)]
+pub struct OptionalDynamic;
