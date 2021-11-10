@@ -63,16 +63,14 @@ fn component_exist_track_system<T: Component>(
     mut update_funcs: ResMut<ComponentExistsUpdateFuncs<T>>,
     detector: Query<ChangeTrackers<T>>,
 ) {
-    update_funcs
-        .0
-        .retain(|entity, list| match detector.get(*entity) {
-            Ok(ticks) => {
-                if ticks.is_added() {
-                    ui.process_list(list);
-                }
-                !list.is_empty()
-            }
-            Err(QueryEntityError::QueryDoesNotMatch) => !list.is_empty(),
-            Err(QueryEntityError::NoSuchEntity) => false,
-        });
+    update_funcs.0.retain(|entity, list| {
+        match detector.get(*entity) {
+            Ok(ticks) if ticks.is_added() => ui.process_list(list),
+            Err(QueryEntityError::QueryDoesNotMatch) => ui.process_list(list),
+            Ok(_) => {}
+            // remove this tracker when entity is despawned
+            Err(QueryEntityError::NoSuchEntity) => return false,
+        }
+        !list.is_empty()
+    });
 }
