@@ -27,7 +27,9 @@ pub mod prelude {
     };
     pub use ctx::{Ctx, McCtx, WidgetBuilderExt};
     pub use dom::layout::{layout_components::*, Units};
-    pub use dom::{Color as UiColor, Focused, HideOverflow, Text, TextDetails, TextFont, TextSize};
+    pub use dom::{
+        Color as UiColor, Focused, HideOverflow, Text, TextFont, TextSections, TextSize,
+    };
     pub use lens::WorldLens;
     pub use observer::{res, single, IntoObserver, ObserverExt};
     pub use plugin::{Ui4Plugin, Ui4Root};

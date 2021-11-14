@@ -1,5 +1,8 @@
-use bevy::{ecs::prelude::*, math::Vec2};
+use bevy::{ecs::prelude::*, math::Vec2, prelude::Handle};
 use bevy_inspector_egui::Inspectable;
+use smallvec::SmallVec;
+
+use self::render::text::{Font, TextSection};
 
 pub mod layout;
 pub mod render;
@@ -38,7 +41,7 @@ pub struct Text(pub String);
 pub struct TextSize(pub f32);
 
 #[derive(Component)]
-pub struct TextFont(pub epaint::TextStyle);
+pub struct TextFont(pub Font);
 
 #[derive(Component)]
 pub struct TextBoxCursor(pub Option<usize>);
@@ -46,9 +49,9 @@ pub struct TextBoxCursor(pub Option<usize>);
 #[derive(Component)]
 pub struct HideOverflow;
 
-/// Overrides [`TextFont`] and [`TextFont`]
+/// Overrides [`TextSize`] and [`TextFont`]
 #[derive(Component)]
-pub struct TextDetails(pub Vec<epaint::text::LayoutSection>);
+pub struct TextSections(pub SmallVec<[TextSection; 1]>);
 
 #[derive(Component, Inspectable)]
 pub struct Color(pub bevy::render2::color::Color);

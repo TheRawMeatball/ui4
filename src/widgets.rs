@@ -8,7 +8,9 @@ use std::sync::Arc;
 use bevy::render2::color::Color;
 use bevy::utils::HashMap;
 use bevy::window::Windows;
+use fontdue::layout::{CoordinateSystem, Layout, LayoutSettings};
 
+use crate::dom::render::text::{FallbackFont, ProcessedText, TextSection};
 use crate::dom::{FocusPolicy, Focusable, Node, TextBoxCursor};
 use crate::{dom::Interaction, prelude::*};
 
@@ -17,11 +19,72 @@ use self::slider::EngagedSlider;
 use self::textbox::{TextBox, TextBoxFunc};
 
 pub fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
+    enum TsTransfer<'a> {
+        Slice(&'a [TextSection]),
+        One(TextSection),
+        NoFont(f32),
+    }
+
     move |ctx: Ctx| {
-        ctx.with(FocusPolicy::Pass).with(
-            text.into_observer()
-                .map(|text: ObsReturn<'_, _, _, O>| Text(text.borrow().clone())),
-        )
+        let string = ctx.component();
+        let sections = ctx.opt_component();
+        let size = ctx.opt_component();
+        let font = ctx.opt_component();
+        fn large_and<'a>(
+            ((size, font), sections): (
+                (Option<&TextSize>, Option<&TextFont>),
+                Option<&'a TextSections>,
+            ),
+        ) -> TsTransfer<'a> {
+            if let Some(sections) = sections {
+                TsTransfer::Slice(&*sections.0)
+            } else {
+                let size = size.map(|x| x.0).unwrap_or(14.);
+                font.map(|f| {
+                    TsTransfer::One(TextSection {
+                        char_len: 0,
+                        font: f.0.clone(),
+                        size,
+                    })
+                })
+                .unwrap_or(TsTransfer::NoFont(size))
+            }
+        }
+
+        ctx.with(FocusPolicy::Pass)
+            .with(
+                text.into_observer()
+                    .map(|text: ObsReturn<'_, _, _, O>| Text(text.borrow().clone())),
+            )
+            .with(
+                string
+                    .and(res())
+                    .and(size.and(font).and(sections).map(large_and))
+                    .map(
+                        |((s, fallback_font), sections): ((&Text, &FallbackFont), TsTransfer)| {
+                            let ptn = |sections: &[TextSection]| {
+                                ProcessedText::new(
+                                    &s.0,
+                                    &mut Layout::new(CoordinateSystem::PositiveYUp),
+                                    LayoutSettings {
+                                        ..Default::default()
+                                    },
+                                    sections,
+                                    '□',
+                                )
+                            };
+                            match sections {
+                                TsTransfer::Slice(s) => ptn(s),
+                                TsTransfer::One(v) => ptn(&[v]),
+                                TsTransfer::NoFont(size) => ptn(&[TextSection {
+                                    char_len: 0,
+                                    font: fallback_font.0.clone(),
+                                    size,
+                                }]),
+                            }
+                        },
+                    ),
+            )
     }
 }
 

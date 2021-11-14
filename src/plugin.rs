@@ -21,10 +21,6 @@ enum Ui4SystemLabels {
 pub struct Ui4Plugin;
 impl Plugin for Ui4Plugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        if !app.world.contains_resource::<bevy_egui::EguiContext>() {
-            app.add_plugin(bevy_egui::EguiPlugin);
-        }
-
         if !app
             .world
             .contains_resource::<bevy_inspector_egui::InspectableRegistry>()
@@ -63,13 +59,14 @@ impl Plugin for Ui4Plugin {
                 CoreStage::PostUpdate,
                 crate::dom::layout::layout_node_system.label(Ui4SystemLabels::Layout),
             )
-            .add_system_to_stage(
-                CoreStage::PostUpdate,
-                crate::dom::render::create_shapes_system
-                    .after(Ui4SystemLabels::Layout)
-                    .after(bevy_egui::EguiSystem::ProcessOutput)
-                    .label(Ui4SystemLabels::Shaping),
-            );
+            // .add_system_to_stage(
+            //     CoreStage::PostUpdate,
+            //     crate::dom::render::create_shapes_system
+            //         .after(Ui4SystemLabels::Layout)
+            //         .after(bevy_egui::EguiSystem::ProcessOutput)
+            //         .label(Ui4SystemLabels::Shaping),
+            // )
+            ;
 
         crate::dom::layout::layout_components::register_all(app);
     }
