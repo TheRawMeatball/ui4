@@ -62,7 +62,10 @@ fn root(ctx: Ctx) -> Ctx {
                 )
                 .child(
                     button("Remove first".to_string()).with(OnClick::new(move |w| {
-                        w.get_mut::<List>(this).unwrap().remove(0);
+                        let mut list = w.get_mut::<List>(this).unwrap();
+                        if !list.is_empty() {
+                            list.remove(0);
+                        }
                     })),
                 )
         })
