@@ -1,6 +1,6 @@
 use bevy::{prelude::*, PipelinedDefaultPlugins};
 use derive_more::{Deref, DerefMut};
-use std::{ops::Deref, sync::Arc};
+use std::sync::Arc;
 use ui4::prelude::*;
 
 #[derive(Default, Deref, Lens)]
@@ -61,13 +61,15 @@ fn root(ctx: Ctx) -> Ctx {
                                 .with(Height(Units::Pixels(30.))),
                         )
                 })
-                .children(res::<TodoList>().map(Deref::deref).each(
-                    |item: TrackedItemObserver<Todo>| {
-                        move |ctx: &mut McCtx| {
-                            ctx.c(todo(item));
-                        }
-                    },
-                ))
+                .children(
+                    res::<TodoList>()
+                        .dereffed()
+                        .each(|item: TrackedItemObserver<Todo>| {
+                            move |ctx: &mut McCtx| {
+                                ctx.c(todo(item));
+                            }
+                        }),
+                )
         })
 }
 

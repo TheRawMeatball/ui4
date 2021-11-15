@@ -1,6 +1,5 @@
 use bevy::{prelude::*, PipelinedDefaultPlugins};
 use derive_more::{Deref, DerefMut};
-use std::ops::Deref;
 use ui4::prelude::*;
 
 fn main() {
@@ -69,14 +68,11 @@ fn root(ctx: Ctx) -> Ctx {
                     })),
                 )
         })
-        .children(
-            list.map(Deref::deref)
-                .each(|label: TrackedItemObserver<String>| {
-                    move |ctx: &mut McCtx| {
-                        ctx.c(counter(label.map(|s: (&String, usize)| s.0.clone())));
-                    }
-                }),
-        )
+        .children(list.dereffed().each(|label: TrackedItemObserver<String>| {
+            move |ctx: &mut McCtx| {
+                ctx.c(counter(label.map(|s: (&String, usize)| s.0.clone())));
+            }
+        }))
         .children(
             res()
                 .map(|time: &Time| time.seconds_since_startup() as usize % 2 == 0)
