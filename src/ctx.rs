@@ -131,50 +131,92 @@ impl Ctx<'_> {
     }
 }
 
-pub trait WidgetBuilderExt {
-    type WithOut<T, M, I>;
-    type WithModifiedOut<T, O, F>;
+pub trait WidgetBuilderExtWith<T, M, I>
+where
+    T: Component,
+    I: Insertable<T, M>,
+{
+    type WithOut: FnOnce(Ctx) -> Ctx;
     /// Statically inserts a component, or sets up reactive-ness if given a reactive template.
-    fn with<T: Component, M, I: Insertable<T, M>>(self, item: I) -> Self::WithOut<T, M, I>;
-
-    fn with_modified<T, O, F>(
-        self,
-        initial: T,
-        observer: O,
-        mutator: F,
-    ) -> Self::WithModifiedOut<T, O, F>
-    where
-        T: Component,
-        O: UninitObserver,
-        for<'a> O::Observer: Observer<'a>,
-        F: for<'a> Fn(<O::Observer as Observer<'a>>::Return, T) -> T,
-        F: Send + Sync + 'static;
+    fn with(self, item: I) -> Self::WithOut;
 }
 
-impl<W> WidgetBuilderExt for W
+pub trait WidgetBuilderExtWithModified<T, O, F>
 where
-    W: FnOnce(Ctx) -> Ctx,
+    T: Component,
+    O: UninitObserver,
+    for<'a> O::Observer: Observer<'a>,
+    F: for<'a> Fn(<O::Observer as Observer<'a>>::Return, T) -> T,
+    F: Send + Sync + 'static,
 {
-    type WithOut<T, M, I> = impl FnOnce(Ctx) -> Ctx;
-    type WithModifiedOut<T, O, F> = impl FnOnce(Ctx) -> Ctx;
+    type WithModifiedOut: FnOnce(Ctx) -> Ctx;
+    fn with_modified(self, initial: T, observer: O, mutator: F) -> Self::WithModifiedOut;
+}
 
-    fn with<T: Component, M, I: Insertable<T, M>>(self, item: I) -> Self::WithOut<T, M, I> {
-        |ctx| (self)(ctx).with(item)
+#[cfg(feature = "nightly")]
+mod nightly_impls {
+    use super::*;
+
+    impl<W: 'static, T, M, I> WidgetBuilderExtWith<T, M, I> for W
+    where
+        W: FnOnce(Ctx) -> Ctx,
+        T: Component,
+        I: Insertable<T, M>,
+    {
+        type WithOut = impl FnOnce(Ctx) -> Ctx;
+
+        fn with(self, item: I) -> Self::WithOut {
+            |ctx| (self)(ctx).with(item)
+        }
     }
 
-    fn with_modified<T, O, F>(
-        self,
-        initial: T,
-        observer: O,
-        mutator: F,
-    ) -> Self::WithModifiedOut<T, O, F>
+    impl<W: 'static, T, O, F> WidgetBuilderExtWithModified<T, O, F> for W
     where
+        W: FnOnce(Ctx) -> Ctx,
         T: Component,
         O: UninitObserver,
         for<'a> O::Observer: Observer<'a>,
         F: for<'a> Fn(<O::Observer as Observer<'a>>::Return, T) -> T,
         F: Send + Sync + 'static,
     {
-        |ctx| (self)(ctx).with_modified(initial, observer, mutator)
+        type WithModifiedOut = impl FnOnce(Ctx) -> Ctx;
+
+        fn with_modified(self, initial: T, observer: O, mutator: F) -> Self::WithModifiedOut {
+            |ctx| (self)(ctx).with_modified(initial, observer, mutator)
+        }
+    }
+}
+
+#[cfg(not(feature = "nightly"))]
+mod stable_impls {
+    use super::*;
+
+    impl<W: 'static, T, M, I> WidgetBuilderExtWith<T, M, I> for W
+    where
+        W: FnOnce(Ctx) -> Ctx,
+        T: Component,
+        I: Insertable<T, M>,
+    {
+        type WithOut = Box<dyn FnOnce(Ctx) -> Ctx>;
+
+        fn with(self, item: I) -> Self::WithOut {
+            Box::new(|ctx| (self)(ctx).with(item))
+        }
+    }
+
+    impl<W: 'static, T, O, F> WidgetBuilderExtWithModified<T, O, F> for W
+    where
+        W: FnOnce(Ctx) -> Ctx,
+        T: Component,
+        O: UninitObserver,
+        for<'a> O::Observer: Observer<'a>,
+        F: for<'a> Fn(<O::Observer as Observer<'a>>::Return, T) -> T,
+        F: Send + Sync + 'static,
+    {
+        type WithModifiedOut = Box<dyn FnOnce(Ctx) -> Ctx>;
+
+        fn with_modified(self, initial: T, observer: O, mutator: F) -> Self::WithModifiedOut {
+            Box::new(|ctx| (self)(ctx).with_modified(initial, observer, mutator))
+        }
     }
 }
