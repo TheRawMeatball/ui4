@@ -60,7 +60,7 @@ pub(crate) fn primary_ui_system(world: &mut World) {
             uf.run(world);
         }
 
-        let mut ui = &mut *world.get_resource_mut::<UiScratchSpace>().unwrap();
+        let ui = &mut *world.get_resource_mut::<UiScratchSpace>().unwrap();
         ui.update_hashset_b = update_hashset;
         if ui.update_hashset_a.is_empty() {
             break;
