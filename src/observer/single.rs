@@ -1,9 +1,6 @@
 use crate::runtime::{UiManagedSystems, UiScratchSpace};
 use crate::{observer::UninitObserver, runtime::UpdateFunc};
-use bevy::ecs::query::ChangeTrackers;
-use bevy::ecs::world::Mut;
-use bevy::prelude::ResMut;
-use bevy::{ecs::component::Component, prelude::Query};
+use bevy::ecs::prelude::*;
 use std::marker::PhantomData;
 
 use bevy::{
@@ -76,7 +73,7 @@ pub trait SingleObserverTuple: Send + Sync + 'static {
 fn single_change_track_system<T: SingleObserverTuple>(
     q: Query<T::ChangeDetectionQuery>,
     mut list: ResMut<SingleUpdateFuncs<T>>,
-    mut ui: ResMut<UiScratchSpace>,
+    ui: Res<UiScratchSpace>,
 ) where
     <T::ChangeDetectionQuery as WorldQuery>::Fetch: ReadOnlyFetch,
 {

@@ -58,7 +58,7 @@ impl<T: Component> UninitObserver for ComponentObserver<T> {
 }
 
 fn component_change_track_system<T: Component>(
-    mut ui: ResMut<UiScratchSpace>,
+    ui: Res<UiScratchSpace>,
     mut update_funcs: ResMut<ComponentUpdateFuncs<T>>,
     detector: Query<ChangeTrackers<T>>,
 ) {

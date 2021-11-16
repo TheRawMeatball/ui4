@@ -4,28 +4,30 @@ use std::{
     sync::{atomic::AtomicBool, Arc, Mutex},
 };
 
-use bevy::{ecs::prelude::*, utils::HashSet};
+use ahash;
+use bevy::ecs::prelude::*;
+use dashmap::DashSet;
 
 use crate::widgets::{button::ButtonSystemState, textbox::TextBoxSystemState};
 
 #[derive(Default)]
 pub(crate) struct UiScratchSpace {
-    update_hashset_a: HashSet<UpdateFunc>,
-    update_hashset_b: HashSet<UpdateFunc>,
+    update_hashset_a: DashSet<UpdateFunc, ahash::RandomState>,
+    update_hashset_b: DashSet<UpdateFunc, ahash::RandomState>,
 }
 
-// TODO: when possible, make these functions take &self instead using lockfree hashsets.
 impl UiScratchSpace {
-    pub fn register_update_func(&mut self, uf: UpdateFunc) {
+    pub fn register_update_func(&self, uf: UpdateFunc) {
         self.update_hashset_a.insert(uf);
     }
 
-    pub fn register_update_funcs(&mut self, ufs: impl IntoIterator<Item = UpdateFunc>) {
-        self.update_hashset_a.extend(ufs);
+    pub fn register_update_funcs(&self, ufs: impl IntoIterator<Item = UpdateFunc>) {
+        for uf in ufs {
+            self.register_update_func(uf);
+        }
     }
 
-    pub fn process_list(&mut self, list: &mut Vec<UpdateFunc>) {
-        self.update_hashset_a.reserve(list.len());
+    pub fn process_list(&self, list: &mut Vec<UpdateFunc>) {
         list.retain(|uf| {
             let flagged = uf.flagged();
             if !flagged {
@@ -52,11 +54,12 @@ pub(crate) fn primary_ui_system(world: &mut World) {
     loop {
         let ui = &mut *world.get_resource_mut::<UiScratchSpace>().unwrap();
         std::mem::swap(&mut ui.update_hashset_a, &mut ui.update_hashset_b);
-        let mut update_hashset = std::mem::take(&mut ui.update_hashset_b);
+        let update_hashset = std::mem::take(&mut ui.update_hashset_b);
 
-        for uf in update_hashset.drain() {
+        for uf in update_hashset.iter() {
             uf.run(world);
         }
+        update_hashset.clear();
 
         let ui = &mut *world.get_resource_mut::<UiScratchSpace>().unwrap();
         ui.update_hashset_b = update_hashset;

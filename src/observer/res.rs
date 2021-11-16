@@ -85,7 +85,7 @@ pub fn res<R: Send + Sync + 'static>() -> ResLens<R> {
 }
 
 fn resource_change_track_system<T: Send + Sync + 'static>(
-    mut ui: ResMut<UiScratchSpace>,
+    ui: Res<UiScratchSpace>,
     mut update_funcs: ResMut<ResUpdateFuncs<T>>,
     detector: Res<T>,
 ) {

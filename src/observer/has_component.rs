@@ -59,7 +59,7 @@ impl<T: Component> UninitObserver for ComponentExistsObserver<T> {
 }
 
 fn component_exist_track_system<T: Component>(
-    mut ui: ResMut<UiScratchSpace>,
+    ui: Res<UiScratchSpace>,
     mut update_funcs: ResMut<ComponentExistsUpdateFuncs<T>>,
     detector: Query<ChangeTrackers<T>>,
 ) {

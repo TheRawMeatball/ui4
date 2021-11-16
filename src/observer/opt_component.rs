@@ -61,7 +61,7 @@ impl<T: Component> UninitObserver for OptComponentObserver<T> {
 }
 
 fn opt_component_change_track_system<T: Component>(
-    mut ui: ResMut<UiScratchSpace>,
+    ui: Res<UiScratchSpace>,
     mut update_funcs: ResMut<OptComponentUpdateFuncs<T>>,
     detector: Query<ChangeTrackers<T>>,
 ) {

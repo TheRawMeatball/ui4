@@ -4,24 +4,32 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [features]
 default = []
 nightly = []
 
 
 [dependencies]
-# lockfree = { git = "https://gitlab.com/sals3r0/lockfree.git" } # maybe reenable once it compiles
+ui4-macros = { path = "./ui4-macros" }
+
+# used for parallel collection of updatefunc
+dashmap = "4.0.2"
+ahash = "0.7"
+
+# tracked vec
 crossbeam-channel = "0.5.1"
-slotmap = "1.0"
-morphorm = { git = "https://github.com/geom3trik/morphorm" }
-derive_more = "0.99.16"
-concat-idents = "1.1.3"
+
+# layout
+morphorm = { git = "https://github.com/geom3trik/morphorm" } # core layout algorithm
+derive_more = "0.99.16" # used for Deref impls on layout elements, and in examples
+concat-idents = "1.1.3" # used in generating impls
+
+# rendering
 epaint = "0.15.0"
+
+# various optimizations
 smallvec = "1"
 
-ui4-macros = { path = "./ui4-macros" }
 
 [dependencies.bevy]
 git = "https://github.com/TheRawMeatball/bevy"

@@ -3,7 +3,6 @@ use bevy::ecs::prelude::*;
 use bevy::prelude::CoreStage;
 use bevy_inspector_egui::RegisterInspectable;
 
-use crate::animation::RunningTweens;
 use crate::ctx::Ctx;
 use crate::dom::NodeBundle;
 use crate::runtime::{primary_ui_system, UiManagedSystems, UiScratchSpace};
@@ -35,7 +34,6 @@ impl Plugin for Ui4Plugin {
         app.init_resource::<UiScratchSpace>()
             .init_resource::<ButtonSystemState>()
             .init_resource::<TextBoxSystemState>()
-            .init_resource::<RunningTweens>()
             .init_resource::<SliderSystemState>()
             .register_inspectable::<crate::dom::Node>()
             .register_inspectable::<crate::dom::ClippedNode>()

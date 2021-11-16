@@ -5,24 +5,19 @@ use bevy::core::Time;
 use bevy::ecs::prelude::*;
 use bevy::ecs::system::SystemState;
 use bevy::prelude::{Children, DespawnRecursiveExt};
-use slotmap::{DefaultKey, SlotMap};
 
 use crate::dom::Control;
 use crate::observer::{Observer, UninitObserver};
 use crate::runtime::{UiScratchSpace, UpdateFunc};
 
-struct ActiveTween {
+#[derive(Component)]
+pub(crate) struct ActiveTween {
     duration: f32,
     time_left: f32,
     start: f32,
     end: f32,
     arc: Arc<AtomicU32>,
     uf: UpdateFunc,
-}
-
-#[derive(Default)]
-pub(crate) struct RunningTweens {
-    arena: SlotMap<DefaultKey, ActiveTween>,
 }
 
 pub struct UninitTweenObserver<UO> {
@@ -98,12 +93,9 @@ where
                 first = false;
                 let old = f32::from_bits(arc.load(std::sync::atomic::Ordering::SeqCst));
                 arc.store(f32::to_bits(val), std::sync::atomic::Ordering::SeqCst);
-                let running_tweens = world
-                    .get_resource_mut::<RunningTweens>()
-                    .unwrap()
-                    .into_inner();
+
                 if let Some(ct) = current {
-                    if let Some(current) = running_tweens.arena.get_mut(ct) {
+                    if let Some(mut current) = world.get_mut::<ActiveTween>(ct) {
                         let intp = current.time_left / current.duration;
                         current.start =
                             current.end + (current.start - current.end) * intp.clamp(0., 1.);
@@ -112,14 +104,19 @@ where
                         return;
                     }
                 }
-                current = Some(running_tweens.arena.insert(ActiveTween {
-                    duration: self.settings.duration,
-                    time_left: self.settings.duration,
-                    start: old,
-                    end: val,
-                    arc: arc.clone(),
-                    uf: uf.clone(),
-                }));
+                current = Some(
+                    world
+                        .spawn()
+                        .insert(ActiveTween {
+                            duration: self.settings.duration,
+                            time_left: self.settings.duration,
+                            start: old,
+                            end: val,
+                            arc: arc.clone(),
+                            uf: uf.clone(),
+                        })
+                        .id(),
+                );
             });
             *ufm.lock().unwrap() = Some(marker);
             uf
@@ -138,19 +135,22 @@ impl<'a> Observer<'a> for TweenObserver {
 
 pub(crate) fn tween_system(
     time: Res<Time>,
-    mut tweens: ResMut<RunningTweens>,
-    mut ufs: ResMut<UiScratchSpace>,
+    mut tweens: Query<(Entity, &mut ActiveTween)>,
+    mut commands: Commands,
+    ui: Res<UiScratchSpace>,
 ) {
-    tweens.arena.retain(|_, tween| {
+    for (e, mut tween) in tweens.iter_mut() {
         tween.time_left -= time.delta_seconds();
         let intp = tween.time_left / tween.duration;
         let val = tween.end + (tween.start - tween.end) * intp.clamp(0., 1.);
         tween
             .arc
             .store(f32::to_bits(val), std::sync::atomic::Ordering::SeqCst);
-        ufs.register_update_func(tween.uf.clone());
-        tween.time_left >= 0.
-    })
+        ui.register_update_func(tween.uf.clone());
+        if tween.time_left >= 0. {
+            commands.entity(e).despawn();
+        }
+    }
 }
 
 pub(crate) type TriggerCallState = SystemState<(

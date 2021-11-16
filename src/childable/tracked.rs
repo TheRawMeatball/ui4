@@ -111,7 +111,7 @@ struct Element<T: Send + Sync + 'static> {
 type Paramset<T> = SystemState<(
     Query<'static, 'static, &'static Children>,
     Query<'static, 'static, &'static mut Element<T>>,
-    ResMut<'static, UiScratchSpace>,
+    Res<'static, UiScratchSpace>,
 )>;
 
 impl<O, UO, T, F, C, Tt, M> Childable<(TrackedMarker, Tt, C, M)> for TrackedForeach<UO, F>
@@ -162,7 +162,7 @@ where
                         world
                             .entity_mut(c_parent)
                             .insert_children(index, &[element_entity]);
-                        let (children, mut element, mut ufs) = paramset.get_mut(world);
+                        let (children, mut element, ufs) = paramset.get_mut(world);
                         let entities = children.get(c_parent).unwrap();
                         for &entity in &entities[index + 1..] {
                             let mut element = element.get_mut(entity).unwrap();
@@ -183,7 +183,7 @@ where
                     let index = i.unwrap_or_else(|| children.len() - 1);
                     let to_despawn = children[index];
                     world.entity_mut(to_despawn).despawn_recursive();
-                    let (children, mut element, mut ufs) = paramset.get_mut(world);
+                    let (children, mut element, ufs) = paramset.get_mut(world);
                     let entities = children.get(c_parent).unwrap();
                     for &entity in &entities[index..] {
                         let mut element = element.get_mut(entity).unwrap();
@@ -201,7 +201,7 @@ where
                         Diff::Push(e) => insert(world, &mut paramset, e, None),
                         Diff::Pop => remove(world, &mut paramset, None),
                         Diff::Replace(e, i) => {
-                            let (children, mut element, mut ufs) = paramset.get_mut(world);
+                            let (children, mut element, ufs) = paramset.get_mut(world);
                             let entities = children.get(c_parent).unwrap();
                             let mut element = element.get_mut(entities[i]).unwrap();
                             element.element = e;
