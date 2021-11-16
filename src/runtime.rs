@@ -14,6 +14,7 @@ pub(crate) struct UiScratchSpace {
     update_hashset_b: HashSet<UpdateFunc>,
 }
 
+// TODO: when possible, make these functions take &self instead using lockfree hashsets.
 impl UiScratchSpace {
     pub fn register_update_func(&mut self, uf: UpdateFunc) {
         self.update_hashset_a.insert(uf);
@@ -33,12 +34,9 @@ impl UiScratchSpace {
             !flagged
         });
     }
-
-    pub fn unmark(&mut self, uf: &UpdateFunc) {
-        self.update_hashset_a.remove(uf);
-    }
 }
 
+// Contains internal change detection systems
 pub(crate) struct UiManagedSystems(pub(crate) SystemStage);
 
 pub(crate) fn primary_ui_system(world: &mut World) {
@@ -119,10 +117,6 @@ impl UpdateFunc {
     }
     pub fn run(&self, world: &mut World) {
         if !self.flagged() {
-            world
-                .get_resource_mut::<UiScratchSpace>()
-                .unwrap()
-                .unmark(self);
             (self.0.func.lock().unwrap())(world);
         }
     }
