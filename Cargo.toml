@@ -30,7 +30,6 @@ epaint = "0.15.0"
 # various optimizations
 smallvec = "1"
 
-
 [dependencies.bevy]
 git = "https://github.com/TheRawMeatball/bevy"
 branch = "runs-ui4-migrated"
@@ -38,20 +37,11 @@ default-features = false
 
 [dependencies.bevy_egui]
 git = "https://github.com/TheRawMeatball/bevy_egui"
-branch = "updated-egui"
+branch = "runs-ui4"
 
 [dependencies.bevy-inspector-egui]
 git = "https://github.com/TheRawMeatball/bevy-inspector-egui"
-branch = "runs-ui4"
-
-# Testing patches
-[patch."https://github.com/bevyengine/bevy".bevy]
-git = "https://github.com/TheRawMeatball/bevy"
-branch = "runs-ui4-migrated"
-
-[patch."https://github.com/jakobhellermann/bevy_egui".bevy_egui]
-git = "https://github.com/TheRawMeatball/bevy_egui"
-branch = "updated-egui"
+branch = "runs-ui4-nice"
 
 # Local dev patches
 
