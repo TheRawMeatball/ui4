@@ -41,7 +41,7 @@ branch = "runs-ui4"
 
 [dependencies.bevy-inspector-egui]
 git = "https://github.com/TheRawMeatball/bevy-inspector-egui"
-branch = "runs-ui4-nice"
+branch = "runs-ui4-render-attempt"
 
 # Local dev patches
 
