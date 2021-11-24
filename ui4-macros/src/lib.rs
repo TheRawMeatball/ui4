@@ -19,6 +19,7 @@ pub fn my_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 .map(|field| (field.ident.unwrap(), field.ty))
                 .map(|(ident, ty)| {
                     let outer = quote! {
+                        #[derive(Copy, Clone)]
                         #lens_vis struct #ident;
                         impl ::ui4::lens::Lens for #ident {
                             type In = #lensed_ident;
