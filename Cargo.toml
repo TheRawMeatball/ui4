@@ -30,6 +30,9 @@ epaint = "0.15.0"
 # various optimizations
 smallvec = "1"
 
+# mapping mutex
+parking_lot = "0.11.2"
+
 [dependencies.bevy]
 git = "https://github.com/TheRawMeatball/bevy"
 branch = "runs-ui4-migrated"

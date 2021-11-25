@@ -1,6 +1,7 @@
 use std::{
     hash::Hash,
     marker::PhantomData,
+    ptr::addr_of_mut,
     sync::{atomic::AtomicBool, Arc, Mutex},
 };
 
@@ -81,6 +82,18 @@ pub(crate) struct UfMarker<T> {
     arc: Arc<UfInner<dyn FnMut(&mut World) + Send + Sync>>,
     list: Vec<UpdateFunc>,
     _marker: PhantomData<T>,
+}
+
+impl<T> UfMarker<T> {
+    pub fn forget(self) {
+        use std::mem::{ManuallyDrop, MaybeUninit};
+
+        let mut md = ManuallyDrop::new(MaybeUninit::new(self));
+        unsafe {
+            std::ptr::read(addr_of_mut!((*md.as_mut_ptr()).arc));
+            std::ptr::read(addr_of_mut!((*md.as_mut_ptr()).list));
+        }
+    }
 }
 
 impl<T> Drop for UfMarker<T> {

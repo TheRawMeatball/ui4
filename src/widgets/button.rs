@@ -1,23 +1,23 @@
 use bevy::prelude::*;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::dom::Interaction;
 
 #[derive(Clone)]
-pub struct ButtonFunc(Arc<dyn Fn(&mut World) + Send + Sync>);
+pub struct ButtonFunc(Arc<Mutex<dyn FnMut(&mut World) + Send + Sync>>);
 impl ButtonFunc {
-    pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
-        Self(Arc::new(f))
+    pub fn new(f: impl FnMut(&mut World) + Send + Sync + 'static) -> Self {
+        Self(Arc::new(Mutex::new(f)))
     }
     pub(crate) fn run(&self, world: &mut World) {
-        (self.0)(world)
+        (self.0.lock().unwrap())(world)
     }
 }
 
 #[derive(Component)]
 pub struct OnClick(pub ButtonFunc);
 impl OnClick {
-    pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
+    pub fn new(f: impl FnMut(&mut World) + Send + Sync + 'static) -> Self {
         Self(ButtonFunc::new(f))
     }
 }

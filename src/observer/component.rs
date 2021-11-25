@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use bevy::{ecs::prelude::*, utils::HashMap};
 
-use crate::runtime::{UfMarker, UiManagedSystems, UiScratchSpace, UpdateFunc};
+use crate::{
+    lens::ComponentLens,
+    runtime::{UfMarker, UiManagedSystems, UiScratchSpace, UpdateFunc},
+};
 
 use super::{Observer, UninitObserver};
 
@@ -72,4 +75,8 @@ fn component_change_track_system<T: Component>(
             false
         }
     });
+}
+
+pub fn component<T: Component>(entity: Entity) -> ComponentLens<T> {
+    ComponentLens(entity, PhantomData)
 }

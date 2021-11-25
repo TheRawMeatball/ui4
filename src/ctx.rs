@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use bevy::ecs::prelude::*;
+use bevy::ecs::{
+    prelude::*,
+    system::{SystemParam, SystemState},
+};
 
 use crate::{
     childable::Childable,
@@ -51,6 +54,10 @@ impl Ctx<'_> {
     /// Inherit the configuration of a separate widget
     pub fn inherit(self, widget: impl FnOnce(Ctx) -> Ctx) -> Self {
         widget(self)
+    }
+
+    pub fn state<P: SystemParam>(&mut self) -> SystemState<P> {
+        SystemState::new(self.world)
     }
 
     pub fn with_modified<T, O, F>(self, initial: T, observer: O, mutator: F) -> Self

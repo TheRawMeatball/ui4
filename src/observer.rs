@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::sync::{Arc, Mutex};
 
 use bevy::prelude::World;
 
@@ -14,7 +15,7 @@ mod res;
 mod single;
 
 pub use {
-    component::ComponentObserver, has_component::ComponentExistsObserver,
+    component::component, component::ComponentObserver, has_component::ComponentExistsObserver,
     opt_component::OptComponentObserver, res::res, single::single,
 };
 
@@ -257,6 +258,97 @@ where
     }
 }
 
+#[derive(Clone)]
+pub struct FlattenTemplate<O>(O);
+
+pub struct Flatten<O>(Arc<Mutex<Option<O>>>, Option<O>);
+
+impl<UO, O, UO2, O2> UninitObserver for FlattenTemplate<UO>
+where
+    UO: UninitObserver<Observer = O>,
+    UO2: UninitObserver<Observer = O2>,
+    O: for<'a> Observer<'a, Return = UO2>,
+    O2: for<'a> Observer<'a>,
+{
+    type Observer = Flatten<O2>;
+
+    fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
+        self,
+        world: &mut World,
+        uf: F,
+    ) -> UpdateFunc {
+        self.0.register_self(world, |mut obs, world| {
+            let arc = Arc::new(Mutex::new(None));
+            let (uo2, _) = obs.get(world);
+            let inner_uf = uo2.register_self(world, |o2, world| {
+                *arc.lock().unwrap() = Some(o2);
+                uf(Flatten(arc.clone(), None), world)
+            });
+
+            let (uf, marker) = UpdateFunc::new::<(), _>(move |world| {
+                let (uo2, changed) = obs.get(world);
+                if changed {
+                    uo2.register_self(world, |o2, _world| {
+                        *arc.lock().unwrap() = Some(o2);
+                        inner_uf.clone()
+                    });
+                    inner_uf.run(world);
+                }
+            });
+            marker.forget();
+            uf
+        })
+    }
+}
+
+pub struct FlattenReturn<'a, O: Observer<'a>> {
+    this: *mut Flatten<O>,
+    inner: Option<O::Return>,
+}
+
+impl<'a, O: Observer<'a>> FlattenReturn<'a, O>
+where
+    O::Return: 'static,
+{
+    pub fn into_inner(mut self) -> O::Return {
+        self.inner.take().unwrap()
+    }
+}
+
+impl<'a, O: Observer<'a>> std::ops::Deref for FlattenReturn<'a, O> {
+    type Target = O::Return;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner.as_ref().unwrap()
+    }
+}
+
+impl<'a, O: Observer<'a>> Drop for FlattenReturn<'a, O> {
+    fn drop(&mut self) {
+        drop(self.inner.take());
+        let this = unsafe { &mut *self.this };
+        *this.0.lock().unwrap() = this.1.take();
+    }
+}
+
+impl<'a, O: Observer<'a>> Observer<'a> for Flatten<O> {
+    type Return = FlattenReturn<'a, O>;
+
+    fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
+        let this = self as *mut _;
+        let mut guard = self.0.lock().unwrap();
+        self.1 = Some(guard.take().unwrap());
+        let (inner, changed) = self.1.as_mut().unwrap().get(world);
+        (
+            FlattenReturn {
+                inner: Some(inner),
+                this,
+            },
+            changed,
+        )
+    }
+}
+
 pub trait ObserverExt: UninitObserver + Sized {
     fn map<F>(self, f: F) -> Map<Self, F>
     where
@@ -294,6 +386,13 @@ pub trait ObserverExt: UninitObserver + Sized {
         <Self as UninitObserver>::Observer: for<'a> Observer<'a, Return = &'a T>,
     {
         DereffedTemplate(self)
+    }
+
+    fn flatten(self) -> FlattenTemplate<Self>
+    where
+        for<'a> <<Self as UninitObserver>::Observer as Observer<'a>>::Return: UninitObserver,
+    {
+        FlattenTemplate(self)
     }
 }
 

@@ -7,6 +7,8 @@ pub fn my_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     let lensed_ident = input.ident;
+    let hidden_mod_ident =
+        syn::Ident::new(&format!("__hidden__{}", lensed_ident), Span::call_site());
     let lens_vis = input.vis;
     let generics = input.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
@@ -20,7 +22,7 @@ pub fn my_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 .map(|(ident, ty)| {
                     let outer = quote! {
                         #[derive(Copy, Clone)]
-                        #[allow(non_snake_case)]
+                        #[allow(non_camel_case_types)]
                         #lens_vis struct #ident;
                         impl ::ui4::lens::Lens for #ident {
                             type In = #lensed_ident;
@@ -36,6 +38,7 @@ pub fn my_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         }
                     };
                     let inner = quote! {
+                        #[allow(non_upper_case_globals)]
                         #lens_vis const #ident: #ident = #ident;
                     };
                     (inner, outer)
@@ -89,11 +92,15 @@ pub fn my_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // Build the output, possibly using quasi-quotation
     let expanded = quote! {
-        impl #impl_generics #lensed_ident #ty_generics #where_clause {
-            #inner_impls
-        }
+        #[doc(hidden)]
+        #lens_vis mod #hidden_mod_ident {
+            use super::*;
+            impl #impl_generics #lensed_ident #ty_generics #where_clause {
+                #inner_impls
+            }
 
-        #outer_impls
+            #outer_impls
+        }
     };
 
     // Hand the output tokens back to the compiler
