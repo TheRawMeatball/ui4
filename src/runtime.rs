@@ -22,12 +22,6 @@ impl UiScratchSpace {
         self.update_hashset_a.insert(uf);
     }
 
-    pub fn register_update_funcs(&self, ufs: impl IntoIterator<Item = UpdateFunc>) {
-        for uf in ufs {
-            self.register_update_func(uf);
-        }
-    }
-
     pub fn process_list(&self, list: &mut Vec<UpdateFunc>) {
         list.retain(|uf| {
             let flagged = uf.flagged();
