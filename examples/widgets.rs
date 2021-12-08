@@ -1,3 +1,5 @@
+#![allow(proc_macro_derive_resolution_fallback)]
+
 use bevy::prelude::*;
 use bevy::PipelinedDefaultPlugins;
 use derive_more::{Deref, DerefMut};

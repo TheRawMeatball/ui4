@@ -6,7 +6,7 @@ use ui4::prelude::*;
 #[derive(Default, Deref, Lens)]
 struct EditedText(String);
 
-#[derive(Default, Deref, DerefMut)]
+#[derive(Default, Deref, DerefMut, Lens)]
 struct TodoList(TrackedVec<Todo>);
 
 #[derive(Clone)]
@@ -61,95 +61,68 @@ fn root(ctx: Ctx) -> Ctx {
                                 .with(Height(Units::Pixels(30.))),
                         )
                 })
-                .children(
-                    res::<TodoList>()
-                        .dereffed()
-                        .each(|item: TrackedItemObserver<Todo>| {
-                            move |ctx: &mut McCtx| {
-                                ctx.c(todo(item));
-                            }
-                        }),
-                )
+                .children(res::<TodoList>().lens(TodoList::F0).each(|item, index| {
+                    move |ctx: &mut McCtx| {
+                        ctx.c(todo(item, index));
+                    }
+                }))
         })
 }
 
-fn todo(item: TrackedItemObserver<Todo>) -> impl FnOnce(Ctx) -> Ctx {
+fn todo(item: impl WorldLens<Out = Todo>, index: IndexObserver) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         ctx.with(Width(Units::Percentage(100.)))
             .with(Height(Units::Pixels(30.)))
             .with(LayoutType::Row)
             .with(ColBetween(Units::Stretch(1.)))
             .with(
-                item.map(|t: (&Todo, usize)| t.0.done)
+                item.map(|t: &Todo| t.done)
                     .dedup()
                     .map(|&done: &bool| if done { Color::GREEN } else { Color::NONE })
                     .map(UiColor),
             )
-            .child(text(item.map(|t: (&Todo, usize)| t.0.text.to_string())).with(TextSize(32.)))
-            .children(item.map(|(todo, _): (&Todo, usize)| todo.done).map_child(
-                move |done: bool| {
-                    move |ctx: &mut McCtx| {
-                        if done {
-                            ctx.c(|ctx: Ctx| {
-                                ctx.with(Width(Units::Pixels(250.)))
+            .child(text(item.map(|t: &Todo| t.text.to_string())).with(TextSize(32.)))
+            .children(
+                item.map(|todo: &Todo| todo.done)
+                    .map_child(move |done: bool| {
+                        move |ctx: &mut McCtx| {
+                            if done {
+                                ctx.c(|ctx: Ctx| {
+                                    ctx.with(Width(Units::Pixels(250.)))
+                                        .with(Height(Units::Pixels(30.)))
+                                        .with(LayoutType::Row)
+                                        .child(
+                                            button("Unmark")
+                                                .with(Width(Units::Percentage(50.)))
+                                                .with(Height(Units::Pixels(30.)))
+                                                .with(OnClick::new(move |world| {
+                                                    item.get_mut(world).done = false;
+                                                })),
+                                        )
+                                        .child(
+                                            button("Remove")
+                                                .with(Width(Units::Percentage(50.)))
+                                                .with(Height(Units::Pixels(30.)))
+                                                .with(index.dedup().map(|&i: &usize| {
+                                                    OnClick::new(move |world| {
+                                                        let mut list = world
+                                                            .get_resource_mut::<TodoList>()
+                                                            .unwrap();
+                                                        list.remove(i);
+                                                    })
+                                                })),
+                                        )
+                                });
+                            } else {
+                                ctx.c(button("Mark Complete")
+                                    .with(Width(Units::Pixels(250.)))
                                     .with(Height(Units::Pixels(30.)))
-                                    .with(LayoutType::Row)
-                                    .child(
-                                        button("Unmark")
-                                            .with(Width(Units::Percentage(50.)))
-                                            .with(Height(Units::Pixels(30.)))
-                                            .with(
-                                                item.map(|(_, i): (&Todo, usize)| i).dedup().map(
-                                                    |&i: &usize| {
-                                                        OnClick::new(move |world| {
-                                                            let mut list = world
-                                                                .get_resource_mut::<TodoList>()
-                                                                .unwrap();
-                                                            let text = list[i].text.clone();
-                                                            list.replace(
-                                                                Todo { text, done: false },
-                                                                i,
-                                                            );
-                                                        })
-                                                    },
-                                                ),
-                                            ),
-                                    )
-                                    .child(
-                                        button("Remove")
-                                            .with(Width(Units::Percentage(50.)))
-                                            .with(Height(Units::Pixels(30.)))
-                                            .with(
-                                                item.map(|(_, i): (&Todo, usize)| i).dedup().map(
-                                                    |&i: &usize| {
-                                                        OnClick::new(move |world| {
-                                                            let mut list = world
-                                                                .get_resource_mut::<TodoList>()
-                                                                .unwrap();
-                                                            list.remove(i);
-                                                        })
-                                                    },
-                                                ),
-                                            ),
-                                    )
-                            });
-                        } else {
-                            ctx.c(button("Mark Complete")
-                                .with(Width(Units::Pixels(250.)))
-                                .with(Height(Units::Pixels(30.)))
-                                .with(item.map(|(_, i): (&Todo, usize)| i).dedup().map(
-                                    |&i: &usize| {
-                                        OnClick::new(move |world| {
-                                            let mut list =
-                                                world.get_resource_mut::<TodoList>().unwrap();
-                                            let text = list[i].text.clone();
-                                            list.replace(Todo { text, done: true }, i);
-                                        })
-                                    },
-                                )));
+                                    .with(OnClick::new(move |world| {
+                                        item.get_mut(world).done = true;
+                                    })));
+                            }
                         }
-                    }
-                },
-            ))
+                    }),
+            )
     }
 }

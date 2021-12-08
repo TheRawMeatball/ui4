@@ -7,8 +7,6 @@ pub fn my_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     let lensed_ident = input.ident;
-    let hidden_mod_ident =
-        syn::Ident::new(&format!("__hidden__{}", lensed_ident), Span::call_site());
     let lens_vis = input.vis;
     let generics = input.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
@@ -92,15 +90,11 @@ pub fn my_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // Build the output, possibly using quasi-quotation
     let expanded = quote! {
-        #[doc(hidden)]
-        #lens_vis mod #hidden_mod_ident {
-            use super::*;
-            impl #impl_generics #lensed_ident #ty_generics #where_clause {
-                #inner_impls
-            }
-
-            #outer_impls
+        impl #impl_generics #lensed_ident #ty_generics #where_clause {
+            #inner_impls
         }
+
+        #outer_impls
     };
 
     // Hand the output tokens back to the compiler

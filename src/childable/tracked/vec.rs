@@ -1,12 +1,13 @@
-use std::{ops::Deref, sync::Mutex};
+use std::ops::Deref;
 
-use crossbeam_channel::Sender;
+use crossbeam_channel::{Receiver, Sender};
 
-use super::{Diff, Tracked};
+use super::{Diff, Tracked, TrackedId};
 
 pub struct TrackedVec<T> {
     inner: Vec<T>,
-    update_out: Mutex<Vec<Sender<Diff<T>>>>,
+    id: TrackedId,
+    update_out: Vec<Sender<Diff>>,
 }
 
 impl<T> Default for TrackedVec<T> {
@@ -14,66 +15,49 @@ impl<T> Default for TrackedVec<T> {
         Self {
             inner: Default::default(),
             update_out: Default::default(),
+            id: TrackedId::new(),
         }
     }
 }
 
-impl<T: Clone> TrackedVec<T> {
+impl<T> TrackedVec<T> {
     pub fn new() -> Self {
         Self::default()
     }
 
-    fn send_msg(&mut self, msg: Diff<T>) -> Option<T> {
-        self.update_out
-            .get_mut()
-            .unwrap()
-            .retain(|tx| tx.send(msg.clone()).is_ok());
-        match msg {
-            Diff::Push(val) => self.inner.push(val),
-            Diff::Pop => return self.inner.pop(),
-            Diff::Replace(val, i) => return Some(std::mem::replace(&mut self.inner[i], val)),
-            Diff::Remove(i) => return Some(self.inner.remove(i)),
-            Diff::Insert(val, i) => self.inner.insert(i, val),
-            Diff::Clear => self.inner.clear(),
-            Diff::Init(_) => unreachable!(),
-        }
-        None
+    fn send_msg(&mut self, msg: Diff) {
+        self.update_out.retain(|tx| tx.send(msg.clone()).is_ok());
     }
 
     pub fn push(&mut self, val: T) {
-        let msg = Diff::Push(val);
-        self.send_msg(msg);
+        self.send_msg(Diff::Insert(self.inner.len()));
+        self.inner.push(val);
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        let msg = Diff::Pop;
-        if self.is_empty() {
-            return None;
-        }
-        self.send_msg(msg)
+        let out = self.inner.pop();
+        self.send_msg(Diff::Remove(self.inner.len()));
+        out
     }
 
-    pub fn replace(&mut self, val: T, i: usize) -> T {
-        let msg = Diff::Replace(val, i);
-        self.send_msg(msg).unwrap()
+    pub fn get_mut(&mut self, i: usize) -> &mut T {
+        self.send_msg(Diff::Modify(i));
+        &mut self.inner[i]
     }
 
     pub fn remove(&mut self, i: usize) -> T {
-        let msg = Diff::Remove(i);
-        if self.is_empty() {
-            panic!();
-        }
-        self.send_msg(msg).unwrap()
+        self.send_msg(Diff::Remove(i));
+        self.inner.remove(i)
     }
 
     pub fn insert(&mut self, val: T, i: usize) {
-        let msg = Diff::Insert(val, i);
-        self.send_msg(msg);
+        self.send_msg(Diff::Insert(i));
+        self.inner.insert(i, val)
     }
 
     pub fn clear(&mut self) {
-        let msg = Diff::Clear;
-        self.send_msg(msg);
+        self.send_msg(Diff::Clear);
+        self.inner.clear();
     }
 }
 
@@ -85,11 +69,28 @@ impl<T> Deref for TrackedVec<T> {
     }
 }
 
-impl<T: Clone + 'static> Tracked for TrackedVec<T> {
+impl<T: 'static> Tracked for TrackedVec<T> {
     type Item = T;
 
-    fn register(&self, tx: Sender<Diff<Self::Item>>) {
-        tx.send(Diff::Init(self.inner.clone())).unwrap();
-        self.update_out.lock().unwrap().push(tx);
+    fn register(&mut self) -> Receiver<Diff> {
+        let (tx, rx) = crossbeam_channel::unbounded();
+        self.update_out.push(tx);
+        rx
+    }
+
+    fn id(&self) -> TrackedId {
+        self.id
+    }
+
+    fn get(&self, index: usize) -> &Self::Item {
+        &self.inner[index]
+    }
+
+    fn get_mut(&mut self, index: usize) -> &mut Self::Item {
+        self.get_mut(index)
+    }
+
+    fn len(&self) -> usize {
+        self.inner.len()
     }
 }

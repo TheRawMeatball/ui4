@@ -21,7 +21,7 @@ pub mod prelude {
     use super::*;
     pub use animation::{TransitionBundle, TransitionProgress, TweenExt};
     pub use childable::{
-        tracked::{TrackedItemObserver, TrackedMap, TrackedMarker, TrackedObserverExt, TrackedVec},
+        tracked::{IndexObserver, TrackedItemLens, TrackedMarker, TrackedObserverExt, TrackedVec},
         ChildMapExt, Childable,
     };
     pub use ctx::{Ctx, McCtx, WidgetBuilderExtWith, WidgetBuilderExtWithModified};

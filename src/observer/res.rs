@@ -17,7 +17,6 @@ pub struct ResLens<R>(PhantomData<R>);
 impl<R: Send + Sync + 'static> WorldLens for ResLens<R> {
     type UninitObserver = ResObserverTemplate<R>;
     type Observer = ResObserver<R>;
-    type LensIn = R;
     type Lens = Identity<R>;
     type Out = R;
 

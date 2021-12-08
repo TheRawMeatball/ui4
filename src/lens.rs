@@ -10,9 +10,8 @@ use crate::{
 pub trait WorldLens: Copy + Send + Sync + 'static {
     type UninitObserver: UninitObserver<Observer = Self::Observer>;
 
-    type Observer: for<'a> Observer<'a, Return = &'a Self::LensIn>;
-    type LensIn;
-    type Lens: Lens<In = Self::LensIn, Out = Self::Out>;
+    type Observer: for<'a> Observer<'a, Return = &'a <Self::Lens as Lens>::In>;
+    type Lens: Lens<Out = Self::Out>;
     type Out: 'static;
 
     fn get<'a>(&mut self, world: &'a World) -> &'a Self::Out;
@@ -44,7 +43,6 @@ where
 {
     type UninitObserver = W::UninitObserver;
     type Observer = W::Observer;
-    type LensIn = W::LensIn;
     type Lens = LensMerge<W::Lens, L>;
     type Out = L::Out;
 
@@ -84,11 +82,7 @@ where
 
 pub struct LensObserver<L: WorldLens>(L::Lens, <L::UninitObserver as UninitObserver>::Observer);
 
-impl<'a, L: Send + Sync + 'static> Observer<'a> for LensObserver<L>
-where
-    L: WorldLens,
-    <L::UninitObserver as UninitObserver>::Observer: for<'x> Observer<'x, Return = &'x L::LensIn>,
-{
+impl<'a, L: WorldLens> Observer<'a> for LensObserver<L> {
     type Return = &'a L::Out;
 
     fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
@@ -97,11 +91,7 @@ where
     }
 }
 
-impl<L: Send + Sync + 'static> UninitObserver for L
-where
-    L: WorldLens,
-    <L::UninitObserver as UninitObserver>::Observer: for<'a> Observer<'a, Return = &'a L::LensIn>,
-{
+impl<L: WorldLens> UninitObserver for L {
     type Observer = LensObserver<L>;
 
     fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
@@ -146,7 +136,6 @@ impl<T: Component> Clone for ComponentLens<T> {
 impl<T: Component> WorldLens for ComponentLens<T> {
     type UninitObserver = crate::observer::ComponentObserver<T>;
     type Observer = crate::observer::ComponentObserver<T>;
-    type LensIn = T;
     type Lens = Identity<T>;
     type Out = T;
 

@@ -16,7 +16,7 @@ fn root(ctx: Ctx) -> Ctx {
     #[derive(Component)]
     struct State(i32);
 
-    #[derive(Component, Default, DerefMut, Deref)]
+    #[derive(Component, Default, DerefMut, Deref, Lens)]
     struct List(TrackedVec<String>);
 
     #[derive(Component, Default, DerefMut, Deref, Lens)]
@@ -68,11 +68,14 @@ fn root(ctx: Ctx) -> Ctx {
                     })),
                 )
         })
-        .children(list.dereffed().each(|label: TrackedItemObserver<String>| {
-            move |ctx: &mut McCtx| {
-                ctx.c(counter(label.map(|s: (&String, usize)| s.0.clone())));
-            }
-        }))
+        .children(
+            list.lens(List::F0)
+                .each(|label: TrackedItemLens<String, _>, _| {
+                    move |ctx: &mut McCtx| {
+                        ctx.c(counter(label.cloned()));
+                    }
+                }),
+        )
         .children(
             res()
                 .map(|time: &Time| time.seconds_since_startup() as usize % 2 == 0)
