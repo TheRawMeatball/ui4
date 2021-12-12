@@ -78,18 +78,6 @@ pub(crate) struct UfMarker<T> {
     _marker: PhantomData<T>,
 }
 
-impl<T> UfMarker<T> {
-    pub fn forget(self) {
-        use std::mem::{ManuallyDrop, MaybeUninit};
-
-        let mut md = ManuallyDrop::new(MaybeUninit::new(self));
-        unsafe {
-            std::ptr::read(addr_of_mut!((*md.as_mut_ptr()).arc));
-            std::ptr::read(addr_of_mut!((*md.as_mut_ptr()).list));
-        }
-    }
-}
-
 impl<T> Drop for UfMarker<T> {
     fn drop(&mut self) {
         self.arc
@@ -105,6 +93,16 @@ impl<T> UfMarker<T> {
 
     pub fn trigger(&mut self, ctx: &mut UiScratchSpace) {
         ctx.process_list(&mut self.list);
+    }
+
+    pub fn forget(self) {
+        use std::mem::{ManuallyDrop, MaybeUninit};
+
+        let mut md = ManuallyDrop::new(MaybeUninit::new(self));
+        unsafe {
+            std::ptr::read(addr_of_mut!((*md.as_mut_ptr()).arc));
+            std::ptr::read(addr_of_mut!((*md.as_mut_ptr()).list));
+        }
     }
 }
 
