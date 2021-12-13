@@ -15,28 +15,28 @@ impl ButtonFunc {
 }
 
 #[derive(Component)]
-pub struct OnClick(pub ButtonFunc);
+pub struct OnClick(pub(crate) ButtonFunc);
 impl OnClick {
     pub fn new(f: impl FnMut(&mut World) + Send + Sync + 'static) -> Self {
         Self(ButtonFunc::new(f))
     }
 }
 #[derive(Component)]
-pub struct OnHover(pub ButtonFunc);
+pub struct OnHover(pub(crate) ButtonFunc);
 impl OnHover {
     pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
         Self(ButtonFunc::new(f))
     }
 }
 #[derive(Component)]
-pub struct OnRelease(pub ButtonFunc);
+pub struct OnRelease(pub(crate) ButtonFunc);
 impl OnRelease {
     pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
         Self(ButtonFunc::new(f))
     }
 }
 #[derive(Component)]
-pub struct OnUnhover(pub ButtonFunc);
+pub struct OnUnhover(pub(crate) ButtonFunc);
 impl OnUnhover {
     pub fn new(f: impl Fn(&mut World) + Send + Sync + 'static) -> Self {
         Self(ButtonFunc::new(f))
