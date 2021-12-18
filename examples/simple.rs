@@ -1,13 +1,14 @@
-use bevy::{prelude::*, PipelinedDefaultPlugins};
+use bevy::prelude::*;
 use derive_more::{Deref, DerefMut};
 use ui4::prelude::*;
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(PipelinedDefaultPlugins)
-        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
+    app.add_plugins(DefaultPlugins)
         .add_plugin(Ui4Plugin)
         .add_plugin(Ui4Root(root));
+
+    app.world.spawn().insert_bundle(UiCameraBundle::default());
 
     app.run()
 }
@@ -28,6 +29,7 @@ fn root(ctx: Ctx) -> Ctx {
     let this = ctx.current_entity();
 
     ctx.with(State(0))
+        .with(UiColor(Color::BLACK))
         .with(List::default())
         .with(EditedText("".to_string()))
         .children(|ctx: &mut McCtx| {

@@ -51,7 +51,7 @@ impl<'a, T: SingleObserverTuple> Observer<'a> for SingleObserver<T>
 where
     <T::DataQuery as WorldQuery>::Fetch: ReadOnlyFetch,
 {
-    type Return = <<T::DataQuery as WorldQuery>::Fetch as Fetch<'a, 'a>>::Item;
+    type Return = <<T::DataQuery as WorldQuery>::ReadOnlyFetch as Fetch<'a, 'a>>::Item;
 
     fn get(&'a mut self, world: &'a bevy::prelude::World) -> (Self::Return, bool) {
         let mut iter = self.0.iter(world);
@@ -66,7 +66,7 @@ pub trait SingleObserverTuple: Send + Sync + 'static {
     type ChangeDetectionQuery: WorldQuery;
 
     fn get_changed(
-        cdq: &<<Self::ChangeDetectionQuery as WorldQuery>::Fetch as Fetch<'_, '_>>::Item,
+        cdq: &<<Self::ChangeDetectionQuery as WorldQuery>::ReadOnlyFetch as Fetch<'_, '_>>::Item,
     ) -> bool;
 }
 
@@ -92,7 +92,7 @@ macro_rules! impl_singleobserver_tuple {
             type ChangeDetectionQuery = ($(ChangeTrackers<$item>,)*);
 
             fn get_changed(
-                cdq: &<<Self::ChangeDetectionQuery as WorldQuery>::Fetch as Fetch<'_, '_>>::Item,
+                cdq: &<<Self::ChangeDetectionQuery as WorldQuery>::ReadOnlyFetch as Fetch<'_, '_>>::Item,
             ) -> bool {
                 let ($($item,)*) = cdq;
                 false $( || $item.is_changed())*

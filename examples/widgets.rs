@@ -1,17 +1,16 @@
-#![allow(proc_macro_derive_resolution_fallback)]
-
 use bevy::prelude::*;
-use bevy::PipelinedDefaultPlugins;
 use derive_more::{Deref, DerefMut};
 use std::hash::Hash;
 use ui4::prelude::*;
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(PipelinedDefaultPlugins)
+    app.add_plugins(DefaultPlugins)
         .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_plugin(Ui4Plugin)
         .add_plugin(Ui4Root(root));
+
+    app.world.spawn().insert_bundle(UiCameraBundle::default());
 
     app.run()
 }
@@ -100,7 +99,9 @@ fn root(ctx: Ctx) -> Ctx {
                         .tween(0.2),
                 ),
             ))
-            .c(toggle(|| toggle(|| text_fade("Hey!"))));
+            .c(toggle(|| {
+                toggle(|| text_fade("Hey!").with(Height(Units::Pixels(30.))))
+            }));
         })
 }
 

@@ -5,7 +5,8 @@ pub(crate) mod textbox;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use bevy::render2::color::Color;
+use bevy::render::color::Color;
+use bevy::ui::UiColor;
 use bevy::utils::HashMap;
 use bevy::window::Windows;
 

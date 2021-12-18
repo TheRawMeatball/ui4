@@ -90,8 +90,12 @@ where
                 if !changed && !first {
                     return;
                 }
-                first = false;
-                let old = f32::from_bits(arc.load(std::sync::atomic::Ordering::SeqCst));
+                let old = if first {
+                    first = false;
+                    val
+                } else {
+                    f32::from_bits(arc.load(std::sync::atomic::Ordering::SeqCst))
+                };
                 arc.store(f32::to_bits(val), std::sync::atomic::Ordering::SeqCst);
 
                 if let Some(ct) = current {
@@ -147,7 +151,7 @@ pub(crate) fn tween_system(
             .arc
             .store(f32::to_bits(val), std::sync::atomic::Ordering::SeqCst);
         ui.register_update_func(tween.uf.clone());
-        if tween.time_left >= 0. {
+        if tween.time_left <= 0. {
             commands.entity(e).despawn();
         }
     }

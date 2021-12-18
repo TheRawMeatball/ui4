@@ -1,4 +1,4 @@
-use bevy::{ecs::prelude::*, math::Vec2};
+use bevy::{ecs::prelude::*, math::Vec2, text::TextStyle};
 use bevy_inspector_egui::Inspectable;
 
 pub mod layout;
@@ -37,35 +37,16 @@ pub struct Text(pub String);
 #[derive(Component, Inspectable)]
 pub struct TextSize(pub f32);
 
-#[derive(Component)]
-pub struct TextFont(pub epaint::TextStyle);
-
-#[derive(Component)]
+#[derive(Component, Inspectable)]
 pub struct TextBoxCursor(pub Option<usize>);
+
+#[derive(Component, Inspectable)]
+pub struct TextDetails(pub Vec<(TextStyle, usize)>);
 
 #[derive(Component)]
 pub struct HideOverflow;
 
-/// Overrides [`TextFont`] and [`TextFont`]
-#[derive(Component)]
-pub struct TextDetails(pub Vec<epaint::text::LayoutSection>);
-
-#[derive(Component, Inspectable)]
-pub struct Color(pub bevy::render2::color::Color);
-
-impl Color {
-    fn as_rgba_u8(&self) -> [u8; 4] {
-        let [r, g, b, a] = self.0.as_rgba_f32();
-        [
-            (r * u8::MAX as f32) as u8,
-            (g * u8::MAX as f32) as u8,
-            (b * u8::MAX as f32) as u8,
-            (a * u8::MAX as f32) as u8,
-        ]
-    }
-}
-
-#[derive(Component, PartialEq, Eq, Inspectable, Debug, Clone, Copy)]
+#[derive(Component, PartialEq, Eq, Debug, Clone, Copy, Inspectable)]
 pub enum Interaction {
     Clicked,
     Hovered,
@@ -78,7 +59,7 @@ impl Default for Interaction {
     }
 }
 
-#[derive(Component, Clone, Inspectable)]
+#[derive(Component, Clone)]
 pub enum FocusPolicy {
     Block,
     Pass,

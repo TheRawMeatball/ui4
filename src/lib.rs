@@ -26,7 +26,7 @@ pub mod prelude {
     };
     pub use ctx::{Ctx, McCtx, WidgetBuilderExtWith, WidgetBuilderExtWithModified};
     pub use dom::layout::{layout_components::*, Units};
-    pub use dom::{Color as UiColor, Focused, HideOverflow, Text, TextDetails, TextFont, TextSize};
+    pub use dom::{Focused, HideOverflow, Text, TextSize};
     pub use lens::WorldLens;
     pub use observer::{component, res, single, FlattenReturn, IntoObserver, ObserverExt};
     pub use plugin::{Ui4Plugin, Ui4Root};
@@ -39,8 +39,6 @@ pub mod prelude {
     };
 
     pub use std::borrow::Borrow;
-
-    pub use bevy::render2::color::Color;
 
     pub use ui4_macros::Lens;
 }
