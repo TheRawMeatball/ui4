@@ -128,6 +128,7 @@ fn push_shapes(
                     rect,
                     image: texture,
                     atlas_size,
+                    clip: Some(clip),
                 });
             }
 
@@ -148,6 +149,7 @@ fn push_shapes(
                         },
                         image: bevy::render::texture::DEFAULT_IMAGE_HANDLE.typed(),
                         atlas_size: None,
+                        clip: Some(clip),
                     }
                 });
             vec.extend(shape);
@@ -167,6 +169,7 @@ fn push_shapes(
                     .map(|i| i.0.clone_weak())
                     .unwrap_or(bevy::render::texture::DEFAULT_IMAGE_HANDLE.typed()),
                 atlas_size: None,
+                clip: Some(clip),
             });
         }
 

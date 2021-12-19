@@ -6,6 +6,7 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use bevy::render::color::Color;
+use bevy::text::TextAlignment;
 use bevy::ui::UiColor;
 use bevy::utils::HashMap;
 use bevy::window::Windows;
@@ -35,7 +36,7 @@ pub fn text_fade<O: IntoObserver<String, M>, M>(_text: O) -> impl FnOnce(Ctx) ->
     }
 }
 
-pub fn button<O: IntoObserver<String, M>, M>(t: O) -> impl FnOnce(Ctx) -> Ctx {
+pub fn button<O: IntoObserver<String, M>, M: 'static>(t: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         let component = ctx.component();
         ctx.with(Interaction::None)
@@ -48,7 +49,10 @@ pub fn button<O: IntoObserver<String, M>, M>(t: O) -> impl FnOnce(Ctx) -> Ctx {
                 }),
             )
             .with(FuncScratch::default())
-            .child(text(t))
+            .child(text(t).with(TextAlign(TextAlignment {
+                vertical: bevy::text::VerticalAlign::Center,
+                horizontal: bevy::text::HorizontalAlign::Center,
+            })))
     }
 }
 
@@ -86,7 +90,7 @@ pub fn checkbox(checked: impl WorldLens<Out = bool>) -> impl FnOnce(Ctx) -> Ctx 
             checked
                 .copied()
                 .dedup()
-                .map(|b: &bool| if *b { "x" } else { " " })
+                .map(|b: &bool| if *b { "X" } else { " " })
                 .map(|s: &'static str| s.to_string()),
         )(ctx)
         .with(OnClick::new(move |w| {
