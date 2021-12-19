@@ -19,6 +19,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
         .add_plugin(Ui4Plugin)
+        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_plugin(Ui4Root(root))
         .init_resource::<EditedText>()
         .init_resource::<TodoList>();
@@ -30,44 +31,46 @@ fn main() {
 
 fn root(ctx: Ctx) -> Ctx {
     ctx.with(UiColor(Color::BLACK))
+        .with(Right(Units::Stretch(1.)))
+        .with(Left(Units::Stretch(1.)))
+        .with(Width(Units::Percentage(60.)))
+        .child(
+            text("Todos")
+                .with(TextSize(80.))
+                .with(Height(Units::Pixels(120.)))
+                .with(TextAlign(TextAlignment {
+                    vertical: VerticalAlign::Bottom,
+                    horizontal: HorizontalAlign::Right,
+                })),
+        )
         .child(|ctx: Ctx| {
-            ctx.with(ChildRight(Units::Stretch(1.)))
-                .with(ChildLeft(Units::Stretch(1.)))
-                .child(text("Todos").with(TextSize(80.)))
+            ctx.with(Height(Units::Auto))
+                .with(LayoutType::Row)
+                .child(
+                    textbox(res().lens(EditedText::F0))
+                        .with(Width(Units::Percentage(90.)))
+                        .with(Height(Units::Pixels(30.))),
+                )
+                .child(
+                    button("Add")
+                        .with(OnClick::new(|world: &mut World| {
+                            let text = std::mem::take(
+                                &mut world.get_resource_mut::<EditedText>().unwrap().0,
+                            );
+                            world.get_resource_mut::<TodoList>().unwrap().push(Todo {
+                                text: text.into(),
+                                done: false,
+                            });
+                        }))
+                        .with(Width(Units::Percentage(10.)))
+                        .with(Height(Units::Pixels(30.))),
+                )
         })
-        .child(|ctx: Ctx| {
-            ctx.with(Right(Units::Stretch(1.)))
-                .with(Left(Units::Stretch(1.)))
-                .with(Width(Units::Percentage(60.)))
-                .child(|ctx: Ctx| {
-                    ctx.with(Height(Units::Auto))
-                        .with(LayoutType::Row)
-                        .child(
-                            textbox(res().lens(EditedText::F0))
-                                .with(Width(Units::Percentage(90.)))
-                                .with(Height(Units::Pixels(30.))),
-                        )
-                        .child(
-                            button("Add")
-                                .with(OnClick::new(|world: &mut World| {
-                                    let text = std::mem::take(
-                                        &mut world.get_resource_mut::<EditedText>().unwrap().0,
-                                    );
-                                    world.get_resource_mut::<TodoList>().unwrap().push(Todo {
-                                        text: text.into(),
-                                        done: false,
-                                    });
-                                }))
-                                .with(Width(Units::Percentage(10.)))
-                                .with(Height(Units::Pixels(30.))),
-                        )
-                })
-                .children(res::<TodoList>().lens(TodoList::F0).each(|item, index| {
-                    move |ctx: &mut McCtx| {
-                        ctx.c(todo(item, index));
-                    }
-                }))
-        })
+        .children(res::<TodoList>().lens(TodoList::F0).each(|item, index| {
+            move |ctx: &mut McCtx| {
+                ctx.c(todo(item, index));
+            }
+        }))
 }
 
 fn todo(item: impl WorldLens<Out = Todo>, index: IndexObserver) -> impl FnOnce(Ctx) -> Ctx {

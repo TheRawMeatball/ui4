@@ -39,6 +39,8 @@ impl Plugin for Ui4Plugin {
             .register_inspectable::<crate::dom::Text>()
             .register_inspectable::<crate::dom::TextSize>()
             .register_inspectable::<crate::dom::Interaction>()
+            .register_inspectable::<crate::dom::TextAlign>()
+            .register_inspectable::<crate::dom::TextDetails>()
             .register_inspectable::<crate::dom::layout::layout_components::PositionType>()
             .register_inspectable::<crate::dom::layout::layout_components::LayoutType>()
             .insert_resource(UiManagedSystems(SystemStage::parallel()))

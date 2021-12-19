@@ -783,8 +783,8 @@ pub(crate) fn root_node_system(
 ) {
     let window = windows.get_primary().unwrap();
 
-    let window_width = window.physical_width() as f32;
-    let window_height = window.physical_height() as f32;
+    let window_width = window.width();
+    let window_height = window.height();
 
     for (mut width, mut height, mut node) in root_query.iter_mut() {
         **width = Units::Pixels(window_width);

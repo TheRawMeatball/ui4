@@ -1,4 +1,6 @@
-use super::{ClippedNode, HideOverflow, Node, Text, TextBoxCursor, TextDetails, TextSize};
+use super::{
+    ClippedNode, HideOverflow, Node, Text, TextAlign, TextBoxCursor, TextDetails, TextSize,
+};
 use bevy::{
     ecs::prelude::*,
     math::{Mat4, Vec2, Vec3},
@@ -6,7 +8,7 @@ use bevy::{
     reflect::TypeUuid,
     render::RenderWorld,
     sprite::Rect,
-    text::{DefaultTextPipeline, Font, FontAtlasSet, TextAlignment, TextSection, TextStyle},
+    text::{DefaultTextPipeline, Font, FontAtlasSet, TextSection, TextStyle},
     transform::prelude::*,
     ui::{ExtractedUiNode, ExtractedUiNodes, UiColor, UiImage},
     window::Windows,
@@ -216,10 +218,12 @@ pub(crate) fn process_text_system(
     mut text_pipeline: ResMut<DefaultTextPipeline>,
     text_nodes: Query<(
         Entity,
+        &Node,
         (&Text, ChangeTrackers<Text>),
         Option<(&TextSize, ChangeTrackers<TextSize>)>,
         Option<(&Handle<Font>, ChangeTrackers<Handle<Font>>)>,
         Option<(&TextDetails, ChangeTrackers<TextDetails>)>,
+        Option<(&TextAlign, ChangeTrackers<TextAlign>)>,
     )>,
     fonts: Res<Assets<Font>>,
 
@@ -233,14 +237,15 @@ pub(crate) fn process_text_system(
         x.as_ref().map(|(_, x)| x.is_changed()).unwrap_or(false)
     }
 
-    for (entity, text, size, font, details) in text_nodes.iter() {
-        if !(text.1.is_changed()
-            || check_tuple(&size)
-            || check_tuple(&font)
-            || check_tuple(&details))
-        {
-            continue;
-        }
+    for (entity, node, text, size, font, details, align) in text_nodes.iter() {
+        // if !(text.1.is_changed()
+        //     || check_tuple(&size)
+        //     || check_tuple(&font)
+        //     || check_tuple(&details)
+        //     || check_tuple(&align))
+        // {
+        //     continue;
+        // }
 
         let text_details = details.map(|x| &*x.0 .0).unwrap_or(&[]);
         let mut style = None;
@@ -278,8 +283,8 @@ pub(crate) fn process_text_system(
                     .get_primary()
                     .map(|w| w.scale_factor())
                     .unwrap_or(1.),
-                TextAlignment::default(),
-                bevy::math::Size::new(f32::MAX, f32::MAX),
+                align.map(|(a, _)| a.0).unwrap_or_default(),
+                bevy::math::Size::new(node.size.x, node.size.y),
                 &mut font_atlas_set_storage,
                 &mut texture_atlases,
                 &mut textures,

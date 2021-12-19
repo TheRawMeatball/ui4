@@ -1,4 +1,8 @@
-use bevy::{ecs::prelude::*, math::Vec2, text::TextStyle};
+use bevy::{
+    ecs::prelude::*,
+    math::Vec2,
+    text::{TextAlignment, TextStyle},
+};
 use bevy_inspector_egui::Inspectable;
 
 pub mod layout;
@@ -42,6 +46,9 @@ pub struct TextBoxCursor(pub Option<usize>);
 
 #[derive(Component, Inspectable)]
 pub struct TextDetails(pub Vec<(TextStyle, usize)>);
+
+#[derive(Component, Inspectable)]
+pub struct TextAlign(pub TextAlignment);
 
 #[derive(Component)]
 pub struct HideOverflow;
