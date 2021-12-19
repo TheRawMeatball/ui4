@@ -19,13 +19,10 @@ use self::textbox::{TextBox, TextBoxFunc};
 
 pub fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
-        ctx.with(Width(Units::Stretch(1.)))
-            .with(Height(Units::Stretch(1.)))
-            .with(FocusPolicy::Pass)
-            .with(
-                text.into_observer()
-                    .map(|text: ObsReturn<'_, _, _, O>| Text(text.borrow().clone())),
-            )
+        ctx.with(FocusPolicy::Pass).with(
+            text.into_observer()
+                .map(|text: ObsReturn<'_, _, _, O>| Text(text.borrow().clone())),
+        )
     }
 }
 

@@ -21,6 +21,7 @@ type ShapeQ<'w, 's> = Query<
         Option<&'static Node>,
         Option<&'static TextBoxCursor>,
         Option<&'static TextDetails>,
+        Option<&'static TextAlign>,
         Option<&'static UiColor>,
         Option<&'static HideOverflow>,
         Option<&'static UiImage>,
@@ -52,7 +53,8 @@ fn push_shapes(
     window_height: f32,
     scale_factor: f32,
 ) {
-    let (node, tb, text_details, color, hide_overflow, image, children) = q.get(entity).unwrap();
+    let (node, tb, text_details, text_align, color, hide_overflow, image, children) =
+        q.get(entity).unwrap();
 
     let clip = if let Some(node) = node {
         let mut clipped = cn_query.get_mut(entity).unwrap();
@@ -65,8 +67,8 @@ fn push_shapes(
         };
         clipped.min = clip.min.max(this_rect.min);
         clipped.max = clip.max.min(this_rect.max);
-        if let Some(glyphs) = text_pipeline.get_glyphs(&entity) {
-            let alignment_offset = (node.size / -2.0).extend(0.0);
+        if let Some(layout_info) = text_pipeline.get_glyphs(&entity) {
+            let alignment_offset = node.size / -2.0;
             let text_details = text_details.map(|x| &*x.0).unwrap_or(&[]);
 
             let mut details = text_details
@@ -75,7 +77,7 @@ fn push_shapes(
                 .chain(std::iter::once((color.unwrap_or(Color::WHITE), usize::MAX)));
 
             let (mut cur_color, mut ends_at) = details.next().unwrap();
-            for text_glyph in &glyphs.glyphs {
+            for text_glyph in &layout_info.glyphs {
                 if text_glyph.byte_index >= ends_at {
                     let (color, end) = details.next().unwrap();
                     cur_color = color;
@@ -90,12 +92,34 @@ fn push_shapes(
                 let index = text_glyph.atlas_info.glyph_index as usize;
                 let rect = atlas.textures[index];
                 let atlas_size = Some(atlas.size);
+                let text_align = text_align.map(|ta| ta.0).unwrap_or_default();
+                let major_align_offset = Vec2::new(
+                    match text_align.horizontal {
+                        bevy::text::HorizontalAlign::Left => 0.,
+                        bevy::text::HorizontalAlign::Center => {
+                            (node.size.x * scale_factor - layout_info.size.width) / 2.
+                        }
+                        bevy::text::HorizontalAlign::Right => {
+                            node.size.x * scale_factor - layout_info.size.width
+                        }
+                    },
+                    match text_align.vertical {
+                        bevy::text::VerticalAlign::Top => node.size.y - layout_info.size.height,
+                        bevy::text::VerticalAlign::Center => {
+                            (node.size.y * scale_factor - layout_info.size.height) / 2.
+                        }
+                        bevy::text::VerticalAlign::Bottom => 0.,
+                    },
+                );
 
                 let transform = Mat4::from_translation(
                     y_inv(pos + node.size / 2., window_height).extend(map_z(z)),
                 ) * Mat4::from_scale(Vec3::ONE / scale_factor)
                     * Mat4::from_translation(
-                        alignment_offset * scale_factor + text_glyph.position.extend(0.),
+                        (alignment_offset * scale_factor
+                            + text_glyph.position
+                            + major_align_offset)
+                            .extend(0.),
                     );
 
                 vec.push(ExtractedUiNode {
@@ -109,7 +133,7 @@ fn push_shapes(
 
             let shape = tb
                 .and_then(|tb| tb.0)
-                .and_then(|cursor| glyphs.glyphs.iter().find(|g| g.byte_index == cursor))
+                .and_then(|cursor| layout_info.glyphs.iter().find(|g| g.byte_index == cursor))
                 .map(|glyph| {
                     let glyph_pos = glyph.position;
 

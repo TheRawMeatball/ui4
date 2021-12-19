@@ -39,8 +39,8 @@ fn root(ctx: Ctx) -> Ctx {
                 .with(TextSize(80.))
                 .with(Height(Units::Pixels(120.)))
                 .with(TextAlign(TextAlignment {
-                    vertical: VerticalAlign::Bottom,
-                    horizontal: HorizontalAlign::Right,
+                    vertical: VerticalAlign::Top,
+                    horizontal: HorizontalAlign::Center,
                 })),
         )
         .child(|ctx: Ctx| {
