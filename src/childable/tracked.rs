@@ -234,9 +234,9 @@ where
                     // the tracked object has changed - despawn everything and start fresh
 
                     rx.as_mut().unwrap().try_iter().for_each(drop);
-                    // TODO: uncomment once pr merged
-                    // world.entity_mut(c_parent).despawn_children();
+                    world.entity_mut(c_parent).despawn_descendants();
 
+                    let tracked = world_lens.get_mut(world);
                     for i in 0..tracked.len() {
                         let manager = world
                             .spawn()
@@ -331,8 +331,7 @@ where
                             }
                             Diff::Clear => {
                                 length = 0;
-                                // TODO: uncomment once pr merged
-                                // world.entity_mut(c_parent).despawn_children();
+                                world.entity_mut(c_parent).despawn_descendants();
                             }
                         }
                     }
