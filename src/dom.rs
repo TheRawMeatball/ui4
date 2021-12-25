@@ -16,7 +16,7 @@ pub(crate) struct ControlBundle {
     control: Control,
 }
 
-#[derive(Component, Default, Inspectable)]
+#[derive(Component, Default, Inspectable, Clone, Copy)]
 pub(crate) struct Node {
     pub pos: Vec2,
     pub size: Vec2,

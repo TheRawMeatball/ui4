@@ -186,7 +186,7 @@ where
     }
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct And<O1, O2>(O1, O2);
 impl<'a, O1: Observer<'a>, O2: Observer<'a>> Observer<'a> for And<O1, O2> {
     type Return = (O1::Return, O2::Return);

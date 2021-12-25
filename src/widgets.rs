@@ -220,13 +220,20 @@ pub fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
                                         .get_primary()?
                                         .cursor_position()
                                 })() {
+                                    dbg!("hai!");
                                     let mut cursor = w.entity_mut(cursor_entity);
                                     let cursor_node = cursor.get::<Node>().unwrap();
                                     let pos = cursor_node.pos + cursor_node.size / 2.;
+                                    let initial_offset = cursor_pos - pos;
                                     cursor.insert(EngagedSlider {
-                                        initial_offset: cursor_pos - pos,
-                                        slider_entity,
-                                        get_percent: Arc::new(move |w| percent.get_mut(w)),
+                                        process: Arc::new(move |w, cursor_pos| {
+                                            let node = w.get::<Node>(slider_entity).unwrap();
+                                            let len = node.size.x;
+                                            let start = node.pos.x;
+                                            let current = cursor_pos.x - initial_offset.x;
+                                            let p = ((current - start) / len).clamp(0., 1.);
+                                            *percent.get_mut(w) = p;
+                                        }),
                                     });
                                 }
                             }))
@@ -235,5 +242,97 @@ pub fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
                             }))
                     })
             })
+    }
+}
+
+pub fn vscroll_view(inner: impl FnOnce(Ctx) -> Ctx) -> impl FnOnce(Ctx) -> Ctx {
+    |ctx: Ctx| {
+        let avail_height = ctx.component().map(|node: &Node| node.size.y);
+        let mut content_height = None;
+        let mut container_entity = None;
+        let ctx = ctx.with(LayoutType::Row).child(|ctx| {
+            ctx.with(HideOverflow)
+                // .with(UiColor(Color::RED))
+                .with(MinHeight(Units::Pixels(0.)))
+                .with(Height(Units::Percentage(100.)))
+                .child(|ctx| {
+                    content_height = Some(ctx.component().map(|node: &Node| node.size.y));
+                    container_entity = Some(ctx.current_entity());
+                    ctx.with(Top(Units::Pixels(0.)))
+                        // .with(UiColor(Color::GREEN))
+                        .with(Height(Units::Pixels(0.)))
+                        .child(inner)
+                })
+        });
+        let container_entity = container_entity.unwrap();
+        let content_height = content_height.unwrap();
+
+        let heights_obs = content_height.and(avail_height);
+        let need_scroll_obs = heights_obs.map(|(c, a)| c > a);
+        ctx.children(need_scroll_obs.map_child(move |ratio_over_one: bool| {
+            move |ctx: &mut McCtx| {
+                if ratio_over_one {
+                    ctx.c(|ctx| {
+                        let scroll_entity = ctx.current_entity();
+                        ctx.with(UiColor(Color::DARK_GRAY))
+                            .with(Width(Units::Pixels(12.)))
+                            .child(|ctx| {
+                                let cursor_entity = ctx.current_entity();
+                                ctx.with(UiColor(Color::GRAY))
+                                    .with(Top(Units::Pixels(0.)))
+                                    .with(
+                                        heights_obs
+                                            .map(|(c, a)| 100. * a / c)
+                                            .map(Units::Percentage)
+                                            .map(Height),
+                                    )
+                                    // TODO: system which checks when a scroll view's inner size has shrunk and recalculates scroll
+                                    // alternatively, implement some sort of notif system
+                                    .with(OnClick::new(move |w| {
+                                        if let Some((cursor_pos, height)) = (|| {
+                                            let window =
+                                                w.get_resource::<Windows>()?.get_primary()?;
+                                            Some((window.cursor_position()?, window.height()))
+                                        })(
+                                        ) {
+                                            let mut cursor = w.entity_mut(cursor_entity);
+                                            let cursor_node = cursor.get::<Node>().unwrap();
+                                            let pos = cursor_node.pos.y;
+                                            let initial_offset = height - cursor_pos.y - pos;
+                                            cursor.insert(EngagedSlider {
+                                                process: Arc::new(move |w, cursor_pos| {
+                                                    let scroll_node =
+                                                        *w.get::<Node>(scroll_entity).unwrap();
+                                                    let cursor_node =
+                                                        *w.get::<Node>(cursor_entity).unwrap();
+                                                    let len =
+                                                        scroll_node.size.y - cursor_node.size.y;
+                                                    let start = scroll_node.pos.y;
+                                                    let current =
+                                                        height - cursor_pos.y - initial_offset;
+                                                    let p = ((current - start) / len).clamp(0., 1.);
+                                                    w.get_mut::<Top>(cursor_entity).unwrap().0 =
+                                                        Units::Pixels(p * len);
+                                                    let container_node =
+                                                        *w.get::<Node>(container_entity).unwrap();
+                                                    w.get_mut::<Top>(container_entity).unwrap().0 =
+                                                        Units::Pixels(
+                                                            -p * (container_node.size.y
+                                                                - scroll_node.size.y),
+                                                        );
+                                                }),
+                                            });
+                                        }
+                                    }))
+                                    .with(OnRelease::new(move |w| {
+                                        w.entity_mut(cursor_entity).remove::<EngagedSlider>();
+                                    }))
+                                    .with(Interaction::None)
+                                    .with(FuncScratch::default())
+                            })
+                    });
+                }
+            }
+        }))
     }
 }

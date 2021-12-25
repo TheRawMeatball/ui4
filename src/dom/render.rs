@@ -128,7 +128,10 @@ fn push_shapes(
                     rect,
                     image: texture,
                     atlas_size,
-                    clip: Some(clip),
+                    clip: Some(Rect {
+                        min: y_inv(Vec2::new(clip.min.x, clip.max.y), window_height),
+                        max: y_inv(Vec2::new(clip.max.x, clip.min.y), window_height),
+                    }),
                 });
             }
 
@@ -149,7 +152,10 @@ fn push_shapes(
                         },
                         image: bevy::render::texture::DEFAULT_IMAGE_HANDLE.typed(),
                         atlas_size: None,
-                        clip: Some(clip),
+                        clip: Some(Rect {
+                            min: y_inv(Vec2::new(clip.min.x, clip.max.y), window_height),
+                            max: y_inv(Vec2::new(clip.max.x, clip.min.y), window_height),
+                        }),
                     }
                 });
             vec.extend(shape);
@@ -169,7 +175,10 @@ fn push_shapes(
                     .map(|i| i.0.clone_weak())
                     .unwrap_or(bevy::render::texture::DEFAULT_IMAGE_HANDLE.typed()),
                 atlas_size: None,
-                clip: Some(clip),
+                clip: Some(Rect {
+                    min: y_inv(Vec2::new(clip.min.x, clip.max.y), window_height),
+                    max: y_inv(Vec2::new(clip.max.x, clip.min.y), window_height),
+                }),
             });
         }
 
@@ -265,14 +274,14 @@ pub(crate) fn process_text_system(
     }
 
     for (entity, node, text, size, font, details, align) in text_nodes.iter() {
-        // if !(text.1.is_changed()
-        //     || check_tuple(&size)
-        //     || check_tuple(&font)
-        //     || check_tuple(&details)
-        //     || check_tuple(&align))
-        // {
-        //     continue;
-        // }
+        if !(text.1.is_changed()
+            || check_tuple(&size)
+            || check_tuple(&font)
+            || check_tuple(&details)
+            || check_tuple(&align))
+        {
+            continue;
+        }
 
         let text_details = details.map(|x| &*x.0 .0).unwrap_or(&[]);
         let mut style = None;

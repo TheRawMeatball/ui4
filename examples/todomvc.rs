@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use derive_more::{Deref, DerefMut};
 use std::sync::Arc;
-use ui4::prelude::*;
+use ui4::{prelude::*, widgets::vscroll_view};
 
 #[derive(Default, Deref, Lens)]
 struct EditedText(String);
@@ -19,7 +19,6 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins)
         .add_plugin(Ui4Plugin)
-        .add_plugin(bevy_inspector_egui::WorldInspectorPlugin::default())
         .add_plugin(Ui4Root(root))
         .init_resource::<EditedText>()
         .init_resource::<TodoList>();
@@ -71,11 +70,17 @@ fn root(ctx: Ctx) -> Ctx {
                         .with(Height(Units::Pixels(30.))),
                 )
         })
-        .children(res::<TodoList>().lens(TodoList::F0).each(|item, index| {
-            move |ctx: &mut McCtx| {
-                ctx.c(todo(item, index));
-            }
-        }))
+        .child(
+            vscroll_view(|ctx| {
+                ctx.children(res::<TodoList>().lens(TodoList::F0).each(|item, index| {
+                    move |ctx: &mut McCtx| {
+                        ctx.c(todo(item, index));
+                    }
+                }))
+            })
+            .with(Left(Units::Pixels(5.)))
+            .with(Right(Units::Pixels(5.))),
+        )
 }
 
 fn todo(item: impl WorldLens<Out = Todo>, index: IndexObserver) -> impl FnOnce(Ctx) -> Ctx {

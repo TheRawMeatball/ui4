@@ -38,13 +38,16 @@ where
     }
 }
 
-pub trait ChildMapExt: Sized {
-    fn map_child<F>(self, f: F) -> ChildMap<Self, F> {
+pub trait ChildMapExt<X>: Sized + UninitObserver {
+    fn map_child<F>(self, f: F) -> ChildMap<Self, F>
+    where
+        for<'a> F: Fn(<Self::Observer as Observer<'a>>::Return) -> X,
+    {
         ChildMap(self, f)
     }
 }
 
-impl<UO> ChildMapExt for UO where UO: UninitObserver {}
+impl<UO, X> ChildMapExt<X> for UO where UO: UninitObserver {}
 
 pub struct ChildMap<UO, F>(UO, F);
 
