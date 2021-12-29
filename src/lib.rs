@@ -26,7 +26,7 @@ pub mod prelude {
     };
     pub use ctx::{Ctx, McCtx, WidgetBuilderExtWith, WidgetBuilderExtWithModified};
     pub use dom::layout::{layout_components::*, Units};
-    pub use dom::{Focused, HideOverflow, Text, TextAlign, TextDetails, TextSize};
+    pub use dom::{Focused, HideOverflow, TextAlign, TextDetails, TextSize, UiText};
     pub use lens::WorldLens;
     pub use observer::{component, res, single, FlattenReturn, IntoObserver, ObserverExt};
     pub use plugin::{Ui4Plugin, Ui4Root};

@@ -36,7 +36,7 @@ impl Plugin for Ui4Plugin {
             .init_resource::<PreExtractedUiNodes>()
             .register_inspectable::<crate::dom::Node>()
             .register_inspectable::<crate::dom::ClippedNode>()
-            .register_inspectable::<crate::dom::Text>()
+            .register_inspectable::<crate::dom::UiText>()
             .register_inspectable::<crate::dom::TextSize>()
             .register_inspectable::<crate::dom::Interaction>()
             .register_inspectable::<crate::dom::TextAlign>()
@@ -74,7 +74,7 @@ impl Plugin for Ui4Plugin {
                     .before(Ui4SystemLabels::Shaping),
             );
 
-        let render_app = app.sub_app(bevy::render::RenderApp);
+        let render_app = app.sub_app_mut(bevy::render::RenderApp);
         render_app.add_system_to_stage(
             bevy::render::RenderStage::Extract,
             crate::dom::render::move_uinodes.after(bevy::ui::RenderUiSystem::ExtractNode),

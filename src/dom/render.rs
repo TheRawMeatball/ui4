@@ -1,10 +1,10 @@
 use super::{
-    ClippedNode, HideOverflow, Node, Text, TextAlign, TextBoxCursor, TextDetails, TextSize,
+    ClippedNode, HideOverflow, Node, TextAlign, TextBoxCursor, TextDetails, TextSize, UiText,
 };
 use bevy::{
     ecs::prelude::*,
     math::{Mat4, Vec2, Vec3},
-    prelude::{Assets, Color, Handle, HandleUntyped, Image, TextureAtlas},
+    prelude::{Assets, Color, Handle, HandleUntyped, Image},
     reflect::TypeUuid,
     render::RenderWorld,
     sprite::Rect,
@@ -255,7 +255,7 @@ pub(crate) fn process_text_system(
     text_nodes: Query<(
         Entity,
         &Node,
-        (&Text, ChangeTrackers<Text>),
+        (&UiText, ChangeTrackers<UiText>),
         Option<(&TextSize, ChangeTrackers<TextSize>)>,
         Option<(&Handle<Font>, ChangeTrackers<Handle<Font>>)>,
         Option<(&TextDetails, ChangeTrackers<TextDetails>)>,
