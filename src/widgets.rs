@@ -22,7 +22,7 @@ pub fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         ctx.with(FocusPolicy::Pass).with(
             text.into_observer()
-                .map(|text: ObsReturn<'_, _, _, O>| Text(text.borrow().clone())),
+                .map(|text: ObsReturn<'_, _, _, O>| UiText(text.borrow().clone())),
         )
     }
 }
@@ -70,11 +70,15 @@ pub fn textbox<L: WorldLens<Out = String>>(text: L) -> impl FnOnce(Ctx) -> Ctx w
             .with(UiColor(Color::DARK_GRAY))
             .child(|ctx: Ctx| {
                 ctx.with(FocusPolicy::Pass)
-                    .with_modified::<_, L, _>(Text("".to_string()), text, |text, Text(mut old)| {
-                        old.clear();
-                        old.push_str(text);
-                        Text(old)
-                    })
+                    .with_modified::<_, L, _>(
+                        UiText("".to_string()),
+                        text,
+                        |text, UiText(mut old)| {
+                            old.clear();
+                            old.push_str(text);
+                            UiText(old)
+                        },
+                    )
                     .with(
                         cursor
                             .and(focused)
