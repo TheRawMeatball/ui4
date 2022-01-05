@@ -7,7 +7,7 @@ use bevy::{
     prelude::{Assets, Color, Handle, HandleUntyped, Image},
     reflect::TypeUuid,
     render::RenderWorld,
-    sprite::Rect,
+    sprite::{Rect, TextureAtlas},
     text::{DefaultTextPipeline, Font, FontAtlasSet, TextSection, TextStyle},
     transform::prelude::*,
     ui::{ExtractedUiNode, ExtractedUiNodes, UiColor, UiImage},

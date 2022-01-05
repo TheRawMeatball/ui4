@@ -11,14 +11,17 @@ use super::{Observer, UninitObserver};
 
 struct ComponentUpdateFuncs<T>(HashMap<Entity, Vec<UpdateFunc>>, PhantomData<T>);
 
-pub struct ComponentObserver<T: Send + Sync + 'static>(
-    pub(crate) Entity,
-    pub(crate) PhantomData<T>,
-);
+pub struct ComponentObserver<T: Send + Sync + 'static> {
+    pub(crate) entity: Entity,
+    pub(crate) _marker: PhantomData<T>,
+}
 
 impl<T: Send + Sync + 'static> Clone for ComponentObserver<T> {
     fn clone(&self) -> Self {
-        Self(self.0, PhantomData)
+        Self {
+            entity: self.entity,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -29,7 +32,7 @@ impl<'a, T: Component> Observer<'a> for ComponentObserver<T> {
 
     fn get(&'a mut self, world: &'a World) -> (Self::Return, bool) {
         // TODO: use change detection
-        (world.get::<T>(self.0).unwrap(), true)
+        (world.get::<T>(self.entity).unwrap(), true)
     }
 }
 
@@ -44,14 +47,14 @@ impl<T: Component> UninitObserver for ComponentObserver<T> {
         let uf = (uf)(self, world);
         let ufc = uf.clone();
         world.resource_scope(|world, mut systems: Mut<UiManagedSystems>| {
-            if let Some(mut marker) = world.get_mut::<UfMarker<T>>(self.0) {
+            if let Some(mut marker) = world.get_mut::<UfMarker<T>>(self.entity) {
                 marker.add_dependent(uf);
             } else if let Some(mut lists) = world.get_resource_mut::<ComponentUpdateFuncs<T>>() {
-                lists.0.entry(self.0).or_default().push(uf);
+                lists.0.entry(self.entity).or_default().push(uf);
             } else {
                 systems.0.add_system(component_change_track_system::<T>);
                 world.insert_resource(ComponentUpdateFuncs::<T>(
-                    [(self.0, vec![uf])].into_iter().collect(),
+                    [(self.entity, vec![uf])].into_iter().collect(),
                     PhantomData,
                 ));
             };

@@ -149,7 +149,10 @@ impl<T: Component> WorldLens for ComponentLens<T> {
 
     fn to_observer(self) -> (Self::UninitObserver, Self::Lens) {
         (
-            crate::observer::ComponentObserver(self.0, PhantomData),
+            crate::observer::ComponentObserver {
+                entity: self.0,
+                _marker: PhantomData,
+            },
             Identity(PhantomData),
         )
     }

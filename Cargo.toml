@@ -40,9 +40,5 @@ branch = "bevy-main"
 
 # Local dev patches
 
-[patch."https://github.com/bevyengine/bevy"]
-bevy = { path = "../bevy" }
-
-
-[patch."https://github.com/jakobhellermann/bevy_egui"]
-bevy_egui = { path = "../bevy_egui" }
+# [patch."https://github.com/bevyengine/bevy"]
+# bevy = { path = "../bevy" }
