@@ -57,7 +57,7 @@ fn root(ctx: Ctx) -> Ctx {
 
 For more examples on how to use this library, look at the [examples](examples) folder!
 
-Important note: You'll need to use [a custom branch of bevy](https://github.com/TheRawMeatball/bevy/tree/runs-ui4-migrated), as there's still multiple PR s this library needs that haven't been merged into main yet. Furthermore, this crate works around certain limitations of stable rust using boxing, so switching to nightly and enabling the `nightly` feature might improve performance!
+Important note: This crate works around certain limitations of stable rust using boxing, so switching to nightly and enabling the `nightly` feature might improve performance, and is recommended.
 
 ## Help
 
