@@ -71,13 +71,11 @@ fn root(ctx: Ctx) -> Ctx {
                 )
         })
         .child(
-            vscroll_view(|ctx| {
-                ctx.children(res::<TodoList>().lens(TodoList::F0).each(|item, index| {
-                    move |ctx: &mut McCtx| {
-                        ctx.c(todo(item, index));
-                    }
-                }))
-            })
+            vscroll_view(res::<TodoList>().lens(TodoList::F0).each(|item, index| {
+                move |ctx: &mut McCtx| {
+                    ctx.c(todo(item, index));
+                }
+            }))
             .with(Left(Units::Pixels(5.)))
             .with(Right(Units::Pixels(5.))),
         )

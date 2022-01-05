@@ -249,7 +249,7 @@ pub fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
     }
 }
 
-pub fn vscroll_view(inner: impl FnOnce(Ctx) -> Ctx) -> impl FnOnce(Ctx) -> Ctx {
+pub fn vscroll_view<M>(inner: impl Childable<M>) -> impl FnOnce(Ctx) -> Ctx {
     |ctx: Ctx| {
         let avail_height = ctx.component().map(|node: &Node| node.size.y);
         let mut content_height = None;
@@ -260,12 +260,23 @@ pub fn vscroll_view(inner: impl FnOnce(Ctx) -> Ctx) -> impl FnOnce(Ctx) -> Ctx {
                 .with(MinHeight(Units::Pixels(0.)))
                 .with(Height(Units::Percentage(100.)))
                 .child(|ctx| {
-                    content_height = Some(ctx.component().map(|node: &Node| node.size.y));
+                    let ch = ctx.component().map(|node: &Node| node.size.y);
+                    content_height = Some(ch);
+                    let heights_obs = ch.and(avail_height);
                     container_entity = Some(ctx.current_entity());
-                    ctx.with(Top(Units::Pixels(0.)))
-                        // .with(UiColor(Color::GREEN))
-                        .with(Height(Units::Pixels(0.)))
-                        .child(inner)
+                    ctx.with_modified(
+                        Top(Units::Pixels(0.)),
+                        heights_obs,
+                        |(content, available), Top(pre)| match pre {
+                            Units::Pixels(pre) => {
+                                Top(Units::Pixels(pre.max((available - content).min(0.))))
+                            }
+                            _ => unreachable!(),
+                        },
+                    )
+                    // .with(UiColor(Color::GREEN))
+                    .with(Height(Units::Pixels(0.)))
+                    .children(inner)
                 })
         });
         let container_entity = container_entity.unwrap();
@@ -283,7 +294,19 @@ pub fn vscroll_view(inner: impl FnOnce(Ctx) -> Ctx) -> impl FnOnce(Ctx) -> Ctx {
                             .child(|ctx| {
                                 let cursor_entity = ctx.current_entity();
                                 ctx.with(UiColor(Color::GRAY))
-                                    .with(Top(Units::Pixels(0.)))
+                                    .with_modified(
+                                        Top(Units::Pixels(0.)),
+                                        heights_obs,
+                                        |(content, available), Top(pre)| match pre {
+                                            Units::Pixels(pre) => Top(Units::Pixels(
+                                                pre.min(
+                                                    (available - (available * available / content))
+                                                        .max(0.),
+                                                ),
+                                            )),
+                                            _ => unreachable!(),
+                                        },
+                                    )
                                     .with(
                                         heights_obs
                                             .map(|(c, a)| 100. * a / c)
@@ -316,13 +339,13 @@ pub fn vscroll_view(inner: impl FnOnce(Ctx) -> Ctx) -> impl FnOnce(Ctx) -> Ctx {
                                                         height - cursor_pos.y - initial_offset;
                                                     let p = ((current - start) / len).clamp(0., 1.);
                                                     w.get_mut::<Top>(cursor_entity).unwrap().0 =
-                                                        Units::Pixels(p * len);
+                                                        Units::Pixels(dbg!(p) * len);
                                                     let container_node =
                                                         *w.get::<Node>(container_entity).unwrap();
                                                     w.get_mut::<Top>(container_entity).unwrap().0 =
                                                         Units::Pixels(
-                                                            -p * (container_node.size.y
-                                                                - scroll_node.size.y),
+                                                            p * (scroll_node.size.y
+                                                                - container_node.size.y),
                                                         );
                                                 }),
                                             });
