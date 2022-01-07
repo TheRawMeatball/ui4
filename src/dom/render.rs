@@ -263,22 +263,30 @@ pub(crate) fn process_text_system(
     )>,
     fonts: Res<Assets<Font>>,
 
+    mut last_scale_factor: Local<f64>,
+
     mut textures: ResMut<Assets<Image>>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     mut font_atlas_set_storage: ResMut<Assets<FontAtlasSet>>,
 
     windows: Res<Windows>,
 ) {
+    let scale_factor = windows
+        .get_primary()
+        .map(|w| w.scale_factor())
+        .unwrap_or(1.);
+
     fn check_tuple<T: Component>(x: &Option<(&T, ChangeTrackers<T>)>) -> bool {
-        x.as_ref().map(|(_, x)| x.is_changed()).unwrap_or(false)
+        x.as_ref().map(|(_, x)| !x.is_changed()).unwrap_or(true)
     }
 
     for (entity, node, text, size, font, details, align) in text_nodes.iter() {
-        if !(text.1.is_changed()
-            || check_tuple(&size)
-            || check_tuple(&font)
-            || check_tuple(&details)
-            || check_tuple(&align))
+        if *last_scale_factor == scale_factor
+            && !text.1.is_changed()
+            && check_tuple(&size)
+            && check_tuple(&font)
+            && check_tuple(&details)
+            && check_tuple(&align)
         {
             continue;
         }
@@ -315,10 +323,7 @@ pub(crate) fn process_text_system(
                 entity,
                 &fonts,
                 &sections,
-                windows
-                    .get_primary()
-                    .map(|w| w.scale_factor())
-                    .unwrap_or(1.),
+                scale_factor,
                 align.map(|(a, _)| a.0).unwrap_or_default(),
                 bevy::math::Size::new(node.size.x, node.size.y),
                 &mut font_atlas_set_storage,
@@ -326,6 +331,8 @@ pub(crate) fn process_text_system(
                 &mut textures,
             )
             .ok();
+
+        *last_scale_factor = scale_factor;
     }
 }
 

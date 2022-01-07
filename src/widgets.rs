@@ -313,8 +313,6 @@ pub fn vscroll_view<M>(inner: impl Childable<M>) -> impl FnOnce(Ctx) -> Ctx {
                                             .map(Units::Percentage)
                                             .map(Height),
                                     )
-                                    // TODO: system which checks when a scroll view's inner size has shrunk and recalculates scroll
-                                    // alternatively, implement some sort of notif system
                                     .with(OnClick::new(move |w| {
                                         if let Some((cursor_pos, height)) = (|| {
                                             let window =
@@ -339,7 +337,7 @@ pub fn vscroll_view<M>(inner: impl Childable<M>) -> impl FnOnce(Ctx) -> Ctx {
                                                         height - cursor_pos.y - initial_offset;
                                                     let p = ((current - start) / len).clamp(0., 1.);
                                                     w.get_mut::<Top>(cursor_entity).unwrap().0 =
-                                                        Units::Pixels(dbg!(p) * len);
+                                                        Units::Pixels(p * len);
                                                     let container_node =
                                                         *w.get::<Node>(container_entity).unwrap();
                                                     w.get_mut::<Top>(container_entity).unwrap().0 =
