@@ -1,11 +1,19 @@
+//! ui4 is my fourth major attempt at making a UI dataflow library for the [Bevy](https://github.com/bevyengine/bevy) game engine.
+//! More specifically, it's a vdom-less UI library which uses fine-grained reactivity to keep your UI in sync with the rest of your game and itself.
+
 #![cfg_attr(feature = "nightly", feature(type_alias_impl_trait))]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 
+/// Types and traits for the transition system
 pub mod animation;
+/// The core api that makes ui4 tick
 pub mod ctx;
+/// Types that make up the DOM
 pub mod dom;
+/// The bevy integration
 pub mod plugin;
+/// The built-in widget library
 pub mod widgets;
 
 mod childable;
@@ -14,9 +22,13 @@ mod insertable;
 mod observer;
 mod runtime;
 
+/// A comprehensive getting started guide for ui4
+pub mod tutorial;
+
 #[doc(hidden)]
 pub mod lens;
 
+/// The ui4 prelude
 pub mod prelude {
     use super::*;
     pub use animation::{TransitionBundle, TransitionProgress, TweenExt};

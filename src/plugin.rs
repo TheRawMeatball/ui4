@@ -92,18 +92,18 @@ impl Plugin for Ui4Plugin {
 }
 
 pub struct Ui4Root<F>(pub F);
-impl<F: Fn(Ctx) -> Ctx + Clone + Send + Sync + 'static> Plugin for Ui4Root<F> {
+impl<F: FnOnce(Ctx) -> Ctx + Clone + Send + Sync + 'static> Plugin for Ui4Root<F> {
     fn build(&self, app: &mut bevy::prelude::App) {
-        let root = self.0.clone();
+        let mut root = Some(self.0.clone());
         app.add_startup_system(
-            (move |world: &mut World| init_ui(world, &root))
+            (move |world: &mut World| init_ui(world, root.take().unwrap()))
                 .exclusive_system()
                 .at_end(),
         );
     }
 }
 
-fn init_ui(world: &mut World, root: impl Fn(Ctx) -> Ctx) {
+fn init_ui(world: &mut World, root: impl FnOnce(Ctx) -> Ctx) {
     (Ctx {
         current_entity: world
             .spawn()

@@ -8,7 +8,7 @@ This library is *incredibly* young and untested. Try at your own risk!
 
 ## Why ui4
 
-UI in bevy, as of 0.5, can get incredibly boilerplate-y. So can code made with this lib, but (hopefully) you'll find the same amount of boilerplate gets you much further with this crate :)
+UI in bevy, as of 0.6, can get incredibly boilerplate-y. So can code made with this lib, but (hopefully) you'll find the same amount of boilerplate gets you much further with this crate :)
 
 More specifically, this lib offers a widget abstraction, reactivity, animations, and a collection of built-in widgets!
 
