@@ -13,7 +13,7 @@ nightly = []
 ui4-macros = { path = "./ui4-macros" }
 
 # used for parallel collection of updatefunc
-dashmap = "4.0.2"
+dashmap = "5"
 ahash = "0.7"
 
 # tracked vec
@@ -30,13 +30,9 @@ smallvec = "1"
 # mapping mutex
 parking_lot = "0.11.2"
 
-[dependencies.bevy]
-git = "https://github.com/bevyengine/bevy"
-branch = "main"
+bevy = "0.6"
 
-[dependencies.bevy-inspector-egui]
-git = "https://github.com/jakobhellermann/bevy-inspector-egui"
-branch = "bevy-main"
+bevy-inspector-egui = "0.7"
 
 # Local dev patches
 
