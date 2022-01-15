@@ -7,8 +7,16 @@ use crate::{
     Dynamic, OptionalDynamic, Static,
 };
 
+/// The trait for setting up components on widgets
+///
+/// This is implemented for three groups of types:
+/// - Any type which implements [`Component`] and can be inserted directly. These insertions will not be reactive.
+/// - Any [`UninitObserver`] that returns something which implements [`Component`]. Things inserted this way will
+/// react when the observed value(s) change, running the map functions on the observer, and add the component.
+/// - Any [`UninitObserver`] that returns an [`Option<T>`] where `T` implements [`Component`]. The component will be
+/// present if the last run of the observer returned [`Some`], and not if it returned [`None`].
 pub trait Insertable<T, M>: Send + Sync + 'static {
-    /// ### Internal method!
+    /// ### INTERNAL METHOD!
     #[doc(hidden)]
     fn insert_ui_val(self, ctx: &mut Ctx);
 }

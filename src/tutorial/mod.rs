@@ -139,8 +139,42 @@
 //! }
 //! ```
 //!
-//! Observers are very useful, and they can be given both to many built-in widgets as well as `with` calls, letting you control the components on your widgets
+//! Observers are very useful, and they can be given both to many built-in widgets as well as [`Ctx::with`](crate::prelude::Ctx::with) calls, letting you control the components on your widgets
 //! with reactivity as well.
+//!
+//! ## Reactive tree
+//!
+//! While the methods shown so far can already make a variety of dynamic user interfaces, they can't yet conditionally render UI elements - for this, we will need
+//! [`map_child`](crate::childable::ChildMapExt::map_child).
+//!
+//! ```
+//! # use bevy::prelude::*;
+//! # use ui4::prelude::*;
+//! fn root(ctx: Ctx) -> Ctx {
+//!     #[derive(Component)]
+//!     struct RootWidgetState(u32);
+//!     let e = ctx.current_entity();
+//!     let button_text = ctx
+//!         .component()
+//!         .map(|c: &RootWidgetState| format!("Counter is at {}", c.0));
+//!     let show_message = ctx.component().map(|c: &RootWidgetState| c.0 > 10);
+//!     
+//!     ctx.with(RootWidgetState(0))
+//!         .child(button(button_text).with(OnClick::new(move |world| {
+//!             let mut state = world.get_mut::<RootWidgetState>(e).unwrap();
+//!             state.0 += 1;
+//!         })))
+//!         .children(show_message.map_child(|show: bool| {
+//!             move |ctx: &mut McCtx| {
+//!                 if show {
+//!                     ctx.c(text("Counter is above 10!"));
+//!                 }
+//!             }
+//!         }))
+//! }
+//! ```
+//! Note that mapping to a bool before `map_child` is important, as otherwise changing the count would always result in the mapped children being despawned and rebuilt, possibly losing state.
+//! For more details on how to use [`Ctx::children`](crate::ctx::Ctx::children), see the docs on [`Childable`](crate::childable::Childable).
 //!
 
 #[allow(unused)]

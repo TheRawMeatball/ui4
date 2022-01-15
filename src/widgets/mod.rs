@@ -11,7 +11,7 @@ use bevy::ui::UiColor;
 use bevy::utils::HashMap;
 use bevy::window::Windows;
 
-use crate::dom::{FocusPolicy, Focusable, Node, TextBoxCursor};
+use crate::dom::{FocusPolicy, Focusable, Node, TextBoxCursor, UiText};
 use crate::{dom::Interaction, prelude::*};
 
 use self::button::FuncScratch;

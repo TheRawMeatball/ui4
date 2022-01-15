@@ -15,7 +15,15 @@ pub mod tracked;
 
 struct CnufMarker;
 
+/// The trait for things that can be used to build a group of children.
+///
+/// Implemented for three groups:
+/// - Types implementing`FnOnce(&mut McCtx)`
+/// - The return type of `map_child` called on observers.
+/// - The return type of `each` from [`TrackedVec`](tracked::TrackedVec) lenses.
 pub trait Childable<M> {
+    /// ### INTERNAL METHOD!
+    #[doc(hidden)]
     fn insert(self, ctx: &mut Ctx);
 }
 
@@ -38,16 +46,22 @@ where
     }
 }
 
-pub trait ChildMapExt<X>: Sized + UninitObserver {
-    fn map_child<F>(self, f: F) -> ChildMap<Self, F>
+pub trait ChildMapExt: Sized + UninitObserver {
+    /// This method will allow building the widget tree while knowing the actual value of an observed value.
+    /// This can be useful and is necessary for implementing control flow, but because the value is observed
+    /// every change to it will require the former widget tree to be despawned and a new one to be built,
+    /// potentially losing state in the process. As such, it is recommended to expose as minimal state when mapping as
+    /// possible.
+    fn map_child<F, R>(self, f: F) -> ChildMap<Self, F>
     where
-        for<'a> F: Fn(<Self::Observer as Observer<'a>>::Return) -> X,
+        for<'a> F: Fn(<Self::Observer as Observer<'a>>::Return) -> R,
+        R: FnOnce(&mut McCtx),
     {
         ChildMap(self, f)
     }
 }
 
-impl<UO, X> ChildMapExt<X> for UO where UO: UninitObserver {}
+impl<UO> ChildMapExt for UO where UO: UninitObserver {}
 
 pub struct ChildMap<UO, F>(UO, F);
 

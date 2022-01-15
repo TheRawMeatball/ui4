@@ -1,4 +1,4 @@
-//! ui4 is my fourth major attempt at making a UI dataflow library for the [Bevy](https://github.com/bevyengine/bevy) game engine.
+//! `ui4` a UI library for the [Bevy](https://github.com/bevyengine/bevy) game engine.
 //! More specifically, it's a vdom-less UI library which uses fine-grained reactivity to keep your UI in sync with the rest of your game and itself.
 
 #![cfg_attr(feature = "nightly", feature(type_alias_impl_trait))]
@@ -16,17 +16,16 @@ pub mod plugin;
 /// The built-in widget library
 pub mod widgets;
 
-mod childable;
+pub mod childable;
+pub mod insertable;
+pub mod lens;
+pub mod observer;
+
 mod input;
-mod insertable;
-mod observer;
 mod runtime;
 
 /// A comprehensive getting started guide for ui4
 pub mod tutorial;
-
-#[doc(hidden)]
-pub mod lens;
 
 /// The ui4 prelude
 pub mod prelude {
@@ -38,7 +37,7 @@ pub mod prelude {
     };
     pub use ctx::{Ctx, McCtx, WidgetBuilderExtWith, WidgetBuilderExtWithModified};
     pub use dom::layout::{layout_components::*, Units};
-    pub use dom::{Focused, HideOverflow, TextAlign, TextDetails, TextSize, UiText};
+    pub use dom::{Focused, HideOverflow, TextAlign, TextDetails, TextSize};
     pub use lens::WorldLens;
     pub use observer::{component, res, single, FlattenReturn, IntoObserver, ObserverExt};
     pub use plugin::{Ui4Plugin, Ui4Root};

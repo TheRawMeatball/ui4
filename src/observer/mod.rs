@@ -24,7 +24,7 @@ pub trait UninitObserver: Send + Sync + 'static {
     #[doc(hidden)]
     type Observer: for<'a> Observer<'a>;
 
-    /// ### Internal method!
+    /// ### INTERNAL METHOD!
     #[doc(hidden)]
     fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
         self,

@@ -46,6 +46,8 @@ impl McCtx<'_> {
 
 impl Ctx<'_> {
     /// Statically inserts a component, or sets up reactive-ness if given a reactive template.
+    ///
+    /// See the documentation on [`Insertable`] for details.
     pub fn with<T: Component, M>(mut self, item: impl Insertable<T, M>) -> Self {
         item.insert_ui_val(&mut self);
         self
@@ -117,7 +119,7 @@ impl Ctx<'_> {
     }
 
     /// Gets an lens for a component on the entity being built. Panics if the component is removed
-    /// and the lens is still in-use.
+    /// and the lens is still in use.
     pub fn component<T: Component>(&self) -> ComponentLens<T> {
         ComponentLens(self.current_entity, PhantomData)
     }
@@ -144,7 +146,10 @@ where
     I: Insertable<T, M>,
 {
     type WithOut: FnOnce(Ctx) -> Ctx;
+
     /// Statically inserts a component, or sets up reactive-ness if given a reactive template.
+    ///
+    /// See the documentation on [`Insertable`] for details.
     fn with(self, item: I) -> Self::WithOut;
 }
 

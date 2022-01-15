@@ -4,6 +4,11 @@ use crossbeam_channel::{Receiver, Sender};
 
 use super::{Diff, Tracked, TrackedId};
 
+/// Tracked list for rendering widgets based on list data.
+///
+/// This is superior to using a regular Vec and then using map_child, as this
+/// allows for adding and removing items and modifying individual items without
+/// rerendering all other widgets in the list.
 pub struct TrackedVec<T> {
     inner: Vec<T>,
     id: TrackedId,
