@@ -21,13 +21,13 @@ pub struct Ctx<'a> {
     pub(crate) current_entity: Entity,
 }
 
+/// Stands for "Multi Child Context". Represents being able to add children to a pre-existing entity, but modifying said
+/// entity isn't possible.
 pub struct McCtx<'a> {
     pub(crate) world: &'a mut World,
     pub(crate) get_new_child: &'a mut dyn FnMut(&mut World) -> Entity,
 }
 
-/// Stands for "Multi Child Context". Represents being able to add children to a pre-existing entity, but modifying said
-/// entity isn't possible.
 impl McCtx<'_> {
     // TODO: bikeshed name
     pub fn c(&mut self, f: impl FnOnce(Ctx) -> Ctx) -> &mut Self {
