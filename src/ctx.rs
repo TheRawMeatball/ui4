@@ -29,6 +29,7 @@ pub struct McCtx<'a> {
 }
 
 impl McCtx<'_> {
+    /// Add a child to the entity.
     // TODO: bikeshed name
     pub fn c(&mut self, f: impl FnOnce(Ctx) -> Ctx) -> &mut Self {
         let new_child = (self.get_new_child)(self.world);
