@@ -1,3 +1,5 @@
+//! The ui4 built in widget library
+
 pub(crate) mod button;
 pub(crate) mod slider;
 pub(crate) mod textbox;
