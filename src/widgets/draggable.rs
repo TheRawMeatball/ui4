@@ -7,18 +7,18 @@ use bevy::{
 };
 
 #[derive(Component)]
-pub struct EngagedSlider {
+pub struct EngagedDraggable {
     pub(super) process: Arc<dyn Fn(&mut World, Vec2) + Send + Sync>,
 }
 
-pub(crate) struct SliderSystemState {
+pub(crate) struct DraggableSystemState {
     state: SystemState<(
-        Query<'static, 'static, &'static EngagedSlider>,
+        Query<'static, 'static, &'static EngagedDraggable>,
         Res<'static, Windows>,
     )>,
 }
 
-impl FromWorld for SliderSystemState {
+impl FromWorld for DraggableSystemState {
     fn from_world(world: &mut World) -> Self {
         Self {
             state: SystemState::new(world),
@@ -26,7 +26,7 @@ impl FromWorld for SliderSystemState {
     }
 }
 
-impl SliderSystemState {
+impl DraggableSystemState {
     fn run(&mut self, world: &mut World) {
         let (engaged, windows) = self.state.get(world);
         let cursor_pos = windows

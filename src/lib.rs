@@ -46,7 +46,8 @@ pub mod prelude {
         <<O as IntoObserver<T, M>>::ReturnSpec as observer::ReturnSpec<'a, T>>::R;
 
     pub use widgets::{
-        button, checkbox, dropdown, progressbar, radio_button, slider, text, text_fade, textbox,
+        button, checkbox, draggable_window, dropdown, progressbar, radio_button, slider, text,
+        text_fade, textbox,
     };
 
     pub use std::borrow::Borrow;

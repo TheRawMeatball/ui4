@@ -1,12 +1,13 @@
 //! The ui4 built in widget library
 
 pub(crate) mod button;
-pub(crate) mod slider;
+pub(crate) mod draggable;
 pub(crate) mod textbox;
 
 use std::hash::Hash;
 use std::sync::Arc;
 
+use bevy::math::Vec2;
 use bevy::render::color::Color;
 use bevy::text::TextAlignment;
 use bevy::ui::UiColor;
@@ -17,7 +18,7 @@ use crate::dom::{FocusPolicy, Focusable, Node, TextBoxCursor, UiText};
 use crate::{dom::Interaction, prelude::*};
 
 use self::button::FuncScratch;
-use self::slider::EngagedSlider;
+use self::draggable::EngagedDraggable;
 use self::textbox::{TextBox, TextBoxFunc};
 
 pub fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
@@ -231,7 +232,7 @@ pub fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
                                     let cursor_node = cursor.get::<Node>().unwrap();
                                     let pos = cursor_node.pos + cursor_node.size / 2.;
                                     let initial_offset = cursor_pos - pos;
-                                    cursor.insert(EngagedSlider {
+                                    cursor.insert(EngagedDraggable {
                                         process: Arc::new(move |w, cursor_pos| {
                                             let node = w.get::<Node>(slider_entity).unwrap();
                                             let len = node.size.x;
@@ -244,7 +245,7 @@ pub fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
                                 }
                             }))
                             .with(OnRelease::new(move |w| {
-                                w.entity_mut(cursor_entity).remove::<EngagedSlider>();
+                                w.entity_mut(cursor_entity).remove::<EngagedDraggable>();
                             }))
                     })
             })
@@ -326,7 +327,7 @@ pub fn vscroll_view<M>(inner: impl Childable<M>) -> impl FnOnce(Ctx) -> Ctx {
                                             let cursor_node = cursor.get::<Node>().unwrap();
                                             let pos = cursor_node.pos.y;
                                             let initial_offset = height - cursor_pos.y - pos;
-                                            cursor.insert(EngagedSlider {
+                                            cursor.insert(EngagedDraggable {
                                                 process: Arc::new(move |w, cursor_pos| {
                                                     let scroll_node =
                                                         *w.get::<Node>(scroll_entity).unwrap();
@@ -352,7 +353,7 @@ pub fn vscroll_view<M>(inner: impl Childable<M>) -> impl FnOnce(Ctx) -> Ctx {
                                         }
                                     }))
                                     .with(OnRelease::new(move |w| {
-                                        w.entity_mut(cursor_entity).remove::<EngagedSlider>();
+                                        w.entity_mut(cursor_entity).remove::<EngagedDraggable>();
                                     }))
                                     .with(Interaction::None)
                                     .with(FuncScratch::default())
@@ -361,5 +362,65 @@ pub fn vscroll_view<M>(inner: impl Childable<M>) -> impl FnOnce(Ctx) -> Ctx {
                 }
             }
         }))
+    }
+}
+
+/// A window you can drag around in it's parent
+///
+/// Use in combination with [ManualRoot](crate::dom::ManualRoot) if you want to make a popup.
+pub fn draggable_window<M>(inner: impl Childable<M>) -> impl FnOnce(Ctx) -> Ctx {
+    |ctx: Ctx| {
+        let main_box = ctx.current_entity();
+        ctx.with(PositionType::SelfDirected)
+            .with(Top(Units::Pixels(0.)))
+            .with(Left(Units::Pixels(0.)))
+            .child(|ctx| {
+                let drag_box_entity = ctx.current_entity();
+                ctx.with(UiColor(Color::BLACK))
+                    .with(Width(Units::Pixels(200.)))
+                    .with(Height(Units::Pixels(20.)))
+                    .with(OnClick::new(move |w| {
+                        if let Some((cursor_pos, height)) = (|| {
+                            let window = w.get_resource::<Windows>()?.get_primary()?;
+                            Some((window.cursor_position()?, window.height()))
+                        })() {
+                            // preprocessing
+                            let drag_box = w.entity(main_box);
+                            let initial_pos = Vec2::Y * height + cursor_pos * Vec2::new(1., -1.);
+                            let t = match drag_box.get::<Top>() {
+                                Some(Top(Units::Pixels(p))) => *p,
+                                _ => unreachable!(),
+                            };
+                            let l = match drag_box.get::<Left>() {
+                                Some(Left(Units::Pixels(p))) => *p,
+                                _ => unreachable!(),
+                            };
+                            let initial_lt = Vec2::new(l, t);
+                            w.entity_mut(drag_box_entity).insert(EngagedDraggable {
+                                process: Arc::new(move |w, cursor_pos| {
+                                    // processing
+                                    let cursor_pos =
+                                        Vec2::Y * height + cursor_pos * Vec2::new(1., -1.);
+                                    let delta = cursor_pos - initial_pos;
+                                    let new_lt = initial_lt + delta;
+                                    let mut drag_box = w.entity_mut(main_box);
+                                    drag_box.insert(Left(Units::Pixels(new_lt.x)));
+                                    drag_box.insert(Top(Units::Pixels(new_lt.y)));
+                                }),
+                            });
+                        }
+                    }))
+                    .with(OnRelease::new(move |w| {
+                        w.entity_mut(drag_box_entity).remove::<EngagedDraggable>();
+                    }))
+                    .with(Interaction::None)
+                    .with(FuncScratch::default())
+            })
+            .child(|ctx| {
+                ctx.with(Width(Units::Pixels(200.)))
+                    .with(Height(Units::Pixels(180.)))
+                    .with(UiColor(Color::DARK_GRAY))
+                    .children(inner)
+            })
     }
 }

@@ -9,7 +9,7 @@ use crate::dom::render::PreExtractedUiNodes;
 use crate::dom::NodeBundle;
 use crate::runtime::{primary_ui_system, UiManagedSystems, UiScratchSpace};
 use crate::widgets::{
-    button::ButtonSystemState, slider::SliderSystemState, textbox::TextBoxSystemState,
+    button::ButtonSystemState, draggable::DraggableSystemState, textbox::TextBoxSystemState,
 };
 
 #[derive(SystemLabel, Clone, Copy, Hash, PartialEq, Eq, Debug)]
@@ -32,7 +32,7 @@ impl Plugin for Ui4Plugin {
         app.init_resource::<UiScratchSpace>()
             .init_resource::<ButtonSystemState>()
             .init_resource::<TextBoxSystemState>()
-            .init_resource::<SliderSystemState>()
+            .init_resource::<DraggableSystemState>()
             .init_resource::<PreExtractedUiNodes>()
             .register_inspectable::<crate::dom::Node>()
             .register_inspectable::<crate::dom::ClippedNode>()
@@ -47,7 +47,7 @@ impl Plugin for Ui4Plugin {
             .add_system(crate::input::interaction_system.label(Ui4SystemLabels::Interaction))
             .add_system(crate::input::focus_system.after(Ui4SystemLabels::Interaction))
             .add_system(crate::animation::tween_system)
-            .add_system(SliderSystemState::system.exclusive_system().at_end())
+            .add_system(DraggableSystemState::system.exclusive_system().at_end())
             .add_system(primary_ui_system.exclusive_system().at_end())
             .add_system_to_stage(
                 CoreStage::PostUpdate,
@@ -103,7 +103,8 @@ impl<F: FnOnce(Ctx) -> Ctx + Clone + Send + Sync + 'static> Plugin for Ui4Root<F
     }
 }
 
-fn init_ui(world: &mut World, root: impl FnOnce(Ctx) -> Ctx) {
+/// Initialize a new ui tree
+pub fn init_ui(world: &mut World, root: impl FnOnce(Ctx) -> Ctx) {
     (Ctx {
         current_entity: world
             .spawn()

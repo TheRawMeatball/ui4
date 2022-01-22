@@ -14,6 +14,10 @@ fn main() {
     app.run()
 }
 
+fn popup(ctx: Ctx) -> Ctx {
+    ctx
+}
+
 fn root(ctx: Ctx) -> Ctx {
     #[derive(Component, Deref, DerefMut, Default, Lens)]
     struct TextboxText(String);
@@ -98,6 +102,15 @@ fn root(ctx: Ctx) -> Ctx {
                         .tween(0.2),
                 ),
             ))
+            .c(|ctx| {
+                ctx.with(Width(Units::Pixels(500.)))
+                    .with(Height(Units::Pixels(500.)))
+                    .with(UiColor(Color::DARK_GREEN))
+                    .with(HideOverflow)
+                    .child(draggable_window(|ctx: &mut McCtx| {
+                        ctx.c(text("hi"));
+                    }))
+            })
             .c(toggle(|| {
                 toggle(|| text_fade("Hey!").with(Height(Units::Pixels(30.))))
             }));
