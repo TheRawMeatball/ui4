@@ -76,3 +76,7 @@ pub enum FocusPolicy {
 pub struct Focused(pub(crate) ());
 #[derive(Component)]
 pub struct Focusable;
+
+/// This marker will make this entity behave as if it was a root node for layout purposes.
+#[derive(Component)]
+pub struct ManualRoot;

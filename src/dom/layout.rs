@@ -9,6 +9,7 @@ use bevy_inspector_egui::{Inspectable, RegisterInspectable};
 use concat_idents::concat_idents;
 use derive_more::{Deref, DerefMut};
 use morphorm::{Cache, Hierarchy, Node};
+use smallvec::SmallVec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Inspectable)]
 pub enum Units {
@@ -29,7 +30,7 @@ impl From<Units> for morphorm::Units {
     }
 }
 
-use super::{Control, Node as UiNode};
+use super::{Control, ManualRoot, Node as UiNode};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct NodeEntity(pub Entity);
@@ -321,6 +322,40 @@ pub(crate) struct TreeQueries<'w, 's> {
     parent_query: Query<'w, 's, &'static Parent>,
     children_query: Query<'w, 's, &'static Children>,
     control_node_query: Query<'w, 's, &'static Control>,
+    manual_root_query: Query<'w, 's, Entity, With<ManualRoot>>,
+}
+
+#[cfg(feature = "nightly")]
+type FilteredChildrenIterator<'a> = impl DoubleEndedIterator<Item = Entity> + 'a;
+
+impl TreeQueries<'_, '_> {
+    fn parent_unfiltered(&self, entity: Entity) -> Option<Entity> {
+        if self.manual_root_query.get(entity).is_err() {
+            self.parent_query.get(entity).ok().map(|parent| parent.0)
+        } else {
+            None
+        }
+    }
+
+    #[cfg(feature = "nightly")]
+    fn children(&self, entity: Entity) -> FilteredChildrenIterator<'_> {
+        self._children(entity)
+    }
+
+    #[cfg(not(feature = "nightly"))]
+    fn children(&self, entity: Entity) -> impl DoubleEndedIterator<Item = Entity> + '_ {
+        self._children(entity)
+    }
+
+    fn _children(&self, entity: Entity) -> impl DoubleEndedIterator<Item = Entity> + '_ {
+        self.children_query
+            .get(entity)
+            .map(|x| &**x)
+            .unwrap_or(&[])
+            .iter()
+            .copied()
+            .filter(|&e| self.manual_root_query.get(e).is_err())
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -333,22 +368,6 @@ impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
     fn new(list: &'borrow [NodeEntity], queries: &'borrow TreeQueries<'world, 'state>) -> Self {
         Self { list, queries }
     }
-
-    fn parent_unfiltered(&self, entity: Entity) -> Option<Entity> {
-        self.queries
-            .parent_query
-            .get(entity)
-            .ok()
-            .map(|parent| parent.0)
-    }
-
-    fn children(&self, entity: Entity) -> &[Entity] {
-        self.queries
-            .children_query
-            .get(entity)
-            .map(|x| &**x)
-            .unwrap_or(&[])
-    }
 }
 
 fn push_all_children(
@@ -359,13 +378,7 @@ fn push_all_children(
     cf: &mut bool,
     cd_query: &Query<CdQuery>,
 ) {
-    let children = queries
-        .children_query
-        .get(root)
-        .map(|x| &**x)
-        .unwrap_or(&[]);
-
-    for &child in children {
+    for child in queries.children(root) {
         if queries.control_node_query.get(child).is_err() {
             *cf = *cf || check_cd(child, cd_query);
             vec.push(NodeEntity(child));
@@ -389,10 +402,10 @@ impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'stat
     }
 
     fn parent(&self, node: Self::Item) -> Option<Self::Item> {
-        let mut next_candidate = self.parent_unfiltered(node.entity());
+        let mut next_candidate = self.queries.parent_unfiltered(node.entity());
         while let Some(candidate) = next_candidate {
             if self.queries.control_node_query.get(candidate).is_ok() {
-                next_candidate = self.parent_unfiltered(candidate);
+                next_candidate = self.queries.parent_unfiltered(candidate);
             } else {
                 return Some(NodeEntity(candidate));
             }
@@ -402,21 +415,19 @@ impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'stat
 
     fn child_iter(&'borrow self, node: Self::Item) -> Self::ChildIter {
         ChildIterator {
-            inners: vec![self
-                .queries
-                .children_query
-                .get(node.entity())
-                .map(|x| &**x)
-                .unwrap_or(&[])
-                .iter()],
-            control_node_query: &self.queries.control_node_query,
-            children_query: &self.queries.children_query,
+            #[cfg(not(feature = "nightly"))]
+            inners: smallvec::smallvec![
+                Box::new(self.queries.children(node.entity())) as Box<dyn Iterator<Item = Entity>>
+            ],
+            #[cfg(feature = "nightly")]
+            inners: smallvec::smallvec![self.queries.children(node.entity())],
+            queries: &self.queries,
         }
     }
 
     fn is_first_child(&self, node: Self::Item) -> bool {
         let mut node = node.entity();
-        let mut parent = if let Some(p) = self.parent_unfiltered(node) {
+        let mut parent = if let Some(p) = self.queries.parent_unfiltered(node) {
             p
         } else {
             return false;
@@ -424,9 +435,8 @@ impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'stat
         loop {
             if self.queries.control_node_query.get(parent).is_ok() {
                 // Root node never a control node, so unwrap never fails
-                let grandparent = self.parent_unfiltered(parent).unwrap();
-                let gp_children = self.children(grandparent);
-                if gp_children.first() == Some(&parent) {
+                let grandparent = self.queries.parent_unfiltered(parent).unwrap();
+                if self.queries.children(grandparent).next() == Some(parent) {
                     // check if grandparent is also a control node and if so, whether it's the first child
                     node = parent;
                     parent = grandparent;
@@ -435,15 +445,14 @@ impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'stat
                 }
             } else {
                 // parent isn't a control node, check if we're the first node.
-                let siblings = self.children(parent);
-                return siblings.first() == Some(&node);
+                return self.queries.children(parent).next() == Some(node);
             }
         }
     }
 
     fn is_last_child(&self, node: Self::Item) -> bool {
         let mut node = node.entity();
-        let mut parent = if let Some(p) = self.parent_unfiltered(node) {
+        let mut parent = if let Some(p) = self.queries.parent_unfiltered(node) {
             p
         } else {
             return false;
@@ -451,9 +460,8 @@ impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'stat
         loop {
             if self.queries.control_node_query.get(parent).is_ok() {
                 // Root node never a control node, so unwrap never fails
-                let grandparent = self.parent_unfiltered(parent).unwrap();
-                let gp_children = self.children(grandparent);
-                if gp_children.last() == Some(&parent) {
+                let grandparent = self.queries.parent_unfiltered(parent).unwrap();
+                if self.queries.children(grandparent).next_back() == Some(parent) {
                     // check if grandparent is also a control node and if so, whether it's the last child
                     node = parent;
                     parent = grandparent;
@@ -462,18 +470,18 @@ impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'stat
                 }
             } else {
                 // parent isn't a control node, check if we're the last node.
-                let siblings = self.children(parent);
-                return siblings.last() == Some(&node);
+                return self.queries.children(parent).next_back() == Some(node);
             }
         }
     }
 }
 
 pub struct ChildIterator<'borrow, 'world, 'state> {
-    // TODO: make this a smallvec
-    inners: Vec<std::slice::Iter<'borrow, Entity>>,
-    children_query: &'borrow Query<'world, 'state, &'static Children>,
-    control_node_query: &'borrow Query<'world, 'state, &'static Control>,
+    #[cfg(not(feature = "nightly"))]
+    inners: SmallVec<[Box<dyn Iterator<Item = Entity> + 'borrow>; 2]>,
+    #[cfg(feature = "nightly")]
+    inners: SmallVec<[FilteredChildrenIterator<'borrow>; 2]>,
+    queries: &'borrow TreeQueries<'world, 'state>,
 }
 
 impl<'borrow, 'world, 'state> Iterator for ChildIterator<'borrow, 'world, 'state> {
@@ -483,7 +491,7 @@ impl<'borrow, 'world, 'state> Iterator for ChildIterator<'borrow, 'world, 'state
             let candidate = loop {
                 if let Some(last) = self.inners.last_mut() {
                     if let Some(candidate) = last.next() {
-                        break *candidate;
+                        break candidate;
                     } else {
                         self.inners.pop();
                     }
@@ -492,14 +500,11 @@ impl<'borrow, 'world, 'state> Iterator for ChildIterator<'borrow, 'world, 'state
                 }
             };
 
-            if self.control_node_query.get(candidate).is_ok() {
-                self.inners.push(
-                    self.children_query
-                        .get(candidate)
-                        .map(|x| &**x)
-                        .unwrap_or(&[])
-                        .iter(),
-                );
+            if self.queries.control_node_query.get(candidate).is_ok() {
+                #[cfg(not(feature = "nightly"))]
+                self.inners.push(Box::new(self.queries.children(candidate)));
+                #[cfg(feature = "nightly")]
+                self.inners.push(self.queries.children(candidate));
             } else {
                 return Some(NodeEntity(candidate));
             }
@@ -778,7 +783,7 @@ pub(crate) fn root_node_system(
             &mut layout_components::Height,
             &mut UiNode,
         ),
-        Without<Parent>,
+        Or<(Without<Parent>, With<ManualRoot>)>,
     >,
 ) {
     let window = windows.get_primary().unwrap();
@@ -805,7 +810,10 @@ pub(crate) fn layout_node_system(
     root_node_query: Query<Entity, (With<UiNode>, Without<Parent>)>,
     removed: RemovedComponents<UiNode>,
 ) {
-    for root_node in root_node_query.iter() {
+    for root_node in root_node_query
+        .iter()
+        .chain(queries.manual_root_query.iter())
+    {
         list.clear();
         layout_cache.clear();
         let mut any_changes = removed.iter().next().is_some() || check_cd(root_node, &cd_query);
