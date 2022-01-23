@@ -377,7 +377,8 @@ pub fn draggable_window<M>(inner: impl Childable<M>) -> impl FnOnce(Ctx) -> Ctx 
             .child(|ctx| {
                 let drag_box_entity = ctx.current_entity();
                 ctx.with(UiColor(Color::BLACK))
-                    .with(Width(Units::Pixels(200.)))
+                    .with(MinWidth(Units::Pixels(200.)))
+                    .with(Width(Units::Auto))
                     .with(Height(Units::Pixels(20.)))
                     .with(OnClick::new(move |w| {
                         if let Some((cursor_pos, height)) = (|| {
@@ -417,8 +418,10 @@ pub fn draggable_window<M>(inner: impl Childable<M>) -> impl FnOnce(Ctx) -> Ctx 
                     .with(FuncScratch::default())
             })
             .child(|ctx| {
-                ctx.with(Width(Units::Pixels(200.)))
-                    .with(Height(Units::Pixels(180.)))
+                ctx.with(MinWidth(Units::Pixels(200.)))
+                    .with(Width(Units::Auto))
+                    .with(MinHeight(Units::Pixels(180.)))
+                    .with(Height(Units::Auto))
                     .with(UiColor(Color::DARK_GRAY))
                     .children(inner)
             })

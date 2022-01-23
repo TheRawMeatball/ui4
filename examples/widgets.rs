@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use derive_more::{Deref, DerefMut};
 use std::hash::Hash;
-use ui4::prelude::*;
+use ui4::{dom::ManualRoot, prelude::*};
 
 fn main() {
     let mut app = App::new();
@@ -12,10 +12,6 @@ fn main() {
     app.world.spawn().insert_bundle(UiCameraBundle::default());
 
     app.run()
-}
-
-fn popup(ctx: Ctx) -> Ctx {
-    ctx
 }
 
 fn root(ctx: Ctx) -> Ctx {
@@ -45,7 +41,7 @@ fn root(ctx: Ctx) -> Ctx {
         .with(CheckboxData::default())
         .with(RadioButtonSelect::A)
         .with(Slider(0.42))
-        .with(UiColor(Color::BLACK))
+        .with(UiColor(Color::DARK_GREEN))
         .children(|ctx: &mut McCtx| {
             ctx.c(labelled_widget(
                 "Button",
@@ -103,12 +99,11 @@ fn root(ctx: Ctx) -> Ctx {
                 ),
             ))
             .c(|ctx| {
-                ctx.with(Width(Units::Pixels(500.)))
-                    .with(Height(Units::Pixels(500.)))
-                    .with(UiColor(Color::DARK_GREEN))
-                    .with(HideOverflow)
+                ctx.with(ManualRoot)
                     .child(draggable_window(|ctx: &mut McCtx| {
-                        ctx.c(text("hi"));
+                        ctx.c(text("This is a draggable window!"));
+
+                        ctx.c(button("You can click this button!"));
                     }))
             })
             .c(toggle(|| {
