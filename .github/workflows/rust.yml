@@ -22,14 +22,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: test
-        run: cargo test --tests --all-features
+        run: cargo test --tests
 
   doctest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: test
-        run: cargo test --doc --all-features
+        run: cargo test --doc
 
   fmt:
     runs-on: ubuntu-latest
@@ -45,11 +45,11 @@ jobs:
       - name: Cargo clippy installation
         run: rustup component add clippy
       - name: Cargo clippy check
-        run: cargo clippy --all-features --all --tests -- -D warnings
+        run: cargo clippy --all --tests -- -D warnings
 
   rustdoc:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: rustdoc
-        run: cargo rustdoc --all-features
+        run: cargo rustdoc
