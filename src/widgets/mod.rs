@@ -227,7 +227,6 @@ pub fn slider(percent: impl WorldLens<Out = f32>) -> impl FnOnce(Ctx) -> Ctx {
                                         .get_primary()?
                                         .cursor_position()
                                 })() {
-                                    dbg!("hai!");
                                     let mut cursor = w.entity_mut(cursor_entity);
                                     let cursor_node = cursor.get::<Node>().unwrap();
                                     let pos = cursor_node.pos + cursor_node.size / 2.;
