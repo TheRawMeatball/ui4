@@ -3,6 +3,9 @@ name = "ui4"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+description = "A reactive vdom-free ui library for the bevy game engine"
+repository = "https://github.com/TheRawMeatball/ui4"
+keywords = ["ui", "bevy"]
 
 [features]
 default = []
@@ -33,8 +36,3 @@ parking_lot = "0.11.2"
 bevy = "0.6"
 
 bevy-inspector-egui = "0.7"
-
-# Local dev patches
-
-# [patch."https://github.com/bevyengine/bevy"]
-# bevy = { path = "../bevy" }
