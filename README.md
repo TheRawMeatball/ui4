@@ -14,7 +14,7 @@ More specifically, this lib offers a widget abstraction, reactivity, animations,
 
 ## Usage
 
-```rs
+```rust
 use bevy::{prelude::*, PipelinedDefaultPlugins};
 use ui4::prelude::*;
 
