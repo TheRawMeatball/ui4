@@ -55,7 +55,7 @@ fn root(ctx: Ctx) -> Ctx {
 }
 ```
 
-For more examples on how to use this library, look at the [examples](examples) folder, and also consider looking at the tutorial module on [docs.rs].
+For more examples on how to use this library, look at the [examples](examples) folder, and also consider looking at the [tutorial module on docs.rs](https://docs.rs/ui4/latest/ui4/tutorial/index.html).
 
 Important note: This crate works around certain limitations of stable rust using boxing, so switching to nightly and enabling the `nightly` feature might improve performance, and is recommended.
 
