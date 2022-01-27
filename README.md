@@ -1,5 +1,7 @@
 # ui4
 
+[![workflow](https://github.com/TheRawMeatball/ui4/actions/workflows/rust.yml/badge.svg)](https://github.com/TheRawMeatball/ui4/actions/workflows/rust.yml)
+
 ui4 is my fourth major attempt at making a UI dataflow library for the [Bevy](https://github.com/bevyengine/bevy) game engine. More specifically, it's a vdom-less UI library which uses fine-grained reactivity to keep your UI in sync with the rest of your game and itself.
 
 ## Warning

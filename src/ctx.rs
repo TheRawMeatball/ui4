@@ -136,6 +136,7 @@ impl Ctx<'_> {
         ComponentExistsObserver(self.current_entity, PhantomData)
     }
 
+    #[inline]
     pub fn current_entity(&self) -> Entity {
         self.current_entity
     }

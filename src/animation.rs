@@ -102,7 +102,7 @@ where
                     if let Some(mut current) = world.get_mut::<ActiveTween>(ct) {
                         let intp = current.time_left / current.duration;
                         current.start =
-                            current.end + (current.start - current.end) * intp.clamp(0., 1.);
+                            (current.start - current.end).mul_add(intp.clamp(0., 1.), current.end);
                         current.end = val;
                         current.time_left = current.duration;
                         return;
@@ -146,7 +146,7 @@ pub(crate) fn tween_system(
     for (e, mut tween) in tweens.iter_mut() {
         tween.time_left -= time.delta_seconds();
         let intp = tween.time_left / tween.duration;
-        let val = tween.end + (tween.start - tween.end) * intp.clamp(0., 1.);
+        let val = (tween.start - tween.end).mul_add(intp.clamp(0., 1.), tween.end);
         tween
             .arc
             .store(f32::to_bits(val), std::sync::atomic::Ordering::SeqCst);
@@ -196,7 +196,9 @@ pub struct TransitionBundle {
 }
 
 impl TransitionBundle {
-    pub fn bidirectional(duration: f32) -> Self {
+    #[inline]
+    #[must_use]
+    pub const fn bidirectional(duration: f32) -> Self {
         Self {
             progress: TransitionProgress {
                 progress: 0.,
@@ -209,7 +211,9 @@ impl TransitionBundle {
 }
 
 impl TransitionProgress {
-    pub fn progress(&self) -> f32 {
+    #[inline]
+    #[must_use]
+    pub const fn progress(&self) -> f32 {
         self.progress
     }
 }
@@ -291,7 +295,7 @@ fn recursive_cn_climb(
     count.0 -= 1;
     if count.0 == 0 {
         if let Some(e) = count.1 {
-            recursive_cn_climb(e, commands, btc_q)
+            recursive_cn_climb(e, commands, btc_q);
         } else {
             commands.entity(cn).despawn_recursive();
         }

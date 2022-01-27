@@ -48,6 +48,9 @@ pub trait Tracked: 'static {
     fn get(&self, index: usize) -> &Self::Item;
     fn get_mut(&mut self, index: usize) -> &mut Self::Item;
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() > 0
+    }
 }
 
 impl<L> TrackedObserverExt for L
@@ -133,7 +136,7 @@ impl<Parent: WorldLens, T: 'static> UninitObserver for TrackedItemObserver<Paren
 where
     Parent::Out: Tracked<Item = T>,
 {
-    type Observer = TrackedItemObserver<Parent>;
+    type Observer = Self;
 
     fn register_self<F: FnOnce(Self::Observer, &mut World) -> UpdateFunc>(
         self,

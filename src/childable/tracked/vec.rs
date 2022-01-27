@@ -31,7 +31,7 @@ impl<T> TrackedVec<T> {
     }
 
     fn send_msg(&mut self, msg: Diff) {
-        self.update_out.retain(|tx| tx.send(msg.clone()).is_ok());
+        self.update_out.retain(|tx| tx.send(msg).is_ok());
     }
 
     pub fn push(&mut self, val: T) {

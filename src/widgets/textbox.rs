@@ -33,7 +33,7 @@ pub(crate) struct TextBoxSystemState {
 
 impl FromWorld for TextBoxSystemState {
     fn from_world(world: &mut World) -> Self {
-        TextBoxSystemState {
+        Self {
             state: SystemState::new(world),
             tmp_chars: Vec::new(),
             timer: Timer::new(Duration::from_millis(100), true),
