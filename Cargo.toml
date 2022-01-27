@@ -13,7 +13,7 @@ nightly = []
 
 
 [dependencies]
-ui4-macros = { path = "./ui4-macros" }
+ui4-macros = { path = "./ui4-macros", version = "0.1.0" }
 
 # used for parallel collection of updatefunc
 dashmap = "5"
