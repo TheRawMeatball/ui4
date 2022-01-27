@@ -11,7 +11,6 @@ keywords = ["ui", "bevy"]
 default = []
 nightly = []
 
-
 [dependencies]
 ui4-macros = { path = "./ui4-macros", version = "0.1.0" }
 
@@ -33,6 +32,6 @@ smallvec = "1"
 # mapping mutex
 parking_lot = "0.11.2"
 
-bevy = "0.6"
+bevy = { version = "0.6", default-features = false, features = ["render"] }
 
 bevy-inspector-egui = "0.7"
