@@ -14,7 +14,7 @@
 //! This is a simple widget which takes no inputs and does nothing. Luckily, this sort of
 //! simplicity is just what we need when getting started. We can add this widget as a root widget
 //! by using a [`Ui4Root`](crate::prelude::Ui4Root) plugin:
-//! ```
+//! ```no_run
 //! # use bevy::prelude::*;
 //! # use ui4::prelude::*;
 //! # fn root(ctx: Ctx) -> Ctx {ctx}

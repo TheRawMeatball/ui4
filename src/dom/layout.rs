@@ -22,10 +22,10 @@ pub enum Units {
 impl From<Units> for morphorm::Units {
     fn from(this: Units) -> Self {
         match this {
-            Units::Pixels(v) => morphorm::Units::Pixels(v),
-            Units::Percentage(v) => morphorm::Units::Percentage(v),
-            Units::Stretch(v) => morphorm::Units::Stretch(v),
-            Units::Auto => morphorm::Units::Auto,
+            Units::Pixels(v) => Self::Pixels(v),
+            Units::Percentage(v) => Self::Percentage(v),
+            Units::Stretch(v) => Self::Stretch(v),
+            Units::Auto => Self::Auto,
         }
     }
 }
@@ -365,6 +365,7 @@ pub struct Tree<'borrow, 'world, 'state> {
 }
 
 impl<'borrow, 'world, 'state> Tree<'borrow, 'world, 'state> {
+    #[inline]
     fn new(list: &'borrow [NodeEntity], queries: &'borrow TreeQueries<'world, 'state>) -> Self {
         Self { list, queries }
     }
@@ -421,7 +422,7 @@ impl<'borrow, 'world, 'state> Hierarchy<'borrow> for Tree<'borrow, 'world, 'stat
             ],
             #[cfg(feature = "nightly")]
             inners: smallvec::smallvec![self.queries.children(node.entity())],
-            queries: &self.queries,
+            queries: self.queries,
         }
     }
 
@@ -492,9 +493,8 @@ impl<'borrow, 'world, 'state> Iterator for ChildIterator<'borrow, 'world, 'state
                 if let Some(last) = self.inners.last_mut() {
                     if let Some(candidate) = last.next() {
                         break candidate;
-                    } else {
-                        self.inners.pop();
                     }
+                    self.inners.pop();
                 } else {
                     return None;
                 }
