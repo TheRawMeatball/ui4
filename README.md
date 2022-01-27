@@ -15,12 +15,12 @@ More specifically, this lib offers a widget abstraction, reactivity, animations,
 ## Usage
 
 ```rust
-use bevy::{prelude::*, PipelinedDefaultPlugins};
+use bevy::prelude::*;
 use ui4::prelude::*;
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(PipelinedDefaultPlugins)
+    app.add_plugins(DefaultPlugins)
         .add_plugin(Ui4Plugin)
         .add_plugin(Ui4Root(root));
 
