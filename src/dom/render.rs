@@ -173,7 +173,7 @@ fn push_shapes(
                 },
                 image: image
                     .map(|i| i.0.clone_weak())
-                    .unwrap_or(bevy::render::texture::DEFAULT_IMAGE_HANDLE.typed()),
+                    .unwrap_or_else(|| bevy::render::texture::DEFAULT_IMAGE_HANDLE.typed()),
                 atlas_size: None,
                 clip: Some(Rect {
                     min: y_inv(Vec2::new(clip.min.x, clip.max.y), window_height),
