@@ -1,6 +1,6 @@
 //! The ui4 built in widget library
 
-pub(crate) mod button;
+pub mod button;
 pub(crate) mod draggable;
 pub(crate) mod textbox;
 
@@ -17,7 +17,7 @@ use bevy::window::Windows;
 use crate::dom::{FocusPolicy, Focusable, Node, TextBoxCursor, UiText};
 use crate::{dom::Interaction, prelude::*};
 
-use self::button::FuncScratch;
+use self::button::{ClickColor, FuncScratch, HoverColor, NormalColor};
 use self::draggable::EngagedDraggable;
 use self::textbox::{TextBox, TextBoxFunc};
 
@@ -42,20 +42,42 @@ pub fn text_fade<O: IntoObserver<String, M>, M>(_text: O) -> impl FnOnce(Ctx) ->
 pub fn button<O: IntoObserver<String, M>, M: 'static>(t: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         let component = ctx.component();
+        let hover = ctx
+            .opt_component()
+            .map(|x: Option<&HoverColor>| x.map(|x| x.0).unwrap_or(Color::GRAY));
+        let normal = ctx
+            .opt_component()
+            .map(|x: Option<&NormalColor>| x.map(|x| x.0).unwrap_or(Color::DARK_GRAY));
+        let click = ctx
+            .opt_component()
+            .map(|x: Option<&ClickColor>| x.map(|x| x.0).unwrap_or(Color::SILVER));
+
+        let text_size = ctx.opt_component().map(|x: Option<&TextSize>| x.copied());
+
+        let color = hover.and(normal).and(click).map(|((h, n), c)| (h, n, c));
+
         ctx.with(Interaction::None)
             .with(Height(Units::Pixels(30.)))
             .with(
-                component.map(|interaction: &Interaction| match interaction {
-                    Interaction::Clicked => UiColor(Color::SILVER),
-                    Interaction::Hovered => UiColor(Color::GRAY),
-                    Interaction::None => UiColor(Color::DARK_GRAY),
-                }),
+                component
+                    .and(color)
+                    .map(
+                        |(interaction, (h, n, c)): (&Interaction, _)| match interaction {
+                            Interaction::Clicked => UiColor(c),
+                            Interaction::Hovered => UiColor(h),
+                            Interaction::None => UiColor(n),
+                        },
+                    ),
             )
             .with(FuncScratch::default())
-            .child(text(t).with(TextAlign(TextAlignment {
-                vertical: bevy::text::VerticalAlign::Center,
-                horizontal: bevy::text::HorizontalAlign::Center,
-            })))
+            .child(
+                text(t)
+                    .with(TextAlign(TextAlignment {
+                        vertical: bevy::text::VerticalAlign::Center,
+                        horizontal: bevy::text::HorizontalAlign::Center,
+                    }))
+                    .with(text_size),
+            )
     }
 }
 

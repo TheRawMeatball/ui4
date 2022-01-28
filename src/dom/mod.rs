@@ -38,7 +38,7 @@ pub(crate) struct NodeBundle {
 #[derive(Component, Inspectable)]
 pub(crate) struct UiText(pub String);
 
-#[derive(Component, Inspectable)]
+#[derive(Component, Inspectable, Copy, Clone)]
 pub struct TextSize(pub f32);
 
 #[derive(Component, Inspectable)]

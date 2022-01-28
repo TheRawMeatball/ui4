@@ -117,3 +117,10 @@ impl ButtonSystemState {
         }
     }
 }
+
+#[derive(Component)]
+pub struct HoverColor(pub Color);
+#[derive(Component)]
+pub struct NormalColor(pub Color);
+#[derive(Component)]
+pub struct ClickColor(pub Color);
