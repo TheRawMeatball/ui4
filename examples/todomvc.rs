@@ -122,6 +122,7 @@ fn todo(item: impl WorldLens<Out = Todo>, index: IndexObserver) -> impl FnOnce(C
                                         )
                                         .child(
                                             button("Remove")
+                                                .with(button::HoverColor(Color::RED))
                                                 .with(Width(Units::Stretch(1.)))
                                                 .with(Height(Units::Pixels(30.)))
                                                 .with(index.dedup().map(|&i: &usize| {

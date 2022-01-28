@@ -44,13 +44,13 @@ pub fn button<O: IntoObserver<String, M>, M: 'static>(t: O) -> impl FnOnce(Ctx) 
         let component = ctx.component();
         let hover = ctx
             .opt_component()
-            .map(|x: Option<&HoverColor>| x.map(|x| x.0).unwrap_or(Color::GRAY));
+            .map(|x: Option<&HoverColor>| x.map_or(Color::GRAY, |x| x.0));
         let normal = ctx
             .opt_component()
-            .map(|x: Option<&NormalColor>| x.map(|x| x.0).unwrap_or(Color::DARK_GRAY));
+            .map(|x: Option<&NormalColor>| x.map_or(Color::DARK_GRAY, |x| x.0));
         let click = ctx
             .opt_component()
-            .map(|x: Option<&ClickColor>| x.map(|x| x.0).unwrap_or(Color::SILVER));
+            .map(|x: Option<&ClickColor>| x.map_or(Color::SILVER, |x| x.0));
 
         let text_size = ctx.opt_component().map(|x: Option<&TextSize>| x.copied());
 
