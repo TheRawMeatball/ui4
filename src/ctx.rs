@@ -45,6 +45,7 @@ impl McCtx<'_> {
     }
 }
 
+#[allow(clippy::return_self_not_must_use)] // Excuse builder pattern
 impl Ctx<'_> {
     /// Statically inserts a component, or sets up reactive-ness if given a reactive template.
     ///

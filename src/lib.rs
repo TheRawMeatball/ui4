@@ -2,6 +2,7 @@
 //! More specifically, it's a vdom-less UI library which uses fine-grained reactivity to keep your UI in sync with the rest of your game and itself.
 
 #![cfg_attr(feature = "nightly", feature(type_alias_impl_trait))]
+// To simplify bevy usage
 #![allow(clippy::type_complexity)]
 #![allow(clippy::too_many_arguments)]
 

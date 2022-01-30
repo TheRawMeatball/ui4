@@ -33,7 +33,7 @@ pub fn text<O: IntoObserver<String, M>, M>(text: O) -> impl FnOnce(Ctx) -> Ctx {
 pub fn text_fade<O: IntoObserver<String, M>, M>(_text: O) -> impl FnOnce(Ctx) -> Ctx {
     move |ctx: Ctx| {
         let transition = ctx.component().map(TransitionProgress::progress);
-        text(_text)(ctx)
+        ctx.inherit(text(_text))
             .with_bundle(TransitionBundle::bidirectional(10.))
             .with(transition.map(|opacity| UiColor(Color::rgba(1., 1., 1., opacity))))
     }
@@ -114,19 +114,17 @@ pub fn textbox<L: WorldLens<Out = String>>(text: L) -> impl FnOnce(Ctx) -> Ctx w
 }
 
 pub fn checkbox(checked: impl WorldLens<Out = bool>) -> impl FnOnce(Ctx) -> Ctx {
-    move |ctx| {
-        button(
-            checked
-                .copied()
-                .dedup()
-                .map(|b: &bool| if *b { "X" } else { " " })
-                .map(|s: &'static str| s.to_string()),
-        )(ctx)
-        .with(OnClick::new(move |w| {
-            let val = checked.get_mut(w);
-            *val = !*val;
-        }))
-    }
+    button(
+        checked
+            .copied()
+            .dedup()
+            .map(|b: &bool| if *b { "X" } else { " " })
+            .map(|s: &'static str| s.to_string()),
+    )
+    .with(OnClick::new(move |w| {
+        let val = checked.get_mut(w);
+        *val = !*val;
+    }))
 }
 
 pub fn radio_button<T>(this: T, item: impl WorldLens<Out = T>) -> impl FnOnce(Ctx) -> Ctx
@@ -134,18 +132,16 @@ where
     T: PartialEq + Clone + Send + Sync + 'static,
 {
     let this1 = this.clone();
-    move |ctx| {
-        button(
-            item.cloned()
-                .dedup()
-                .map(move |t: &T| if t == &this1 { "x" } else { " " })
-                .map(|s: &'static str| s.to_string()),
-        )(ctx)
-        .with(OnClick::new(move |w| {
-            let val = item.get_mut(w);
-            *val = this.clone();
-        }))
-    }
+    button(
+        item.cloned()
+            .dedup()
+            .map(move |t: &T| if t == &this1 { "x" } else { " " })
+            .map(|s: &'static str| s.to_string()),
+    )
+    .with(OnClick::new(move |w| {
+        let val = item.get_mut(w);
+        *val = this.clone();
+    }))
 }
 
 pub fn dropdown<T, const N: usize>(
@@ -158,10 +154,10 @@ where
     let options_map: HashMap<_, _> = options.iter().cloned().collect();
     let options = Arc::new(options);
 
-    move |ctx| {
+    move |ctx: Ctx| {
         let is_open = ctx.has_component::<Focused>();
 
-        button(item.map(move |s: &T| options_map[s].to_string()))(ctx)
+        ctx.inherit(button(item.map(move |s: &T| options_map[s].to_string())))
             .with(Focusable)
             .children(is_open.map_child(move |b: bool| {
                 let options = Arc::clone(&options);
@@ -177,12 +173,10 @@ where
                                     for (item, display) in &*options {
                                         let display: &'static str = display;
                                         let item = item.clone();
-                                        ctx.c(|ctx| {
-                                            button(display)(ctx).with(OnClick::new(move |w| {
-                                                let m_item = wl.get_mut(w);
-                                                *m_item = item.clone();
-                                            }))
-                                        });
+                                        ctx.c(button(display).with(OnClick::new(move |w| {
+                                            let m_item = wl.get_mut(w);
+                                            *m_item = item.clone();
+                                        })));
                                     }
                                 })
                         });
