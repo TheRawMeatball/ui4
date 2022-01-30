@@ -11,11 +11,16 @@ use derive_more::{Deref, DerefMut};
 use morphorm::{Cache, Hierarchy, Node};
 use smallvec::SmallVec;
 
+/// Units which describe spacing and size
 #[derive(Debug, Clone, Copy, PartialEq, Inspectable)]
 pub enum Units {
+    /// A number of pixels
     Pixels(f32),
+    /// A percentage of the parent dimension
     Percentage(f32),
+    /// A factor of the remaining free space
     Stretch(f32),
+    /// Automatically determine the value
     Auto,
 }
 
@@ -43,9 +48,11 @@ impl NodeEntity {
 
 macro_rules! derive_all {
     ($(
+        $(#[doc = $doc_value:literal])?
         $name:ident($unit_type:ty);
     )*) => {
         $(
+            $(#[doc = $doc_value])?
             #[derive(Debug, Clone, Copy, PartialEq, Component, Deref, DerefMut, Inspectable)]
             pub struct $name(pub $unit_type);
         )*
