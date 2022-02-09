@@ -34,4 +34,4 @@ parking_lot = "0.11.2"
 
 bevy = { version = "0.6", default-features = false, features = ["render"] }
 
-bevy-inspector-egui = { version = "0.8", default-features = false }
+bevy-inspector-egui = { git = "https://github.com/jakobhellermann/bevy-inspector-egui", rev = "f02c9d8fb43f1debc45f0e90f481ab828314ceec" default-features = false }
